@@ -9,7 +9,7 @@ __pycache__/
 *.jpg
 *.png
 *.pdf
-
+IQHE_entropy_results/
 
 # C extensions
 *.so

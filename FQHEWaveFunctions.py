@@ -1,15 +1,27 @@
 from numba import njit, vectorize, prange
 import numpy as np
 
-
-@njit
+"""
+@njit(parallel=True)
 def ThetaFunction(z: np.complex128, t: np.complex128, a: np.float64,
                   b: np.float64, n_max: np.uint32 = 1000
                   ) -> np.complex128:
-    index = np.arange(-n_max, n_max, 1, dtype=np.int64)
+    index = np.arange(-n_max, n_max, 1)
     terms = np.exp(1j*np.pi*t*((index + a)**2) +
                    1j*2*np.pi*(index + a)*(z + b))
     return np.sum(terms)
+"""
+
+
+@njit(parallel=True)
+def ThetaFunction(z: np.complex128, t: np.complex128, a: np.float64,
+                  b: np.float64, n_max: np.uint32 = 1000
+                  ) -> np.complex128:
+    theta = 0
+    for i in prange(2*n_max):
+        theta += np.exp(1j*np.pi*t*((i-n_max + a)**2) +
+                        1j*2*np.pi*(i-n_max + a)*(z + b))
+    return theta
 
 
 @vectorize
