@@ -1,7 +1,7 @@
 from numba import njit, jit, prange
 from numba.typed import List
 import numpy as np
-from FQHEWaveFunctions import ThetaFunction, ThetaFunctionVectorized, LaughlinTorus, LaughlinTorusReduced
+from FQHEWaveFunctions import ThetaFunction, LaughlinTorus, LaughlinTorusPhase
 
 
 @njit
@@ -164,42 +164,6 @@ def RatioStepOneSWAP(Ns: np.uint16, t: np.complex128,
 
 
 @njit
-def ValueModOld(Ns: np.uint16, t: np.complex128, R: np.array,
-                which_A: np.array, kCM: np.uint8 = 0,
-                phi_1: np.float64 = 0, phi_t: np.float64 = 0,
-                ) -> np.float64:
-    """
-    """
-
-    m = Ns/R.shape[0]
-    Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
-    aCM = phi_1/(2*np.pi*m) + kCM/m + (R.shape[0]-1)/2
-    bCM = -phi_t/(2*np.pi) + m*(R.shape[0]-1)/2
-    alpha_1 = which_A[:, 0]
-    beta_1 = (~which_A[:, 0])
-    alpha_2 = which_A[:, 1]
-    beta_2 = (~which_A[:, 1])
-
-    v = (ThetaFunction(m*(np.sum(R[alpha_1, 0])+np.sum(R[beta_2, 1]))/Lx, m*t, aCM, bCM) *
-         ThetaFunction(m*(np.sum(R[alpha_2, 1])+np.sum(R[beta_1, 0]))/Lx, m*t, aCM, bCM)) / \
-        (ThetaFunction(m*np.sum(R[:, 0])/Lx, m*t, aCM, bCM) *
-         ThetaFunction(m*np.sum(R[:, 1])/Lx, m*t, aCM, bCM))
-
-    for i in np.flatnonzero(alpha_1):
-        for j in np.flatnonzero(beta_2):
-            v *= ThetaFunction((R[i, 0]-R[j, 1])/Lx, t, 1/2, 1/2)**m
-        for j in np.flatnonzero(beta_1):
-            v /= ThetaFunction((R[i, 0]-R[j, 0])/Lx, t, 1/2, 1/2)**m
-    for i in np.flatnonzero(alpha_2):
-        for j in np.flatnonzero(beta_1):
-            v *= ThetaFunction((R[i, 1]-R[j, 0])/Lx, t, 1/2, 1/2)**m
-        for j in np.flatnonzero(beta_2):
-            v /= ThetaFunction((R[i, 1]-R[j, 1])/Lx, t, 1/2, 1/2)**m
-
-    return np.abs(v)
-
-
-@njit
 def ValueMod(Ns: np.uint16, t: np.complex128, R: np.array,
              swap_R: np.array, kCM: np.uint8 = 0,
              phi_1: np.float64 = 0, phi_t: np.float64 = 0,
@@ -227,6 +191,86 @@ def ValueSign(Ns: np.uint16, t: np.complex128, R: np.array,
          np.conj(LaughlinTorus(R.shape[0], Ns, t, swap_R[:, 1], kCM, phi_1, phi_t)) *
          LaughlinTorus(R.shape[0], Ns, t, R[:, 0], kCM, phi_1, phi_t) *
          LaughlinTorus(R.shape[0], Ns, t, R[:, 1], kCM, phi_1, phi_t))
+
+    return v
+
+
+@njit
+def ValueModOld(Ns: np.uint16, t: np.complex128, R: np.array,
+                swap_order: np.array, kCM: np.uint8 = 0,
+                phi_1: np.float64 = 0, phi_t: np.float64 = 0,
+                ) -> np.float64:
+    """
+    """
+
+    m = Ns/R.shape[0]
+    Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
+    aCM = phi_1/(2*np.pi*m) + kCM/m + (R.shape[0]-1)/2
+    bCM = -phi_t/(2*np.pi) + m*(R.shape[0]-1)/2
+    alpha_1 = (swap_order[:, 0] < 0)
+    beta_1 = (swap_order[:, 0] > 0)
+    alpha_2 = (swap_order[:, 1] > 0)
+    beta_2 = (swap_order[:, 1] < 0)
+
+    v = (ThetaFunction(m*(np.sum(R[alpha_1, 0])+np.sum(R[beta_2, 1]))/Lx, m*t, aCM, bCM) *
+         ThetaFunction(m*(np.sum(R[alpha_2, 1])+np.sum(R[beta_1, 0]))/Lx, m*t, aCM, bCM)) / \
+        (ThetaFunction(m*np.sum(R[:, 0])/Lx, m*t, aCM, bCM) *
+         ThetaFunction(m*np.sum(R[:, 1])/Lx, m*t, aCM, bCM))
+
+    for i in np.flatnonzero(alpha_1):
+        for j in np.flatnonzero(beta_2):
+            v *= ThetaFunction((R[i, 0]-R[j, 1])/Lx, t, 1/2, 1/2)**m
+        for j in np.flatnonzero(beta_1):
+            v /= ThetaFunction((R[i, 0]-R[j, 0])/Lx, t, 1/2, 1/2)**m
+    for i in np.flatnonzero(alpha_2):
+        for j in np.flatnonzero(beta_1):
+            v *= ThetaFunction((R[i, 1]-R[j, 0])/Lx, t, 1/2, 1/2)**m
+        for j in np.flatnonzero(beta_2):
+            v /= ThetaFunction((R[i, 1]-R[j, 1])/Lx, t, 1/2, 1/2)**m
+
+    return np.abs(v)
+
+
+@njit
+def InitialMod(Ns: np.uint16, t: np.complex128, R: np.array,
+               swap_R: np.array, kCM: np.uint8 = 0,
+               phi_1: np.float64 = 0, phi_t: np.float64 = 0,
+               ) -> np.float64:
+    """
+    """
+    N = R.shape[0]
+    m = Ns/N
+    Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
+    aCM = phi_1/(2*np.pi*m) + kCM/m + (R.shape[0]-1)/2
+    bCM = -phi_t/(2*np.pi) + m*(R.shape[0]-1)/2
+
+    v = ((ThetaFunction(m*np.sum(swap_R[:, 0])/Lx, m*t, aCM, bCM) /
+         ThetaFunction(m*np.sum(R[:, 0])/Lx, m*t, aCM, bCM)) *
+         (ThetaFunction(m*np.sum(swap_R[:, 1])/Lx, m*t, aCM, bCM)) /
+         ThetaFunction(m*np.sum(R[:, 1])/Lx, m*t, aCM, bCM))
+
+    for i in range(N):
+        for j in range(i+1, N):
+            v *= (ThetaFunction((swap_R[i, 0]-swap_R[j, 0])/Lx, t, 1/2, 1/2) /
+                  ThetaFunction((R[i, 0]-R[j, 0])/Lx, t, 1/2, 1/2))**m
+            v *= (ThetaFunction((swap_R[i, 1]-swap_R[j, 1])/Lx, t, 1/2, 1/2) /
+                  ThetaFunction((R[i, 1]-R[j, 1])/Lx, t, 1/2, 1/2))**m
+
+    return np.abs(v)
+
+
+@njit
+def InitialSign(Ns: np.uint16, t: np.complex128, R: np.array,
+                swap_R: np.array, kCM: np.uint8 = 0,
+                phi_1: np.float64 = 0, phi_t: np.float64 = 0,
+                ):
+    """
+    Returns the sign term for a given configuration.
+    """
+    v = (np.conj(LaughlinTorusPhase(R.shape[0], Ns, t, swap_R[:, 0], kCM, phi_1, phi_t)) *
+         np.conj(LaughlinTorusPhase(R.shape[0], Ns, t, swap_R[:, 1], kCM, phi_1, phi_t)) *
+         LaughlinTorusPhase(R.shape[0], Ns, t, R[:, 0], kCM, phi_1, phi_t) *
+         LaughlinTorusPhase(R.shape[0], Ns, t, R[:, 1], kCM, phi_1, phi_t))
 
     return v
 
@@ -877,7 +921,7 @@ def RunModSWAP(N: np.uint8, Ns: np.uint16, t: np.complex64,
         Ly, R_i, boundary, step_size)
     R_f = np.zeros((R_i.shape[0], R_i.shape[1]), dtype=np.complex128)
 
-    update = ValueMod(Ns, t, R_i, swap_R_i)
+    update = InitialMod(Ns, t, R_i, swap_R_i)
 
     for i in range(M):
         accept_bit = 0
@@ -945,8 +989,8 @@ def RunSignSWAP(N: np.uint8, Ns: np.uint16, t: np.complex64,
         Ly, R_i, boundary, step_size)
     R_f = np.zeros((R_i.shape[0], R_i.shape[1]), dtype=np.complex128)
 
-    sign_i = ValueSign(Ns, t, R_i, swap_R_i)
-    update = sign_i/np.abs(sign_i)
+    # sign_i = ValueSign(Ns, t, R_i, swap_R_i)
+    update = InitialSign(Ns, t, R_i, swap_R_i)  # sign_i/np.abs(sign_i)
 
     for i in range(M):
         accept_bit = 0

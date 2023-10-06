@@ -103,6 +103,25 @@ def LaughlinTorus(N: np.uint8, Ns: np.uint16, tau: np.complex128,
 
 
 @njit(parallel=True)
+def LaughlinTorusPhase(N: np.uint8, Ns: np.uint16, tau: np.complex128,
+                       R: np.array, kCM: np.uint8 = 0, phi_1: np.float64 = 0,
+                       phi_tau: np.float64 = 0) -> np.complex128:
+    m = Ns/N
+    Lx = np.sqrt(2*np.pi*Ns/np.imag(tau))
+    aCM = phi_1/(2*np.pi*m) + kCM/m + (N-1)/2
+    bCM = -phi_tau/(2*np.pi) + m*(N-1)/2
+
+    w = np.exp(1j*np.sum(np.real(R)*np.imag(R))/2)
+    w *= np.exp(1j*np.angle(ThetaFunction(m*np.sum(R)/Lx, m*tau, aCM, bCM)))
+    for i in range(N):
+        for j in range(i+1, N):
+            w *= np.exp(1j *
+                        np.angle(ThetaFunction((R[i]-R[j])/Lx, tau, 1/2, 1/2)**m))
+
+    return w
+
+
+@njit(parallel=True)
 def LaughlinTorusReduced(N: np.uint8, Ns: np.uint16, tau: np.complex128,
                          R: np.array, p: np.uint8, kCM: np.uint8 = 0,
                          phi_1: np.float64 = 0, phi_tau: np.float64 = 0
