@@ -83,20 +83,30 @@ def RatioStepOne(Ns: np.uint16, t: np.complex128,
     aCM = phi_1/(2*np.pi*m) + kCM/m + (N-1)/2
     bCM = -phi_t/(2*np.pi) + m*(N-1)/2
 
-    r = np.exp((R_f[p]**2 - np.abs(R_f[p])**2 -
-               R_i[p]**2 + np.abs(R_i[p])**2)/4)
     # theta_cm = ThetaFunctionVectorized((m/Lx)*np.array([np.sum(R_f[:, 0]), np.sum(R_f[:, 1]),
     #                                                    np.sum(R_i[:, 0]), np.sum(R_i[:, 1])]),
     #                                   m*t, aCM, bCM)
     # r *= theta_cm[0]*theta_cm[1]/(theta_cm[2]*theta_cm[3])
 
-    r *= (ThetaFunction(m*np.sum(R_f)/Lx, m*t, aCM, bCM) /
-          ThetaFunction(m*np.sum(R_i)/Lx, m*t, aCM, bCM))
+    zCM_i = m*np.sum(R_i)/Lx
+    c_i = np.imag(zCM_i)//np.imag(m*t)
+    zCM_f = m*np.sum(R_f)/Lx
+    c_f = np.imag(zCM_f)//np.imag(m*t)
+
+    expo_CM = (-1j*np.pi*c_f*(2*zCM_f - c_f*m*t + 2*bCM) +
+               1j*np.pi*c_i*(2*zCM_i - c_i*m*t + 2*bCM))
+    expo_nonholomorphic = (R_f[p]**2 - np.abs(R_f[p])**2 -
+                           R_i[p]**2 + np.abs(R_i[p])**2)/4
+    expo = expo_CM + expo_nonholomorphic
+
+    r = (ThetaFunction(zCM_f - m*t*c_f, m*t, aCM + c_f, bCM) /
+         ThetaFunction(zCM_i - m*t*c_i, m*t, aCM + c_i, bCM))
 
     for i in range(N):
         if i != p:
             r *= (ThetaFunction((R_f[i]-R_f[p])/Lx, t, 1/2, 1/2) /
                   ThetaFunction((R_i[i]-R_i[p])/Lx, t, 1/2, 1/2))**m
+            r *= np.exp(expo/(N-1))
 
     return r
 
@@ -882,7 +892,7 @@ def RunPSWAP(N: np.uint8, Ns: np.uint16, t: np.complex64,
     return result, acceptance
 
 
-@njit
+# @njit
 def RunModSWAP(N: np.uint8, Ns: np.uint16, t: np.complex64,
                M: np.uint32, step_size: np.float64,
                boundary_dimensionless: np.float64,
