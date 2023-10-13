@@ -1,7 +1,6 @@
 from numba import njit, jit, prange
-from numba.typed import List
 import numpy as np
-from FQHEWaveFunctions import ThetaFunction, LaughlinTorus, LaughlinTorusPhase
+from FQHEWaveFunctions import ThetaFunction
 
 
 @njit
@@ -53,6 +52,39 @@ def RandomConfigSWAP(N: np.uint8, Lx: np.float64, Ly: np.float64,
     return R
 
 
+@njit
+def ReduceNonholomorphic(R: np.array, p: np.array
+                         ) -> np.complex128:
+    expo_nonholomorphic = 0
+    for j in range(p.size):
+        expo_nonholomorphic += (R[p[j]]**2 - np.abs(R[p[j]])**2)/4
+
+    return expo_nonholomorphic
+
+
+@njit
+def ReduceCM(Ns: np.uint16, t: np.complex128,
+             R: np.array, kCM: np.uint8 = 0,
+             phi_1: np.float64 = 0, phi_t: np.float64 = 0
+             ) -> (np.complex128, np.complex128):
+    """Using the properties of the theta function, splits the CM contribution
+    to the wavefunction into a a theta function and exponential contribution."""
+    N = R.size
+    m = Ns/N
+    Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
+    aCM = phi_1/(2*np.pi*m) + kCM/m + (N-1)/2
+    bCM = -phi_t/(2*np.pi) + m*(N-1)/2
+
+    zCM = m*np.sum(R)/Lx
+    c = np.imag(zCM)//np.imag(m*t)
+
+    expo_CM = -1j*np.pi*c*(2*zCM - c*m*t + 2*bCM)
+
+    r = ThetaFunction(zCM - m*t*c, m*t, aCM + c, bCM)
+
+    return r, expo_CM
+
+
 @njit(parallel=True)
 def RatioStepOne(Ns: np.uint16, t: np.complex128,
                  R_i: np.array, R_f: np.array, p: np.uint8,
@@ -80,33 +112,30 @@ def RatioStepOne(Ns: np.uint16, t: np.complex128,
     N = R_i.size
     m = Ns/N
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
-    aCM = phi_1/(2*np.pi*m) + kCM/m + (N-1)/2
-    bCM = -phi_t/(2*np.pi) + m*(N-1)/2
 
-    # theta_cm = ThetaFunctionVectorized((m/Lx)*np.array([np.sum(R_f[:, 0]), np.sum(R_f[:, 1]),
-    #                                                    np.sum(R_i[:, 0]), np.sum(R_i[:, 1])]),
-    #                                   m*t, aCM, bCM)
-    # r *= theta_cm[0]*theta_cm[1]/(theta_cm[2]*theta_cm[3])
-
-    zCM_i = m*np.sum(R_i)/Lx
-    c_i = np.imag(zCM_i)//np.imag(m*t)
-    zCM_f = m*np.sum(R_f)/Lx
-    c_f = np.imag(zCM_f)//np.imag(m*t)
-
-    expo_CM = (-1j*np.pi*c_f*(2*zCM_f - c_f*m*t + 2*bCM) +
-               1j*np.pi*c_i*(2*zCM_i - c_i*m*t + 2*bCM))
-    expo_nonholomorphic = (R_f[p]**2 - np.abs(R_f[p])**2 -
-                           R_i[p]**2 + np.abs(R_i[p])**2)/4
-    expo = expo_CM + expo_nonholomorphic
-
-    r = (ThetaFunction(zCM_f - m*t*c_f, m*t, aCM + c_f, bCM) /
-         ThetaFunction(zCM_i - m*t*c_i, m*t, aCM + c_i, bCM))
+    (r_i, expo_CM_i) = ReduceCM(Ns, t, R_i, kCM, phi_1, phi_t)
+    (r_f, expo_CM_f) = ReduceCM(Ns, t, R_f, kCM, phi_1, phi_t)
+    r = r_f/r_i
+    expo_nonholomorphic_i = ReduceNonholomorphic(R_i, np.array([p]))
+    expo_nonholomorphic_f = ReduceNonholomorphic(R_f, np.array([p]))
+    expo = expo_CM_f - expo_CM_i + expo_nonholomorphic_f - expo_nonholomorphic_i
 
     for i in range(N):
         if i != p:
             r *= (ThetaFunction((R_f[i]-R_f[p])/Lx, t, 1/2, 1/2) /
                   ThetaFunction((R_i[i]-R_i[p])/Lx, t, 1/2, 1/2))**m
-            r *= np.exp(expo/(N-1))
+        r *= np.exp(expo/N)
+
+    """
+    jastrow_terms = np.ones(N, dtype=np.complex128)
+    for i in prange(N):
+        if i != p:
+            jastrow_terms[i] = (ThetaFunction((R_f[i]-R_f[p])/Lx, t, 1/2, 1/2) /
+                                ThetaFunction((R_i[i]-R_i[p])/Lx, t, 1/2, 1/2))**m
+    for i in range(N):
+        r *= jastrow_terms[i]
+        r *= np.exp(expo/N)
+    """
 
     return r
 
@@ -142,23 +171,16 @@ def RatioStepOneSWAP(Ns: np.uint16, t: np.complex128,
         N = swap_R_i.shape[0]
         m = Ns/N
         Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
-        aCM = phi_1/(2*np.pi*m) + kCM/m + (N-1)/2
-        bCM = -phi_t/(2*np.pi) + m*(N-1)/2
 
         diff_swap_R_f = swap_R_f[:, copy]
         diff_swap_R_i = swap_R_i[:, copy]
 
-        r = 1
-        for j in range(2):
-            r *= np.exp((diff_swap_R_f[p_swap[j]]**2 - np.abs(diff_swap_R_f[p_swap[j]])**2 -
-                         diff_swap_R_i[p_swap[j]]**2 + np.abs(diff_swap_R_i[p_swap[j]])**2)/4)
-        # theta_cm = ThetaFunctionVectorized((m/Lx)*np.array([np.sum(R_f[:, 0]), np.sum(R_f[:, 1]),
-        #                                                    np.sum(R_i[:, 0]), np.sum(R_i[:, 1])]),
-        #                                   m*t, aCM, bCM)
-        # r *= theta_cm[0]*theta_cm[1]/(theta_cm[2]*theta_cm[3])
-
-        r *= (ThetaFunction(m*np.sum(diff_swap_R_f)/Lx, m*t, aCM, bCM) /
-              ThetaFunction(m*np.sum(diff_swap_R_i)/Lx, m*t, aCM, bCM))
+        (r_i, expo_CM_i) = ReduceCM(Ns, t, diff_swap_R_i, kCM, phi_1, phi_t)
+        (r_f, expo_CM_f) = ReduceCM(Ns, t, diff_swap_R_f, kCM, phi_1, phi_t)
+        r = r_f / r_i
+        expo_nonholomorphic_i = ReduceNonholomorphic(diff_swap_R_i, p_swap)
+        expo_nonholomorphic_f = ReduceNonholomorphic(diff_swap_R_f, p_swap)
+        expo = expo_CM_f - expo_CM_i + expo_nonholomorphic_f - expo_nonholomorphic_i
 
         for j in range(N):
             if j != p_swap[0] and j != p_swap[1]:
@@ -166,79 +188,12 @@ def RatioStepOneSWAP(Ns: np.uint16, t: np.complex128,
                        ThetaFunction((diff_swap_R_f[j]-diff_swap_R_f[p_swap[1]])/Lx, t, 1/2, 1/2)) /
                       (ThetaFunction((diff_swap_R_i[j]-diff_swap_R_i[p_swap[0]])/Lx, t, 1/2, 1/2) *
                        ThetaFunction((diff_swap_R_i[j]-diff_swap_R_i[p_swap[1]])/Lx, t, 1/2, 1/2)))**m
+            r *= np.exp(expo/N)
 
         r *= (ThetaFunction((diff_swap_R_f[p_swap[0]]-diff_swap_R_f[p_swap[1]])/Lx, t, 1/2, 1/2) /
               ThetaFunction((diff_swap_R_i[p_swap[0]]-diff_swap_R_i[p_swap[1]])/Lx, t, 1/2, 1/2))**m
 
         return r
-
-
-@njit
-def ValueMod(Ns: np.uint16, t: np.complex128, R: np.array,
-             swap_R: np.array, kCM: np.uint8 = 0,
-             phi_1: np.float64 = 0, phi_t: np.float64 = 0,
-             ) -> np.complex128:
-    """
-    Returns the mod term for a given configuration.
-    """
-    v = ((LaughlinTorus(R.shape[0], Ns, t, swap_R[:, 0], kCM, phi_1, phi_t) *
-         LaughlinTorus(R.shape[0], Ns, t, swap_R[:, 1], kCM, phi_1, phi_t)) /
-         (LaughlinTorus(R.shape[0], Ns, t, R[:, 0], kCM, phi_1, phi_t) *
-         LaughlinTorus(R.shape[0], Ns, t, R[:, 1], kCM, phi_1, phi_t)))
-
-    return np.abs(v)
-
-
-@njit
-def ValueSign(Ns: np.uint16, t: np.complex128, R: np.array,
-              swap_R: np.array, kCM: np.uint8 = 0,
-              phi_1: np.float64 = 0, phi_t: np.float64 = 0,
-              ) -> np.complex128:
-    """
-    Returns the sign term for a given configuration.
-    """
-    v = (np.conj(LaughlinTorus(R.shape[0], Ns, t, swap_R[:, 0], kCM, phi_1, phi_t)) *
-         np.conj(LaughlinTorus(R.shape[0], Ns, t, swap_R[:, 1], kCM, phi_1, phi_t)) *
-         LaughlinTorus(R.shape[0], Ns, t, R[:, 0], kCM, phi_1, phi_t) *
-         LaughlinTorus(R.shape[0], Ns, t, R[:, 1], kCM, phi_1, phi_t))
-
-    return v
-
-
-@njit
-def ValueModOld(Ns: np.uint16, t: np.complex128, R: np.array,
-                swap_order: np.array, kCM: np.uint8 = 0,
-                phi_1: np.float64 = 0, phi_t: np.float64 = 0,
-                ) -> np.float64:
-    """
-    """
-
-    m = Ns/R.shape[0]
-    Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
-    aCM = phi_1/(2*np.pi*m) + kCM/m + (R.shape[0]-1)/2
-    bCM = -phi_t/(2*np.pi) + m*(R.shape[0]-1)/2
-    alpha_1 = (swap_order[:, 0] < 0)
-    beta_1 = (swap_order[:, 0] > 0)
-    alpha_2 = (swap_order[:, 1] > 0)
-    beta_2 = (swap_order[:, 1] < 0)
-
-    v = (ThetaFunction(m*(np.sum(R[alpha_1, 0])+np.sum(R[beta_2, 1]))/Lx, m*t, aCM, bCM) *
-         ThetaFunction(m*(np.sum(R[alpha_2, 1])+np.sum(R[beta_1, 0]))/Lx, m*t, aCM, bCM)) / \
-        (ThetaFunction(m*np.sum(R[:, 0])/Lx, m*t, aCM, bCM) *
-         ThetaFunction(m*np.sum(R[:, 1])/Lx, m*t, aCM, bCM))
-
-    for i in np.flatnonzero(alpha_1):
-        for j in np.flatnonzero(beta_2):
-            v *= ThetaFunction((R[i, 0]-R[j, 1])/Lx, t, 1/2, 1/2)**m
-        for j in np.flatnonzero(beta_1):
-            v /= ThetaFunction((R[i, 0]-R[j, 0])/Lx, t, 1/2, 1/2)**m
-    for i in np.flatnonzero(alpha_2):
-        for j in np.flatnonzero(beta_1):
-            v *= ThetaFunction((R[i, 1]-R[j, 0])/Lx, t, 1/2, 1/2)**m
-        for j in np.flatnonzero(beta_2):
-            v /= ThetaFunction((R[i, 1]-R[j, 1])/Lx, t, 1/2, 1/2)**m
-
-    return np.abs(v)
 
 
 @njit
@@ -251,63 +206,61 @@ def InitialMod(Ns: np.uint16, t: np.complex128, R: np.array,
     N = R.shape[0]
     m = Ns/N
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
-    aCM = phi_1/(2*np.pi*m) + kCM/m + (R.shape[0]-1)/2
-    bCM = -phi_t/(2*np.pi) + m*(R.shape[0]-1)/2
 
-    v = ((ThetaFunction(m*np.sum(swap_R[:, 0])/Lx, m*t, aCM, bCM) /
-         ThetaFunction(m*np.sum(R[:, 0])/Lx, m*t, aCM, bCM)) *
-         (ThetaFunction(m*np.sum(swap_R[:, 1])/Lx, m*t, aCM, bCM)) /
-         ThetaFunction(m*np.sum(R[:, 1])/Lx, m*t, aCM, bCM))
+    (mod_swap_0, expo_swap_0) = ReduceCM(
+        Ns, t, swap_R[:, 0], kCM, phi_1, phi_t)
+    (mod_swap_1, expo_swap_1) = ReduceCM(
+        Ns, t, swap_R[:, 1], kCM, phi_1, phi_t)
+    (mod_0, expo_0) = ReduceCM(Ns, t, R[:, 0], kCM, phi_1, phi_t)
+    (mod_1, expo_1) = ReduceCM(Ns, t, R[:, 1], kCM, phi_1, phi_t)
+    mod = mod_swap_0 * mod_swap_1 / (mod_0 * mod_1)
+    expo = expo_swap_0 + expo_swap_1 - expo_0 - expo_1
 
     for i in range(N):
         for j in range(i+1, N):
-            v *= (ThetaFunction((swap_R[i, 0]-swap_R[j, 0])/Lx, t, 1/2, 1/2) /
-                  ThetaFunction((R[i, 0]-R[j, 0])/Lx, t, 1/2, 1/2))**m
-            v *= (ThetaFunction((swap_R[i, 1]-swap_R[j, 1])/Lx, t, 1/2, 1/2) /
-                  ThetaFunction((R[i, 1]-R[j, 1])/Lx, t, 1/2, 1/2))**m
+            mod *= (ThetaFunction((swap_R[i, 0]-swap_R[j, 0])/Lx, t, 1/2, 1/2) /
+                    ThetaFunction((R[i, 0]-R[j, 0])/Lx, t, 1/2, 1/2))**m
+            mod *= (ThetaFunction((swap_R[i, 1]-swap_R[j, 1])/Lx, t, 1/2, 1/2) /
+                    ThetaFunction((R[i, 1]-R[j, 1])/Lx, t, 1/2, 1/2))**m
+        mod *= np.exp(expo/N)
 
-    return np.abs(v)
+    return np.abs(mod)
 
 
 @njit
 def InitialSign(Ns: np.uint16, t: np.complex128, R: np.array,
                 swap_R: np.array, kCM: np.uint8 = 0,
                 phi_1: np.float64 = 0, phi_t: np.float64 = 0,
-                ):
+                ) -> np.float64:
     """
-    Returns the sign term for a given configuration.
     """
-    v = (np.conj(LaughlinTorusPhase(R.shape[0], Ns, t, swap_R[:, 0], kCM, phi_1, phi_t)) *
-         np.conj(LaughlinTorusPhase(R.shape[0], Ns, t, swap_R[:, 1], kCM, phi_1, phi_t)) *
-         LaughlinTorusPhase(R.shape[0], Ns, t, R[:, 0], kCM, phi_1, phi_t) *
-         LaughlinTorusPhase(R.shape[0], Ns, t, R[:, 1], kCM, phi_1, phi_t))
+    N = R.shape[0]
+    m = Ns/N
+    Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
 
-    return v
+    (sign_swap_0, expo_swap_0) = ReduceCM(
+        Ns, t, swap_R[:, 0], kCM, phi_1, phi_t)
+    sign_swap_0 /= np.abs(sign_swap_0)
+    (sign_swap_1, expo_swap_1) = ReduceCM(
+        Ns, t, swap_R[:, 1], kCM, phi_1, phi_t)
+    sign_swap_1 /= np.abs(sign_swap_1)
+    (sign_0, expo_0) = ReduceCM(Ns, t, R[:, 0], kCM, phi_1, phi_t)
+    sign_0 /= np.abs(sign_0)
+    (sign_1, expo_1) = ReduceCM(Ns, t, R[:, 1], kCM, phi_1, phi_t)
+    sign_1 /= np.abs(sign_1)
+    sign = np.conj(sign_swap_0 * sign_swap_1) * sign_0 * sign_1
+    expo = 1j*np.imag(-expo_swap_0 - expo_swap_1 + expo_0 + expo_1)
+    sign *= np.exp(expo)
 
+    for i in range(N):
+        for j in range(i+1, N):
+            sign *= (np.conj(ThetaFunction((swap_R[i, 0]-swap_R[j, 0])/Lx, t, 1/2, 1/2) *
+                             ThetaFunction((swap_R[i, 1]-swap_R[j, 1])/Lx, t, 1/2, 1/2)) *
+                     (ThetaFunction((R[i, 0]-R[j, 0])/Lx, t, 1/2, 1/2) *
+                     ThetaFunction((R[i, 1]-R[j, 1])/Lx, t, 1/2, 1/2)))**m
+            sign /= np.abs(sign)
 
-@njit
-def PBCWithPhase(Lx: np.float64, Ly: np.float64, t: np.complex128,
-                 z: np.complex128, phi_1: np.float64, phi_t: np.float64
-                 ):
-    """Check if the particle position wrapped around the torus
-    after one step. When a step wraps around both directions,
-    the algorithm applies """
-    phi = 1
-    w = np.copy(z)
-    if np.imag(w) > Ly:
-        phi += phi_t + Lx*(np.real(t)*np.imag(w) - np.imag(t)*np.real(w))/2
-        w -= Lx*t
-    elif np.imag(w) < 0:
-        phi -= phi_t + Lx*(np.real(t)*np.imag(w) - np.imag(t)*np.real(w))/2
-        w += Lx*t
-    if np.real(w) > Lx:
-        phi += phi_1 + Lx*np.imag(w)/2
-        w -= Lx
-    elif np.real(w) < 0:
-        phi -= phi_1 + Lx*np.imag(w)/2
-        w += Lx
-
-    return w, np. exp(1j*phi)
+    return sign
 
 
 @njit
@@ -349,53 +302,24 @@ def TestPBC(N: np.uint8, Ns: np.uint16, t: np.complex128,
                                        np.exp(1j*Ly*np.real(R0[p])/2)*np.exp(-1j*phi_t)))
 
 
-@njit
-def AssignOrderSWAP(R: np.array, which_A: np.array,
-                    ) -> np.array:
-    """Assign an order to particles in the swapped copies. Also creates the
-    vector R_SWAP containing the swapped configurations.
-    R_SWAP[:,0] - config alpha_1, beta_2 (negative indices in swap_order)
-    R_SWAP[:,1] - config alpha_2, beta_1 (positive indices in swap_order)
-    """
-
-    swap_order = np.zeros((R.shape[0], R.shape[1]), dtype=np.int8)
-    swap_R = np.zeros((R.shape[0], R.shape[1]), dtype=np.complex128)
-    i_swap = 1
-    j = 0
-    for i in range(R.shape[0]):
-        if not which_A[i, 0]:
-            swap_order[i, 0] = i_swap
-            swap_R[i_swap-1, 1] = R[i, 0]
-        else:
-            while not which_A[j, 1]:
-                j += 1
-            swap_order[j, 1] = i_swap
-            swap_R[i_swap-1, 1] = R[j, 1]
-            j += 1
-        i_swap += 1
-
-    i_swap = -1
-    j = 0
-    for i in range(R.shape[0]):
-        if not which_A[i, 1]:
-            swap_order[i, 1] = i_swap
-            swap_R[np.abs(i_swap)-1, 0] = R[i, 1]
-        else:
-            while not which_A[j, 0]:
-                j += 1
-            swap_order[j, 0] = i_swap
-            swap_R[np.abs(i_swap)-1, 0] = R[j, 0]
-            j += 1
-        i_swap -= 1
-
-    return swap_order, swap_R
-
-
-@njit
+# @njit
 def UpdateOrderSWAP(R_f: np.array, swap_order_i: np.array, swap_R_i: np.array,
                     p: np.array, delta: np.uint8, where_moves: np.array):
     """
-    Updates the order in the swapped copies after one move.
+    Updates the order of particles in the swapped copies after one step.
+
+    Parameters:
+    R_f : new configuration of particles after step
+    swap_order_i : initial order or particles in the swapped copies. positive indices go
+                into swap_R[:,1] and negative into swap_R[:,0]
+    swap_R_i : array containing the initial ordered positions of particles in the swapped
+            copies. swap_R[:,0] containts alpha_1, beta_2
+    Output:
+
+    swap_order_f : new order or particles in the swapped copies. positive indices go
+                into swap_R[:,1] and negative into swap_R[:,0]
+    swap_R_f: array containing the new ordered positions of particles in the swapped
+            copies. swap_R[:,0] containts alpha_1, beta_2
     """
 
     swap_order_f = np.copy(swap_order_i)
@@ -414,7 +338,7 @@ def UpdateOrderSWAP(R_f: np.array, swap_order_i: np.array, swap_R_i: np.array,
     return swap_order_f, swap_R_f
 
 
-@njit
+# @njit
 def LocateAndAssignOrderSWAP(Ly: np.float64, R: np.array,
                              boundary: np.float64, step_size: np.float64
                              ) -> (np.array, np.array, np.array):
@@ -501,7 +425,7 @@ def LocateAndAssignOrderSWAP(Ly: np.float64, R: np.array,
     return swap_order, swap_R, where_moves
 
 
-@njit
+# @njit
 def UpdateMoves(R: np.array, p: np.array, where_moves: np.array,
                 Ly: np.float64, boundary: np.float64,
                 step_size: np.float64,):
@@ -511,12 +435,18 @@ def UpdateMoves(R: np.array, p: np.array, where_moves: np.array,
 
     Parameters:
 
-    Ly : torus dimension along y-axis
     R : particles configuration
     p : indices of particles that move in each copy
+    where_moves : array (N, 2, 4) specifying where each type of move take
+                each particle in each of the copies. the specific move
+                increases n_A by the value of where_moves.
+                where_move[i,j,k]=m means move k
+                (k=0 => +1 ; k=1 => -1; k=2 => +1j; k=3 => -1j) applied on
+                particle i in copy j changes n_A in copy j by m.
+    Ly : torus dimension along y-axis
     boundary : dimensionful boundary between regions A and B 
                 (the other one is implicit at y=0)
-    step_size: initial step size in units of Lx
+    step_size: step size (multiplied by Ly)
     """
     y_0 = np.imag(R[p[0], 0])
     y_bd_0 = y_0 - boundary
@@ -544,30 +474,6 @@ def UpdateMoves(R: np.array, p: np.array, where_moves: np.array,
         where_moves[p[1], 1, :] = np.array([0, 0, 1, 0])
     else:
         where_moves[p[1], 1, :] = np.array([0, 0, 0, 0])
-
-
-@njit
-def ValidStep(which_A_f: np.array,
-              where_moves: np.array):
-
-    valid = True
-    p1 = 0
-    delta1 = 0
-
-    valid_mask = (np.sum(which_A_f[:, 0]) == (
-        np.sum(which_A_f[:, 1]) + where_moves))
-
-    parameters_move = np.arange(where_moves.size)
-    valid_moves = parameters_move[np.ravel(valid_mask)]
-
-    if valid_moves.size:
-        move = np.random.choice(valid_moves)
-        p1 = move//4
-        delta1 = np.array([1, -1, 1j, -1j])[move % 4]
-    else:
-        valid = False
-
-    return valid, p1, delta1
 
 
 @njit
@@ -603,63 +509,6 @@ def StepOne(Lx: np.float64, Ly: np.float64, t: np.complex128,
 
 
 @njit
-def StepOneSWAP(Lx: np.float64, Ly: np.float64, t: np.complex128,
-                step_size: np.float64, R_i: np.array,
-                which_A_i: np.array, where_moves: np.array,
-                boundary: np.float64,
-                ) -> np.array:
-    """Provides a new Monte Carlo configuration by updating
-    the coordinates of one particle in each copy, ensuring that
-    the copies are swappable with respect to region A.
-
-    Parameters:
-
-    Lx, Ly : perpendicular dimensions of the torus
-    t : torus complex aspect ratio
-    step_size : step size for each particle
-    R_i : initial position of all particles
-    which_A_i : boolean array indicating which particles are initially in region A
-    boundary : dimensionless boundary between regions A and B 
-                (the other one is implicit at y=0)
-
-    Returns:
-
-    R_f : final position of all particles
-    p : indices of particles that move in each copy
-    which_A_f : boolean array indicating which particles are finally in region A
-    """
-
-    R_f = np.copy(R_i)
-    which_A_f = np.copy(which_A_i)
-
-    valid = False
-    while not valid:
-        p = np.random.randint(0, R_i.shape[0], 2)
-        delta = np.random.randint(0, 4, 2)
-        delta = np.random.choice(np.array([1, -1, 1j, -1j]), 2)
-
-        if where_moves[p[0], delta[0]] == where_moves[p[1], delta[1]]:
-            valid = True
-
-        R_f[p[0], 0] = PBC(Lx, Ly, t, R_i[p[0], 0] +
-                           np.array([1, -1, 1j, -1j])[delta[0]]*step_size)
-        R_f[p[1], 1] = PBC(Lx, Ly, t, R_i[p[0], 0] +
-                           np.array([1, -1, 1j, -1j])[delta[0]]*step_size)
-        which_A_f[p[0], 0] = (np.imag(R_f[p[0], 0]) - boundary < 0)
-        valid, p[1], delta[1] = ValidStep(which_A_f, where_moves)
-
-    R_f[p[0], 0] = PBC(Lx, Ly, t, R_i[p[0], 0] +
-                       np.array([1, -1, 1j, -1j])[delta[0]]*step_size)
-    R_f[p[1], 1] = PBC(Lx, Ly, t, R_i[p[0], 0] +
-                       np.array([1, -1, 1j, -1j])[delta[0]]*step_size)
-    which_A_f[p[0], 0] = (np.imag(R_f[p[0], 0]) - boundary < 0)
-    R_f[p[1], 1] = PBC(Lx, Ly, t, R_i[p[1], 1]+delta[1]*step_size)
-    which_A_f[p[1], 1] = (np.imag(R_f[p[1], 1]) - boundary < 0)
-
-    return R_f, p, which_A_f
-
-
-@njit
 def StepOneSWAPRandom(Lx: np.float64, Ly: np.float64, t: np.complex128,
                       step_size: np.float64, R_i: np.array,
                       where_moves: np.array,
@@ -681,6 +530,7 @@ def StepOneSWAPRandom(Lx: np.float64, Ly: np.float64, t: np.complex128,
 
     R_f : final position of all particles
     p : indices of particles that move in each copy
+    delta : contains information about which step is taken
     """
 
     R_f = np.copy(R_i)
@@ -701,10 +551,15 @@ def StepOneSWAPRandom(Lx: np.float64, Ly: np.float64, t: np.complex128,
     return R_f, p, delta
 
 
-@njit
+# @njit
 def UpdateResult(result: np.array, update: np.complex128,
                  index: np.uint32, acceptance: np.float64,
                  accept_bit: np.uint8):
+    """
+    Updates the result vector with the update given by the
+    current accepted position. 
+    """
+
     result[index] = update
     new_acceptance = (acceptance*index + accept_bit)/(index + 1)
 
@@ -715,6 +570,7 @@ def UpdateResult(result: np.array, update: np.complex128,
     return new_acceptance
 
 
+"""
 @njit
 def RunPParticleSector(N: np.uint8, Ns: np.uint16, t: np.complex64,
                        M: np.uint32, step_size: np.float64,
@@ -722,20 +578,6 @@ def RunPParticleSector(N: np.uint8, Ns: np.uint16, t: np.complex64,
                        kCM: np.uint8 = 0,
                        phi_1: np.float64 = 0, phi_t: np.float64 = 0
                        ):
-    """
-    Parameters:
-    N : number of particles
-    Ns : number of flux quanta
-    t : torus complex aspect ratio
-    M : total number of Monte Carlo interations
-    step_size: initial step size in units of Lx
-    boundary : dimensionless boundary between regions A and B 
-                (the other one is implicit at y=0)
-
-    Returns:
-    result: array of length M containing n_A at each step
-    acceptance: final average acceptance of MC run
-    """
 
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
     Ly = Lx*np.imag(t)
@@ -774,20 +616,6 @@ def RunDecoupledPSWAP(N: np.uint8, Ns: np.uint16, t: np.complex64,
                       kCM: np.uint8 = 0,
                       phi_1: np.float64 = 0, phi_t: np.float64 = 0
                       ):
-    """
-    Parameters:
-    N : number of particles
-    Ns : number of flux quanta
-    t : torus complex aspect ratio
-    M : total number of Monte Carlo interations
-    step_size: initial step size in units of Lx
-    boundary : dimensionless boundary between regions A and B 
-                (the other one is implicit at y=0)
-
-    Returns:
-    result: array of length M containing n_A in eaach copy at each step
-    acceptance: final average acceptance of MC run
-    """
 
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
     Ly = Lx*np.imag(t)
@@ -824,9 +652,11 @@ def RunDecoupledPSWAP(N: np.uint8, Ns: np.uint16, t: np.complex64,
             result, update, i, acceptance, accept_bit)
 
     return result, acceptance
+"""
+
+# @njit
 
 
-@njit
 def RunPSWAP(N: np.uint8, Ns: np.uint16, t: np.complex64,
              M: np.uint32, step_size: np.float64,
              boundary_dimensionless: np.array,
@@ -835,17 +665,19 @@ def RunPSWAP(N: np.uint8, Ns: np.uint16, t: np.complex64,
              ):
     """
     Parameters:
+
     N : number of particles
     Ns : number of flux quanta
     t : torus complex aspect ratio
     M : total number of Monte Carlo interations
-    step_size: initial step size in units of Lx
+    step_size : initial step size in units of Lx
     boundary : dimensionless boundary between regions A and B 
                 (the other one is implicit at y=0)
 
-    Returns:
-    result: array of length M containing n_A in eaach copy at each step
-    acceptance: final average acceptance of MC run
+    Output:
+
+    result : array of length M containing results at each step
+    acceptance : average acceptance ratio
     """
 
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
@@ -906,14 +738,15 @@ def RunModSWAP(N: np.uint8, Ns: np.uint16, t: np.complex64,
     Ns : number of flux quanta
     t : torus complex aspect ratio
     M : total number of Monte Carlo interations
-    step_size: initial step size in units of Lx
-    term : which term in the mod/sign decomposition (p/mod/sign)
+    step_size : initial step size in units of Lx
     boundary : dimensionless boundary between regions A and B 
                 (the other one is implicit at y=0)
 
-    Returns:
+    Output:
 
-    result: array of length M containing results at each step"""
+    result : array of length M containing results at each step
+    acceptance : average acceptance ratio
+    """
 
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
     Ly = Lx*np.imag(t)
@@ -948,7 +781,7 @@ def RunModSWAP(N: np.uint8, Ns: np.uint16, t: np.complex64,
             p_swap_order = np.array(
                 [swap_order_f[p[0], 0], swap_order_f[p[1], 1]])
             update *= np.abs(RatioStepOneSWAP(Ns, t, swap_R_i,
-                             swap_R_f, p_swap_order)/r)
+                             swap_R_f, p_swap_order) / r)
             R_i = np.copy(R_f)
             UpdateMoves(R_i, p, where_moves, Ly, boundary, step_size)
             swap_order_i = np.copy(swap_order_f)
@@ -960,7 +793,7 @@ def RunModSWAP(N: np.uint8, Ns: np.uint16, t: np.complex64,
     return result, acceptance
 
 
-@njit
+# @njit
 def RunSignSWAP(N: np.uint8, Ns: np.uint16, t: np.complex64,
                 M: np.uint32, step_size: np.float64,
                 boundary_dimensionless: np.float64,
@@ -974,14 +807,15 @@ def RunSignSWAP(N: np.uint8, Ns: np.uint16, t: np.complex64,
     Ns : number of flux quanta
     t : torus complex aspect ratio
     M : total number of Monte Carlo interations
-    step_size: initial step size in units of Lx
-    term : which term in the mod/sign decomposition (p/mod/sign)
+    step_size : initial step size in units of Lx
     boundary : dimensionless boundary between regions A and B 
                 (the other one is implicit at y=0)
 
-    Returns:
+    Output:
 
-    result: array of length M containing results at each step"""
+    result : array of length M containing results at each step
+    acceptance : average acceptance ratio
+    """
 
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
     Ly = Lx*np.imag(t)
@@ -999,8 +833,7 @@ def RunSignSWAP(N: np.uint8, Ns: np.uint16, t: np.complex64,
         Ly, R_i, boundary, step_size)
     R_f = np.zeros((R_i.shape[0], R_i.shape[1]), dtype=np.complex128)
 
-    # sign_i = ValueSign(Ns, t, R_i, swap_R_i)
-    update = InitialSign(Ns, t, R_i, swap_R_i)  # sign_i/np.abs(sign_i)
+    update = InitialSign(Ns, t, R_i, swap_R_i)
 
     for i in range(M):
         accept_bit = 0
