@@ -10,6 +10,8 @@ __pycache__/
 *.png
 *.pdf
 IQHE_entropy_results/
+FQHE_entropy_results/
+CFL_entropy_results/
 
 # C extensions
 *.so
