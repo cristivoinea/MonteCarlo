@@ -1,9 +1,9 @@
 from numba import njit, prange
 import numpy as np
 
-from LaughlinSWAP import StepOneAmplitudeLaughlin, StepOneAmplitudeLaughlinSWAP, \
+from LaughlinWavefnSWAP import StepOneAmplitudeLaughlin, StepOneAmplitudeLaughlinSWAP, \
     InitialModLaughlin, InitialSignLaughlin
-from FreeFermionsSWAP import StepOneAmplitudeFreeFermions, StepOneAmplitudeFreeFermionsSWAP, \
+from FreeFermionsWavefnSWAP import StepOneAmplitudeFreeFermions, StepOneAmplitudeFreeFermionsSWAP, \
     InitialModFreeFermions, InitialSignFreeFermions
 
 from utilities import Stats
@@ -442,6 +442,7 @@ def RunPSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     Ns : number of flux quanta
     t : torus complex aspect ratio
     M : total number of Monte Carlo interations
+    M0 : number of non-thermal iterations
     step_size : initial step size in units of Lx
     region_geometry : geometry of subregion A ('stripe', 'circle')
     boundary : dimensionless boundary position between regions A and B 
@@ -514,6 +515,7 @@ def RunModSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     Ns : number of flux quanta
     t : torus complex aspect ratio
     M : total number of Monte Carlo interations
+    M0 : number of non-thermal iterations
     step_size : initial step size in units of Lx
     region_geometry : geometry of subregion A ('stripe', 'circle')
     boundary : dimensionless boundary position between regions A and B 
@@ -604,6 +606,7 @@ def RunSignSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     Ns : number of flux quanta
     t : torus complex aspect ratio
     M : total number of Monte Carlo interations
+    M0 : number of non-thermal iterations
     step_size : initial step size in units of Lx
     region_geometry : geometry of subregion A ('stripe', 'circle')
     boundary : dimensionless boundary position between regions A and B 
