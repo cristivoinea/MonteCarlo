@@ -430,7 +430,7 @@ def RunPParticleSector(N: np.uint8, Ns: np.uint16, t: np.complex64,
 
 def RunPSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
              M: np.uint32, M0: np.uint32, step_size: np.float64,
-             region_geometry: str, boundary: np.array,
+             region_geometry: str, boundary: np.float64,
              state: str, kCM: np.uint8 = 0,
              phi_1: np.float64 = 0, phi_t: np.float64 = 0,
              save_result: str = 'final', save_config: np.bool_ = False
@@ -503,7 +503,7 @@ def RunPSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
 
 def RunModSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                M: np.uint32, M0: np.uint32, step_size: np.float64,
-               region_geometry: str, boundary: np.array,
+               region_geometry: str, boundary: np.float64,
                state: str, kCM: np.uint8 = 0,
                phi_1: np.float64 = 0, phi_t: np.float64 = 0,
                save_result: str = 'final', save_config: np.bool_ = False
@@ -594,7 +594,7 @@ def RunModSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
 
 def RunSignSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                 M: np.uint32, M0: np.uint32, step_size: np.float64,
-                region_geometry: str, boundary: np.array,
+                region_geometry: str, boundary: np.float64,
                 state: str, kCM: np.uint8 = 0,
                 phi_1: np.float64 = 0, phi_t: np.float64 = 0,
                 save_result: str = 'final', save_config: np.bool_ = False
