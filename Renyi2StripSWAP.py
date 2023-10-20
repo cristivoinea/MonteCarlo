@@ -18,9 +18,9 @@ parser.add_argument("--step", action="store", required=True,
                     help="step size value at square aspect ratio")
 parser.add_argument("--r-start", action="store", required=True,
                     help="aspect ratio start value")
-parser.add_argument("--r-end", action="store", required=True,
+parser.add_argument("--r-end", action="store", default=-1,
                     help="aspect ratio end value")
-parser.add_argument("--nbr-r", action="store", required=True,
+parser.add_argument("--nbr-r", action="store", default=1,
                     help="number of aspect ratio values")
 parser.add_argument("--y-boundary", action="store", default=0.5,
                     help="y-location between bipartition")
@@ -36,14 +36,16 @@ Ns = np.uint8(args["Ns"])
 M = np.uint32(args["M"])
 M0 = np.int32(args["M0"])
 if M0 == -1:
-    if M > 5e6:
-        M0 = 5e5
+    if M > 1e6:
+        M0 = 1e5
     else:
         M0 = M//10
 
 step = np.float64(args["step"])
 r_start = np.float64(args["r_start"])
 r_end = np.float64(args["r_end"])
+if r_end == -1:
+    r_end = r_start
 nbr_r = np.uint8(args["nbr_r"])
 ts = np.complex128(1j*np.linspace(r_start, r_end, nbr_r, endpoint=True))
 boundary = np.float64(args["y_boundary"])
