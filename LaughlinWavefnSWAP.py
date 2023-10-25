@@ -1,27 +1,27 @@
 from numba import njit, vectorize, prange
 import numpy as np
 
-"""
+
 @njit(parallel=True)
 def ThetaFunction(z: np.complex128, t: np.complex128, a: np.float64,
                   b: np.float64, n_max: np.uint32 = 1000
                   ) -> np.complex128:
-    index = np.arange(-n_max, n_max, 1)
-    terms = np.exp(1j*np.pi*t*((index + a)**2) +
-                   1j*2*np.pi*(index + a)*(z + b))
+    index_a = np.arange(-n_max, n_max, 1) + a
+    terms = np.exp(1j*np.pi*index_a*(t*(index_a) + 2*(z + b)))
     return np.sum(terms)
+
+
 """
-
-
 @njit(parallel=True)
 def ThetaFunction(z: np.complex128, t: np.complex128, a: np.float64,
                   b: np.float64, n_max: np.uint32 = 1000
                   ) -> np.complex128:
     theta = 0
     for i in prange(2*n_max):
-        theta += np.exp(1j*np.pi*t*((i-n_max + a)**2) +
+        theta += np.exp(1j*np.pi*t*((i-n_max + a)*(i-n_max + a)) +
                         1j*2*np.pi*(i-n_max + a)*(z + b))
     return theta
+"""
 
 
 @vectorize
@@ -63,7 +63,7 @@ def ReduceCM(Ns: np.uint16, t: np.complex128,
     return r, expo_CM
 
 
-@njit(parallel=True)
+@njit  # (parallel=True)
 def StepOneAmplitudeLaughlin(Ns: np.uint16, t: np.complex128,
                              R_i: np.array, R_f: np.array, p: np.uint8,
                              kCM: np.uint8 = 0,
