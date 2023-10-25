@@ -4,9 +4,9 @@ import numpy as np
 from LaughlinWavefnSWAP import StepOneAmplitudeLaughlin, StepOneAmplitudeLaughlinSWAP, \
     InitialModLaughlin, InitialSignLaughlin
 from FreeFermionsWavefnSWAP import StepOneAmplitudeFreeFermions, StepOneAmplitudeFreeFermionsSWAP, \
-    InitialModFreeFermions, InitialSignFreeFermions
+    InitialModFreeFermions, InitialSignFreeFermions, UpdateWavefnFreeFermions
 
-from utilities import Stats
+from utilities import SaveConfig, SaveResult
 
 
 @njit
@@ -77,15 +77,15 @@ def PBC(Lx: np.float64, Ly: np.float64, t: np.complex128,
 
 
 @njit
-def TestPBC(N: np.uint8, Ns: np.uint16, t: np.complex128,
+def TestPBC(Ne: np.uint8, Ns: np.uint16, t: np.complex128,
             kCM: np.uint8 = 0, phi_1: np.float64 = 0,
             phi_t: np.float64 = 0,):
 
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
     Ly = Lx*np.imag(t)
-    R0 = RandomConfig(N, Lx, Ly)
+    R0 = RandomConfig(Ne, Lx, Ly)
 
-    p = np.random.randint(0, N)
+    p = np.random.randint(0, Ne)
     R_test = np.copy(R0)
     R_test[p] += Lx
     print('t(Lx)*e^(-i phi_1) =', (StepOneAmplitudeLaughlin(Ns, t, R0, R_test, p, kCM, phi_1, phi_t) *
@@ -369,25 +369,6 @@ def StepOneSWAPRandom(Lx: np.float64, Ly: np.float64, t: np.complex128,
     return R_f, p, delta
 
 
-# @njit
-def UpdateResult(result: np.array, update: np.complex128,
-                 index: np.uint32, acceptance: np.float64,
-                 accept_bit: np.uint8):
-    """
-    Updates the result vector with the update given by the
-    current accepted position. 
-    """
-
-    result[index] = update
-    new_acceptance = (acceptance*index + accept_bit)/(index + 1)
-
-    if (index+1) % (result.shape[0]//20) == 0:
-        print('Iteration', index+1, 'done, current acceptance ratio:',
-              np.round(acceptance*100, 2), '%')
-
-    return new_acceptance
-
-
 """
 @njit
 def RunPParticleSector(N: np.uint8, Ns: np.uint16, t: np.complex64,
@@ -433,7 +414,7 @@ def RunPSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
              region_geometry: str, boundary: np.float64,
              state: str, kCM: np.uint8 = 0,
              phi_1: np.float64 = 0, phi_t: np.float64 = 0,
-             save_result: str = 'final', save_config: np.bool_ = False
+             save_config: np.bool_ = True, save_result: np.bool_ = True
              ):
     """
     Parameters:
@@ -453,10 +434,10 @@ def RunPSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     state : specifies the wavefunction of the system 
             ('laughlin','free_fermions','cfl')
     kCM, phi_1, phi_t : select the CM momentum and quasi-PBC manifold
+    save_config : indicate whether the coordinate vector and the swap order
+                    are saved (every 5% of the run)
     save_result : indicate whether the full result vector is saved, the
-                    final mean and variance are saved, or just printed 
-                    ('full', 'final', 'none')
-    save_config : indicate whether the final configuration is saved
+                    final mean and variance are saved, or just printed
     """
 
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
@@ -475,6 +456,11 @@ def RunPSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     update = (np.count_nonzero(InsideRegion(Lx, Ly, R_i[:, 0], region_geometry, boundary)) ==
               np.count_nonzero(InsideRegion(Lx, Ly, R_i[:, 1], region_geometry, boundary)))
 
+    if state == 'free_fermions':
+        wf_i = np.zeros((2, 2), dtype=np.complex128)
+        wf_f = np.zeros((2, 2), dtype=np.complex128)
+        UpdateWavefnFreeFermions(wf_i, Lx, Ly, R_i)
+
     for i in range(M):
         accept_bit = 0
         p = np.zeros(2, dtype=np.uint8)
@@ -485,8 +471,9 @@ def RunPSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
             r = (StepOneAmplitudeLaughlin(Ns, t, R_i[:, 0], R_f[:, 0], p[0]) *
                  StepOneAmplitudeLaughlin(Ns, t, R_i[:, 1], R_f[:, 1], p[1]))
         elif state == 'free_fermions':
-            r = (StepOneAmplitudeFreeFermions(Lx, Ly, R_i[:, 0], R_f[:, 0]) *
-                 StepOneAmplitudeFreeFermions(Lx, Ly, R_i[:, 1], R_f[:, 1]))
+            UpdateWavefnFreeFermions(wf_f, Lx, Ly, R_f)
+            r = ((wf_f[0, 0] * wf_f[0, 1]) / (wf_i[0, 0] * wf_i[0, 1]) *
+                 np.exp(wf_f[1, 0] + wf_f[1, 1] - wf_i[1, 0] - wf_i[1, 1]))
 
         if np.abs(r)**2 > np.random.random():
             accept_bit = 1
@@ -494,11 +481,21 @@ def RunPSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
             update = (np.count_nonzero(InsideRegion(Lx, Ly, R_i[:, 0], region_geometry, boundary)) ==
                       np.count_nonzero(InsideRegion(Lx, Ly, R_i[:, 1], region_geometry, boundary)))
 
-        acceptance = UpdateResult(
-            result, update, i, acceptance, accept_bit)
+            if state == 'free_fermions':
+                wf_i = np.copy(wf_f)
 
-    SaveOutput(Ne, Ns, Lx, Ly, M0, t, step_size, region_geometry, boundary, state,
-               result, save_result, save_config, R_i, 'p')
+        result[i] = update
+        acceptance = (acceptance*i + accept_bit)/(i + 1)
+
+        if (i+1) % (M//20) == 0:
+            print('Iteration', i+1, 'done, current acceptance ratio:',
+                  np.round(acceptance*100, 2), '%')
+            if save_config:
+                SaveConfig(state, 'p', Ne, Ns, Lx, Ly, t, step_size, region_geometry, boundary,
+                           result, R_i, R_i)
+
+    SaveResult(state, 'p', Ne, Ns, Lx, Ly, M0, t, step_size, region_geometry, boundary,
+               result, save_result)
 
 
 def RunModSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
@@ -506,7 +503,7 @@ def RunModSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                region_geometry: str, boundary: np.float64,
                state: str, kCM: np.uint8 = 0,
                phi_1: np.float64 = 0, phi_t: np.float64 = 0,
-               save_result: str = 'final', save_config: np.bool_ = False
+               save_config: np.bool_ = True, save_result: np.bool_ = True
                ):
     """
     Parameters:
@@ -526,10 +523,10 @@ def RunModSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     state : specifies the wavefunction of the system 
             ('laughlin','free_fermions','cfl')
     kCM, phi_1, phi_t : select the CM momentum and quasi-PBC manifold
+    save_config : indicate whether the coordinate vector and the swap order
+                    are saved (every 5% of the run)
     save_result : indicate whether the full result vector is saved, the
-                    final mean and variance are saved, or just printed 
-                    ('full', 'final', 'none')
-    save_config : indicate whether the final configuration is saved
+                    final mean and variance are saved, or just printed
     """
 
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
@@ -551,6 +548,12 @@ def RunModSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
         update = InitialModLaughlin(Ns, t, R_i, swap_R_i)
     elif state == 'free_fermions':
         update = InitialModFreeFermions(Lx, Ly, R_i, swap_R_i)
+        wf_i = np.zeros((2, 2), dtype=np.complex128)
+        wf_f = np.zeros((2, 2), dtype=np.complex128)
+        UpdateWavefnFreeFermions(wf_i, Lx, Ly, R_i)
+        swap_wf_i = np.zeros((2, 2), dtype=np.complex128)
+        swap_wf_f = np.zeros((2, 2), dtype=np.complex128)
+        UpdateWavefnFreeFermions(swap_wf_i, Lx, Ly, swap_R_i)
 
     for i in range(M):
         accept_bit = 0
@@ -561,8 +564,9 @@ def RunModSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
             r = (StepOneAmplitudeLaughlin(Ns, t, R_i[:, 0], R_f[:, 0], p[0]) *
                  StepOneAmplitudeLaughlin(Ns, t, R_i[:, 1], R_f[:, 1], p[1]))
         elif state == 'free_fermions':
-            r = (StepOneAmplitudeFreeFermions(Lx, Ly, R_i[:, 0], R_f[:, 0]) *
-                 StepOneAmplitudeFreeFermions(Lx, Ly, R_i[:, 1], R_f[:, 1]))
+            UpdateWavefnFreeFermions(wf_f, Lx, Ly, R_f)
+            r = ((wf_f[0, 0] * wf_f[0, 1]) / (wf_i[0, 0] * wf_i[0, 1]) *
+                 np.exp(wf_f[1, 0] + wf_f[1, 1] - wf_i[1, 0] - wf_i[1, 1]))
 
         if np.abs(r)**2 > np.random.random():
             accept_bit = 1
@@ -575,8 +579,13 @@ def RunModSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                 update *= np.abs(StepOneAmplitudeLaughlinSWAP(Ns, t, swap_R_i,
                                                               swap_R_f, p_swap_order) / r)
             elif state == 'free_fermions':
-                update *= np.abs(StepOneAmplitudeFreeFermionsSWAP(Lx, Ly, swap_R_i,
-                                                                  swap_R_f, p_swap_order) / r)
+                UpdateWavefnFreeFermions(swap_wf_f, Lx, Ly, swap_R_f)
+                swap_r = ((swap_wf_f[0, 0] * swap_wf_f[0, 1]) / (swap_wf_i[0, 0] * swap_wf_i[0, 1]) *
+                          np.exp(swap_wf_f[1, 0] + swap_wf_f[1, 1] - swap_wf_i[1, 0] - swap_wf_i[1, 1]))
+                update *= np.abs(swap_r / r)
+
+                wf_i = np.copy(wf_f)
+                swap_wf_i = np.copy(swap_wf_f)
 
             R_i = np.copy(R_f)
             for j in range(2):
@@ -585,11 +594,18 @@ def RunModSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
             swap_order_i = np.copy(swap_order_f)
             swap_R_i = np.copy(swap_R_f)
 
-        acceptance = UpdateResult(
-            result, update, i, acceptance, accept_bit)
+        result[i] = update
+        acceptance = (acceptance*i + accept_bit)/(i + 1)
 
-    SaveOutput(Ne, Ns, Lx, Ly, M0, t, step_size, region_geometry, boundary, state,
-               result, save_result, save_config, R_i, 'mod')
+        if (i+1) % (M//20) == 0:
+            print('Iteration', i+1, 'done, current acceptance ratio:',
+                  np.round(acceptance*100, 2), '%')
+            if save_config:
+                SaveConfig(state, 'mod', Ne, Ns, Lx, Ly, t, step_size, region_geometry, boundary,
+                           result, R_i, swap_order_i)
+
+    SaveResult(state, 'mod', Ne, Ns, Lx, Ly, M0, t, step_size, region_geometry, boundary,
+               result, save_result)
 
 
 def RunSignSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
@@ -597,7 +613,7 @@ def RunSignSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                 region_geometry: str, boundary: np.float64,
                 state: str, kCM: np.uint8 = 0,
                 phi_1: np.float64 = 0, phi_t: np.float64 = 0,
-                save_result: str = 'final', save_config: np.bool_ = False
+                save_config: np.bool_ = True, save_result: np.bool_ = True
                 ):
     """
     Parameters:
@@ -617,10 +633,10 @@ def RunSignSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     state : specifies the wavefunction of the system 
             ('laughlin','free_fermions','cfl')
     kCM, phi_1, phi_t : select the CM momentum and quasi-PBC manifold
+    save_config : indicate whether the coordinate vector and the swap order
+                    are saved (every 5% of the run)
     save_result : indicate whether the full result vector is saved, the
-                    final mean and variance are saved, or just printed 
-                    ('full', 'final', 'none')
-    save_config : indicate whether the final configuration is saved
+                    final mean and variance are saved, or just printed
     """
 
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
@@ -642,6 +658,12 @@ def RunSignSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
         update = InitialSignLaughlin(Ns, t, R_i, swap_R_i)
     elif state == 'free_fermions':
         update = InitialSignFreeFermions(Lx, Ly, R_i, swap_R_i)
+        wf_i = np.zeros((2, 2), dtype=np.complex128)
+        wf_f = np.zeros((2, 2), dtype=np.complex128)
+        UpdateWavefnFreeFermions(wf_i, Lx, Ly, R_i)
+        swap_wf_i = np.zeros((2, 2), dtype=np.complex128)
+        swap_wf_f = np.zeros((2, 2), dtype=np.complex128)
+        UpdateWavefnFreeFermions(swap_wf_i, Lx, Ly, swap_R_i)
 
     for i in range(M):
         accept_bit = 0
@@ -658,9 +680,12 @@ def RunSignSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                  StepOneAmplitudeLaughlin(Ns, t, R_i[:, 0], R_f[:, 0], p[0]) *
                  StepOneAmplitudeLaughlin(Ns, t, R_i[:, 1], R_f[:, 1], p[1]))
         elif state == 'free_fermions':
-            r = (np.conj(StepOneAmplitudeFreeFermionsSWAP(Lx, Ly, swap_R_i, swap_R_f, p_swap_order)) *
-                 StepOneAmplitudeFreeFermions(Lx, Ly, R_i[:, 0], R_f[:, 0]) *
-                 StepOneAmplitudeFreeFermions(Lx, Ly, R_i[:, 1], R_f[:, 1]))
+            UpdateWavefnFreeFermions(wf_f, Lx, Ly, R_f)
+            UpdateWavefnFreeFermions(swap_wf_f, Lx, Ly, swap_R_f)
+            r = ((wf_f[0, 0] * wf_f[0, 1] * swap_wf_i[0, 0] * swap_wf_i[0, 1]) /
+                 (wf_i[0, 0] * wf_i[0, 1] * swap_wf_f[0, 0] * swap_wf_f[0, 1]) *
+                 np.exp(swap_wf_f[1, 0] + swap_wf_f[1, 1] - swap_wf_i[1, 0] - swap_wf_i[1, 1]
+                        + wf_f[1, 0] + wf_f[1, 1] - wf_i[1, 0] - wf_i[1, 1]))
 
         if np.abs(r) > np.random.random():
             accept_bit = 1
@@ -672,48 +697,19 @@ def RunSignSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
             swap_R_i = np.copy(swap_R_f)
             update *= r/np.abs(r)
 
-        acceptance = UpdateResult(
-            result, update, i, acceptance, accept_bit)
+            if state == 'free_fermions':
+                wf_i = np.copy(wf_f)
+                swap_wf_i = np.copy(swap_wf_f)
 
-    SaveOutput(Ne, Ns, Lx, Ly, M0, t, step_size, region_geometry, boundary, state,
-               result, save_result, save_config, R_i, 'sign')
+        result[i] = update
+        acceptance = (acceptance*i + accept_bit)/(i + 1)
 
+        if (i+1) % (M//20) == 0:
+            print('Iteration', i+1, 'done, current acceptance ratio:',
+                  np.round(acceptance*100, 2), '%')
+            if save_config:
+                SaveConfig(state, 'sign', Ne, Ns, Lx, Ly, t, step_size, region_geometry, boundary,
+                           result, R_i, swap_order_i)
 
-def SaveOutput(Ne: np.uint8, Ns: np.uint16, Lx: np.float64, Ly: np.float64,
-               M0: np.uint32, t: np.complex128, step_size: np.float64,
-               region_geometry: str, boundary: np.float64, state: str,
-               result: np.array, save_result: np.bool_, save_config: np.bool_,
-               R: np.array, SWAP_term: str):
-
-    if save_result == 'full':
-        if SWAP_term == 'sign':
-            np.save(f"{state}_{SWAP_term}_real_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{boundary/Ly:.3f}_step_{step_size/Lx:.3f}_results.npy",
-                    np.real(result))
-            np.save(f"{state}_{SWAP_term}_imag_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{boundary/Ly:.3f}_step_{step_size/Lx:.3f}_results.npy",
-                    np.imag(result))
-        else:
-            np.save(f"{state}_{SWAP_term}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{boundary/Ly:.3f}_step_{step_size/Lx:.3f}_results.npy",
-                    result)
-    elif save_result == 'final':
-        if SWAP_term == 'sign':
-            np.savetxt(f"{state}_{SWAP_term}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{boundary/Ly:.3f}_step_{step_size/Lx:.3f}.dat",
-                       np.vstack((Stats(np.real(result[int(M0):])),
-                                  Stats(np.imag(result[int(M0):]))
-                                  ))
-                       )
-        else:
-            np.savetxt(f"{state}_{SWAP_term}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{boundary/Ly:.3f}_step_{step_size/Lx:.3f}.dat",
-                       Stats(result[int(M0):]))
-    elif save_result == 'none':
-        if SWAP_term == 'sign':
-            mean, var = Stats(np.real(result[int(M0):]))
-            print(f"\nMean (real) = {mean} \n Var (real) = {var}")
-            mean, var = Stats(np.imag(result[int(M0):]))
-            print(f"\nMean (imag) = {mean} \n Var (imag) = {var}")
-        else:
-            mean, var = Stats(result[int(M0):])
-            print(f"\nMean = {mean} \n Var = {var}")
-
-    if save_config:
-        np.save(f"{state}_{SWAP_term}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{boundary/Ly:.3f}_step_{step_size/Lx:.3f}_state.npy",
-                R)
+    SaveResult(state, 'sign', Ne, Ns, Lx, Ly, M0, t, step_size, region_geometry, boundary,
+               result, save_result)
