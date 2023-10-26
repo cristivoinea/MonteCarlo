@@ -2,11 +2,11 @@ from numba import njit, vectorize, prange
 import numpy as np
 
 
-@njit(parallel=True)
+@njit  # (parallel=True)
 def ThetaFunction(z: np.complex128, t: np.complex128, a: np.float64,
-                  b: np.float64, n_max: np.uint32 = 1000
+                  b: np.float64, n_max: np.uint32 = 50
                   ) -> np.complex128:
-    index_a = np.arange(-n_max, n_max, 1) + a
+    index_a = np.arange(-n_max+a, n_max+a, 1)
     terms = np.exp(1j*np.pi*index_a*(t*(index_a) + 2*(z + b)))
     return np.sum(terms)
 
@@ -63,7 +63,7 @@ def ReduceCM(Ns: np.uint16, t: np.complex128,
     return r, expo_CM
 
 
-@njit  # (parallel=True)
+@njit(parallel=True)
 def StepOneAmplitudeLaughlin(Ns: np.uint16, t: np.complex128,
                              R_i: np.array, R_f: np.array, p: np.uint8,
                              kCM: np.uint8 = 0,
@@ -98,7 +98,7 @@ def StepOneAmplitudeLaughlin(Ns: np.uint16, t: np.complex128,
     expo_nonholomorphic_f = ReduceNonholomorphic(R_f, np.array([p]))
     expo = expo_CM_f - expo_CM_i + expo_nonholomorphic_f - expo_nonholomorphic_i
 
-    for i in range(Ne):
+    for i in prange(Ne):
         if i != p:
             r *= (ThetaFunction((R_f[i]-R_f[p])/Lx, t, 1/2, 1/2) /
                   ThetaFunction((R_i[i]-R_i[p])/Lx, t, 1/2, 1/2))**m
@@ -146,8 +146,8 @@ def StepOneAmplitudeLaughlinSWAP(Ns: np.uint16, t: np.complex128,
             p_swap = np.abs(p_swap_order)-1
             copy = 0
 
-        N = swap_R_i.shape[0]
-        m = Ns/N
+        Ne = swap_R_i.shape[0]
+        m = Ns/Ne
         Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
 
         diff_swap_R_f = swap_R_f[:, copy]
@@ -160,13 +160,13 @@ def StepOneAmplitudeLaughlinSWAP(Ns: np.uint16, t: np.complex128,
         expo_nonholomorphic_f = ReduceNonholomorphic(diff_swap_R_f, p_swap)
         expo = expo_CM_f - expo_CM_i + expo_nonholomorphic_f - expo_nonholomorphic_i
 
-        for j in range(N):
+        for j in prange(Ne):
             if j != p_swap[0] and j != p_swap[1]:
                 r *= ((ThetaFunction((diff_swap_R_f[j]-diff_swap_R_f[p_swap[0]])/Lx, t, 1/2, 1/2) *
                        ThetaFunction((diff_swap_R_f[j]-diff_swap_R_f[p_swap[1]])/Lx, t, 1/2, 1/2)) /
                       (ThetaFunction((diff_swap_R_i[j]-diff_swap_R_i[p_swap[0]])/Lx, t, 1/2, 1/2) *
                        ThetaFunction((diff_swap_R_i[j]-diff_swap_R_i[p_swap[1]])/Lx, t, 1/2, 1/2)))**m
-            r *= np.exp(expo/N)
+            r *= np.exp(expo/Ne)
 
         r *= (ThetaFunction((diff_swap_R_f[p_swap[0]]-diff_swap_R_f[p_swap[1]])/Lx, t, 1/2, 1/2) /
               ThetaFunction((diff_swap_R_i[p_swap[0]]-diff_swap_R_i[p_swap[1]])/Lx, t, 1/2, 1/2))**m
