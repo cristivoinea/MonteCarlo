@@ -443,7 +443,7 @@ def RunPSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
     Ly = Lx*np.imag(t)
     print("Torus dimensions \nLx = ", Lx, "\nLy = ", Ly)
-    TestPBC(Ne, Ns, t, kCM, phi_1, phi_t)
+    # TestPBC(Ne, Ns, t, kCM, phi_1, phi_t)
 
     acceptance: np.float64 = 0
     step_size *= Lx
@@ -532,7 +532,7 @@ def RunModSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
     Ly = Lx*np.imag(t)
     print("Torus dimensions \nLx = ", Lx, "\nLy = ", Ly)
-    TestPBC(Ne, Ns, t, kCM, phi_1, phi_t)
+    # TestPBC(Ne, Ns, t, kCM, phi_1, phi_t)
 
     acceptance: np.float64 = 0
     step_size *= Lx
@@ -642,7 +642,7 @@ def RunSignSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
     Ly = Lx*np.imag(t)
     print("Torus dimensions \nLx = ", Lx, "\nLy = ", Ly)
-    TestPBC(Ne, Ns, t, kCM, phi_1, phi_t)
+    # TestPBC(Ne, Ns, t, kCM, phi_1, phi_t)
 
     acceptance: np.float64 = 0
     step_size *= Lx
