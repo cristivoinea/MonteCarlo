@@ -4,7 +4,7 @@ import numpy as np
 
 @njit  # (parallel=True)
 def ThetaFunction(z: np.complex128, t: np.complex128, a: np.float64,
-                  b: np.float64, n_max: np.uint32 = 50
+                  b: np.float64, n_max: np.uint32 = 70
                   ) -> np.complex128:
     index_a = np.arange(-n_max+a, n_max+a, 1)
     terms = np.exp(1j*np.pi*index_a*(t*(index_a) + 2*(z + b)))
@@ -31,29 +31,36 @@ def ThetaFunctionVectorized(z, t: np.complex128, a: np.float64,
 
 
 @njit
-def ReduceNonholomorphic(R: np.array, p: np.array
+def ReduceNonholomorphic(coords: np.array,
                          ) -> np.complex128:
+    """Given the coordinates of the particles that move,
+    returns the nonholomorphic Gaussian exponent in the wfn.
+
+    Parameters:
+    coords : array with updated coordiantes
+
+    Output:
+    expo_non_holomorphic : nonholomorphic Gaussian exponent"""
     expo_nonholomorphic = 0
-    for j in range(p.size):
-        expo_nonholomorphic += (R[p[j]]**2 - np.abs(R[p[j]])**2)/4
+    for j in range(coords.size):
+        expo_nonholomorphic += (coords[j]**2 - np.abs(coords[j])**2)/4
 
     return expo_nonholomorphic
 
 
 @njit
-def ReduceCM(Ns: np.uint16, t: np.complex128,
-             R: np.array, kCM: np.uint8 = 0,
+def ReduceCM(Ne: np.uint16, Ns: np.uint16, t: np.complex128,
+             zCM: np.complex128, kCM: np.uint8 = 0,
              phi_1: np.float64 = 0, phi_t: np.float64 = 0
              ) -> (np.complex128, np.complex128):
     """Using the properties of the theta function, splits the CM contribution
     to the wavefunction into a a theta function and exponential contribution."""
-    Ne = R.size
     m = Ns/Ne
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
     aCM = phi_1/(2*np.pi*m) + kCM/m + (Ne-1)/2
     bCM = -phi_t/(2*np.pi) + m*(Ne-1)/2
 
-    zCM = m*np.sum(R)/Lx
+    zCM *= m/Lx
     c = np.imag(zCM)//np.imag(m*t)
 
     expo_CM = -1j*np.pi*c*(2*zCM - c*m*t + 2*bCM)
@@ -65,43 +72,45 @@ def ReduceCM(Ns: np.uint16, t: np.complex128,
 
 @njit(parallel=True)
 def StepOneAmplitudeLaughlin(Ns: np.uint16, t: np.complex128,
-                             R_i: np.array, R_f: np.array, p: np.uint8,
-                             kCM: np.uint8 = 0,
+                             coords_initial: np.array, coords_final: np.array,
+                             p: np.uint8, kCM: np.uint8 = 0,
                              phi_1: np.float64 = 0, phi_t: np.float64 = 0
                              ) -> np.complex128:
     """
-    Returns the ratio of wavefunctions for coordinates R_i
-    to coordinates R_f, given that the particle with index p has moved.
+    Returns the ratio of initial and final wavefunctions, given
+    that the particle with index p has moved.
 
     Parameters:
-
     N : number of particles
     Ns : number of flux quanta
     t : torus complex aspect ratio
-    R_i : initial configuration of particles
-    R_f : final configuration of particles
-    p : indice of particle that moves
+    coords_initial : initial configuration of particles
+    coords_final : final configuration of particles
+    p : index of particle that moves
 
     Output:
-
     r : ratio of wavefunctions R_f/R_i
     """
 
-    Ne = R_i.size
+    Ne = coords_initial.size
     m = Ns/Ne
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
 
-    (r_i, expo_CM_i) = ReduceCM(Ns, t, R_i, kCM, phi_1, phi_t)
-    (r_f, expo_CM_f) = ReduceCM(Ns, t, R_f, kCM, phi_1, phi_t)
+    (r_i, expo_CM_i) = ReduceCM(Ne, Ns, t, np.sum(coords_initial),
+                                kCM, phi_1, phi_t)
+    (r_f, expo_CM_f) = ReduceCM(Ne, Ns, t, np.sum(coords_final),
+                                kCM, phi_1, phi_t)
     r = r_f/r_i
-    expo_nonholomorphic_i = ReduceNonholomorphic(R_i, np.array([p]))
-    expo_nonholomorphic_f = ReduceNonholomorphic(R_f, np.array([p]))
+    expo_nonholomorphic_i = ReduceNonholomorphic(np.array([coords_initial[p]]))
+    expo_nonholomorphic_f = ReduceNonholomorphic(np.array([coords_final[p]]))
     expo = expo_CM_f - expo_CM_i + expo_nonholomorphic_f - expo_nonholomorphic_i
 
     for i in prange(Ne):
         if i != p:
-            r *= (ThetaFunction((R_f[i]-R_f[p])/Lx, t, 1/2, 1/2) /
-                  ThetaFunction((R_i[i]-R_i[p])/Lx, t, 1/2, 1/2))**m
+            r *= (ThetaFunction((coords_final[i]-coords_final[p])/Lx,
+                                t, 1/2, 1/2) /
+                  ThetaFunction((coords_initial[i]-coords_initial[p])/Lx,
+                                t, 1/2, 1/2))**m
         r *= np.exp(expo/Ne)
 
     """
@@ -153,11 +162,13 @@ def StepOneAmplitudeLaughlinSWAP(Ns: np.uint16, t: np.complex128,
         diff_swap_R_f = swap_R_f[:, copy]
         diff_swap_R_i = swap_R_i[:, copy]
 
-        (r_i, expo_CM_i) = ReduceCM(Ns, t, diff_swap_R_i, kCM, phi_1, phi_t)
-        (r_f, expo_CM_f) = ReduceCM(Ns, t, diff_swap_R_f, kCM, phi_1, phi_t)
+        (r_i, expo_CM_i) = ReduceCM(Ne, Ns, t,
+                                    np.sum(diff_swap_R_i), kCM, phi_1, phi_t)
+        (r_f, expo_CM_f) = ReduceCM(Ne, Ns, t,
+                                    np.sum(diff_swap_R_f), kCM, phi_1, phi_t)
         r = r_f / r_i
-        expo_nonholomorphic_i = ReduceNonholomorphic(diff_swap_R_i, p_swap)
-        expo_nonholomorphic_f = ReduceNonholomorphic(diff_swap_R_f, p_swap)
+        expo_nonholomorphic_i = ReduceNonholomorphic(diff_swap_R_i[p_swap])
+        expo_nonholomorphic_f = ReduceNonholomorphic(diff_swap_R_f[p_swap])
         expo = expo_CM_f - expo_CM_i + expo_nonholomorphic_f - expo_nonholomorphic_i
 
         for j in prange(Ne):
@@ -181,26 +192,26 @@ def InitialModLaughlin(Ns: np.uint16, t: np.complex128, R: np.array,
                        ) -> np.float64:
     """
     """
-    N = R.shape[0]
-    m = Ns/N
+    Ne = R.shape[0]
+    m = Ns/Ne
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
 
     (mod_swap_0, expo_swap_0) = ReduceCM(
-        Ns, t, swap_R[:, 0], kCM, phi_1, phi_t)
+        Ne, Ns, t, np.sum(swap_R[:, 0]), kCM, phi_1, phi_t)
     (mod_swap_1, expo_swap_1) = ReduceCM(
-        Ns, t, swap_R[:, 1], kCM, phi_1, phi_t)
-    (mod_0, expo_0) = ReduceCM(Ns, t, R[:, 0], kCM, phi_1, phi_t)
-    (mod_1, expo_1) = ReduceCM(Ns, t, R[:, 1], kCM, phi_1, phi_t)
+        Ne, Ns, t, np.sum(swap_R[:, 1]), kCM, phi_1, phi_t)
+    (mod_0, expo_0) = ReduceCM(Ne, Ns, t, np.sum(R[:, 0]), kCM, phi_1, phi_t)
+    (mod_1, expo_1) = ReduceCM(Ne, Ns, t, np.sum(R[:, 1]), kCM, phi_1, phi_t)
     mod = mod_swap_0 * mod_swap_1 / (mod_0 * mod_1)
     expo = expo_swap_0 + expo_swap_1 - expo_0 - expo_1
 
-    for i in range(N):
-        for j in range(i+1, N):
+    for i in range(Ne):
+        for j in range(i+1, Ne):
             mod *= (ThetaFunction((swap_R[i, 0]-swap_R[j, 0])/Lx, t, 1/2, 1/2) /
                     ThetaFunction((R[i, 0]-R[j, 0])/Lx, t, 1/2, 1/2))**m
             mod *= (ThetaFunction((swap_R[i, 1]-swap_R[j, 1])/Lx, t, 1/2, 1/2) /
                     ThetaFunction((R[i, 1]-R[j, 1])/Lx, t, 1/2, 1/2))**m
-        mod *= np.exp(expo/N)
+        mod *= np.exp(expo/Ne)
 
     return np.abs(mod)
 
@@ -212,26 +223,26 @@ def InitialSignLaughlin(Ns: np.uint16, t: np.complex128, R: np.array,
                         ) -> np.float64:
     """
     """
-    N = R.shape[0]
-    m = Ns/N
+    Ne = R.shape[0]
+    m = Ns/Ne
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
 
     (sign_swap_0, expo_swap_0) = ReduceCM(
-        Ns, t, swap_R[:, 0], kCM, phi_1, phi_t)
+        Ne, Ns, t, np.sum(swap_R[:, 0]), kCM, phi_1, phi_t)
     sign_swap_0 /= np.abs(sign_swap_0)
     (sign_swap_1, expo_swap_1) = ReduceCM(
-        Ns, t, swap_R[:, 1], kCM, phi_1, phi_t)
+        Ne, Ns, t, np.sum(swap_R[:, 1]), kCM, phi_1, phi_t)
     sign_swap_1 /= np.abs(sign_swap_1)
-    (sign_0, expo_0) = ReduceCM(Ns, t, R[:, 0], kCM, phi_1, phi_t)
+    (sign_0, expo_0) = ReduceCM(Ne, Ns, t, np.sum(R[:, 0]), kCM, phi_1, phi_t)
     sign_0 /= np.abs(sign_0)
-    (sign_1, expo_1) = ReduceCM(Ns, t, R[:, 1], kCM, phi_1, phi_t)
+    (sign_1, expo_1) = ReduceCM(Ne, Ns, t, np.sum(R[:, 1]), kCM, phi_1, phi_t)
     sign_1 /= np.abs(sign_1)
     sign = np.conj(sign_swap_0 * sign_swap_1) * sign_0 * sign_1
     expo = 1j*np.imag(-expo_swap_0 - expo_swap_1 + expo_0 + expo_1)
     sign *= np.exp(expo)
 
-    for i in range(N):
-        for j in range(i+1, N):
+    for i in range(Ne):
+        for j in range(i+1, Ne):
             sign *= (np.conj(ThetaFunction((swap_R[i, 0]-swap_R[j, 0])/Lx, t, 1/2, 1/2) *
                              ThetaFunction((swap_R[i, 1]-swap_R[j, 1])/Lx, t, 1/2, 1/2)) *
                      (ThetaFunction((R[i, 0]-R[j, 0])/Lx, t, 1/2, 1/2) *
