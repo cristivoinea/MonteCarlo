@@ -1,6 +1,33 @@
 import numpy as np
 from numba import njit
 
+fermi_sea_ky = {}
+fermi_sea_kx = {}
+fermi_sea_kx[32] = np.array([0, 1, 1, 0, 2, 2, 1, 0, -1, -1, 0, 1,
+                             2, -1, -1, 2, 3, 3, 1, 0, -2, -2, 0, 1,
+                             3, 2, -1, -2, -2, -1, 2, 3])
+fermi_sea_ky[32] = np.array([0, 0, 1, 1, 0, 1, 2, 2, 1, 0, -1, -1,
+                             2, 2, -1, -1, 0, 1, 3, 3, 1, 0, -2, -2,
+                             2, 3, 3, 2, -1, -2, -2, -1])
+fermi_sea_kx[12] = np.array([0, 1, 0, -1, 0, 1, -1, 1, 2, 2, 1, 0])
+fermi_sea_ky[12] = np.array([0, 0, 1, 0, -1, 1, 1, -1, 0, 1, 2, 2])
+fermi_sea_kx[69] = np.array([0, 1, 0, -1, 0, 1, -1, -1, 1, 2, 0, -2, 0,
+                             2, 1, -1, -2, -2, -1, 1, 2, 2, -2, -2, 2,
+                             3, 0, -3, 0, 3, 1, -1, -3, -3, -1, 1, 3,
+                             3, 2, -2, -3, -3, -2, 2, 3, 4, 0, -4, 0,
+                             4, 1, -1, -4, -4, -1, 1, 4, 3, -3, -3, 3,
+                             4, 2, -2, -4, -4, -2, 2, 4])
+fermi_sea_ky[69] = np.array([0, 0, 1, 0, -1, 1, 1, -1, -1, 0, 2, 0, -2,
+                             1, 2, 2, 1, -1, -2, -2, -1, 2, 2, -2, -2,
+                             0, 3, 0, -3, 1, 3, 3, 1, -1, -3, -3, -1,
+                             2, 3, 3, 2, -2, -3, -3, -2, 0, 4, 0, -4,
+                             1, 4, 4, 1, -1, -4, -4, -1, 3, 3, -3, -3,
+                             2, 4, 4, 2, -2, -4, -4, -2])
+fermi_sea_kx[37] = fermi_sea_kx[69][:37]
+fermi_sea_ky[37] = fermi_sea_ky[69][:37]
+fermi_sea_kx[21] = fermi_sea_kx[69][:21]
+fermi_sea_ky[21] = fermi_sea_ky[69][:21]
+
 
 def Stats(data: np.array) -> (np.float64, np.float64):
     data_copy = data
@@ -13,13 +40,14 @@ def Stats(data: np.array) -> (np.float64, np.float64):
 def FullStats(data: np.array
               ) -> (np.array, np.array):
 
-    mean_vector = np.zeros(data.size, dtype=np.float64)
-    std_vector = np.zeros(data.size, dtype=np.float64)
-    for i in range(data.size):
-        mean_vector[i] = np.sum(data[:i+1])/data[:i+1].size
-        std_vector[i] = np.std(data[:i+1], ddof=1)
+    n = 500
+    mean_vector = np.zeros(data.size-n, dtype=np.float64)
+    # std_vector = np.zeros(data.size-n, dtype=np.float64)
+    for i in range(mean_vector.size):
+        mean_vector[i] = np.mean(data[:i+n+1])
+        # std_vector[i] = np.std(data[:i+n+1], ddof=1)
 
-    return mean_vector, std_vector
+    return mean_vector  # , std_vector
 
 
 def GetEntropy(Ne, Ns, M, M0, t, step, region_geometry):
@@ -44,46 +72,48 @@ def GetEntropy(Ne, Ns, M, M0, t, step, region_geometry):
     return boundaries, np.vstack((S2, err)).T, np.vstack((S2_p, err_p)).T, np.vstack((S2_mod, err_mod)).T, np.vstack((S2_sign, err_sign)).T
 
 
-def SaveConfig(state: str, SWAP_term: str, Ne: np.uint8, Ns: np.uint16,
+def SaveConfig(state: str, quantity: str, Ne: np.uint8, Ns: np.uint16,
                Lx: np.float64, Ly: np.float64, t: np.complex128,
-               step_size: np.float64, region_geometry: str, boundary: np.float64,
+               step_size: np.float64,
+               region_geometry: str, region_size: np.float64,
                result: np.array, R: np.array, swap_order: np.array):
-    if SWAP_term == 'sign':
-        np.save(f"{state}_full_{SWAP_term}_real_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{boundary/Ly:.3f}_step_{step_size/Lx:.3f}.npy",
+    if quantity == 'sign':
+        np.save(f"{state}_full_{quantity}_real_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{region_size:.4f}_step_{step_size/Lx:.3f}.npy",
                 np.real(result))
-        np.save(f"{state}_full_{SWAP_term}_imag_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{boundary/Ly:.3f}_step_{step_size/Lx:.3f}.npy",
+        np.save(f"{state}_full_{quantity}_imag_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{region_size:.4f}_step_{step_size/Lx:.3f}.npy",
                 np.imag(result))
 
     else:
-        np.save(f"{state}_full_{SWAP_term}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{boundary/Ly:.3f}_step_{step_size/Lx:.3f}.npy",
+        np.save(f"{state}_full_{quantity}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{region_size:.4f}_step_{step_size/Lx:.3f}.npy",
                 result)
 
-    if SWAP_term == 'sign' or SWAP_term == 'mod':
-        np.save(f"{state}_{SWAP_term}_order_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{boundary/Ly:.3f}_step_{step_size/Lx:.3f}.npy",
+    if quantity == 'sign' or quantity == 'mod':
+        np.save(f"{state}_{quantity}_order_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{region_size:.4f}_step_{step_size/Lx:.3f}.npy",
                 swap_order)
 
-    np.save(f"{state}_{SWAP_term}_coords_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{boundary/Ly:.3f}_step_{step_size/Lx:.3f}.npy",
+    np.save(f"{state}_{quantity}_coords_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{region_size:.4f}_step_{step_size/Lx:.3f}.npy",
             R)
 
 
-def SaveResult(state: str, SWAP_term: str, Ne: np.uint8, Ns: np.uint16,
-               Lx: np.float64, Ly: np.float64, M0: np.uint32, t: np.complex128,
-               step_size: np.float64, region_geometry: str, boundary: np.float64,
-               result: np.array, save_result: np.bool_):
+def SaveResult(state: str, quantity: str, Ne: np.uint8, Ns: np.uint16,
+               Lx: np.float64, Ly: np.float64,
+               M0: np.uint32, t: np.complex128, step_size: np.float64,
+               result: np.array, save_result: np.bool_,
+               region_geometry: str = 'none', region_size: np.float64 = 0):
 
     if save_result:
-        if SWAP_term == 'sign':
-            np.savetxt(f"{state}_{SWAP_term}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{boundary/Ly:.3f}_step_{step_size/Lx:.3f}.dat",
+        if quantity == 'sign':
+            np.savetxt(f"{state}_{quantity}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{region_size:.4f}_step_{step_size/Lx:.3f}.dat",
                        np.vstack((Stats(np.real(result[int(M0):])),
                                   Stats(np.imag(result[int(M0):]))
                                   ))
                        )
         else:
-            np.savetxt(f"{state}_{SWAP_term}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{boundary/Ly:.3f}_step_{step_size/Lx:.3f}.dat",
+            np.savetxt(f"{state}_{quantity}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{region_size:.4f}_step_{step_size/Lx:.3f}.dat",
                        Stats(result[int(M0):]))
 
     else:
-        if SWAP_term == 'sign':
+        if quantity == 'sign':
             mean, var = Stats(np.real(result[int(M0):]))
             print(f"\nMean (real) = {mean} \n Var (real) = {var}")
             mean, var = Stats(np.imag(result[int(M0):]))

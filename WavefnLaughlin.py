@@ -4,7 +4,7 @@ import numpy as np
 
 @njit  # (parallel=True)
 def ThetaFunction(z: np.complex128, t: np.complex128, a: np.float64,
-                  b: np.float64, n_max: np.uint32 = 70
+                  b: np.float64, n_max: np.uint32 = 60
                   ) -> np.complex128:
     index_a = np.arange(-n_max+a, n_max+a, 1)
     terms = np.exp(1j*np.pi*index_a*(t*(index_a) + 2*(z + b)))
@@ -71,11 +71,40 @@ def ReduceCM(Ne: np.uint16, Ns: np.uint16, t: np.complex128,
 
 
 @njit(parallel=True)
-def StepOneAmplitudeLaughlin(Ns: np.uint16, t: np.complex128,
-                             coords_initial: np.array, coords_final: np.array,
-                             p: np.uint8, kCM: np.uint8 = 0,
-                             phi_1: np.float64 = 0, phi_t: np.float64 = 0
-                             ) -> np.complex128:
+def UpdateJastrowsLaughlin(jastrows: np.array, coords: np.array, t: np.complex128,
+                           Lx: np.float64, moved_particle: np.uint16):
+
+    Ne = coords.size
+    for i in prange(Ne):
+        if i != moved_particle:
+            jastrows[i, moved_particle] = ThetaFunction(
+                (coords[i] - coords[moved_particle])/Lx, t, 1/2, 1/2)
+            jastrows[moved_particle, i] = - jastrows[i, moved_particle]
+
+
+@njit
+def InitialJastrowsLaughlin(coords: np.array,
+                            t: np.complex128, Lx: np.float64):
+
+    Ne = coords.size
+    jastrows = np.zeros((Ne, Ne), dtype=np.complex128)
+    for i in range(Ne):
+        for j in range(i+1, Ne):
+            jastrows[i, j] = ThetaFunction(
+                (coords[i] - coords[j])/Lx, t, 1/2, 1/2)
+            jastrows[j, i] = - jastrows[i, j]
+    for i in range(Ne):
+        jastrows[i, i] = 1
+
+    return jastrows
+
+
+@njit(parallel=True)
+def StepOneAmplitudeLaughlinOld(Ns: np.uint16, t: np.complex128,
+                                coords_initial: np.array, coords_final: np.array,
+                                p: np.uint8, kCM: np.uint8 = 0,
+                                phi_1: np.float64 = 0, phi_t: np.float64 = 0
+                                ) -> np.complex128:
     """
     Returns the ratio of initial and final wavefunctions, given
     that the particle with index p has moved.
@@ -107,24 +136,57 @@ def StepOneAmplitudeLaughlin(Ns: np.uint16, t: np.complex128,
 
     for i in prange(Ne):
         if i != p:
-            r *= (ThetaFunction((coords_final[i]-coords_final[p])/Lx,
-                                t, 1/2, 1/2) /
-                  ThetaFunction((coords_initial[i]-coords_initial[p])/Lx,
-                                t, 1/2, 1/2))**m
+            ratio = (ThetaFunction((coords_final[i]-coords_final[p])/Lx,
+                                   t, 1/2, 1/2) /
+                     ThetaFunction((coords_initial[i]-coords_initial[p])/Lx,
+                                   t, 1/2, 1/2))**m
+            r *= ratio
         r *= np.exp(expo/Ne)
 
+    return r
+
+
+@njit
+def StepOneAmplitudeLaughlin(Ns: np.uint16, t: np.complex128,
+                             coords_current: np.array, coords_new: np.array,
+                             jastrows_current: np.array, jastrows_new: np.array,
+                             moved_particle: np.uint8, kCM: np.uint8 = 0,
+                             phi_1: np.float64 = 0, phi_t: np.float64 = 0
+                             ) -> np.complex128:
     """
-    jastrow_terms = np.ones(N, dtype=np.complex128)
-    for i in prange(N):
-        if i != p:
-            jastrow_terms[i] = (ThetaFunction((R_f[i]-R_f[p])/Lx, t, 1/2, 1/2) /
-                                ThetaFunction((R_i[i]-R_i[p])/Lx, t, 1/2, 1/2))**m
-    for i in range(N):
-        r *= jastrow_terms[i]
-        r *= np.exp(expo/N)
+    Returns the ratio of initial and final wavefunctions, given
+    that the particle with index p has moved.
+
+    Parameters:
+    N : number of particles
+    Ns : number of flux quanta
+    t : torus complex aspect ratio
+    coords_current : current configuration of particles
+    coords_new : new configuration of particles
+    p : index of particle that moves
+
+    Output:
+    r : ratio of new/current wavefunctions
     """
 
-    return r
+    Ne = coords_current.size
+    m = Ns/Ne
+
+    (r_i, expo_CM_i) = ReduceCM(Ne, Ns, t, np.sum(coords_current),
+                                kCM, phi_1, phi_t)
+    (r_f, expo_CM_f) = ReduceCM(Ne, Ns, t, np.sum(coords_new),
+                                kCM, phi_1, phi_t)
+    r = r_f/r_i
+    expo_nonholomorphic_i = ReduceNonholomorphic(
+        np.array([coords_current[moved_particle]]))
+    expo_nonholomorphic_f = ReduceNonholomorphic(
+        np.array([coords_new[moved_particle]]))
+    expo = expo_CM_f - expo_CM_i + expo_nonholomorphic_f - expo_nonholomorphic_i
+
+    jastrows_relative = (jastrows_new[moved_particle, :] /
+                         jastrows_current[moved_particle, :])
+
+    return r*np.prod(np.power(jastrows_relative, m) * np.exp(expo/Ne))
 
 
 @njit(parallel=True)

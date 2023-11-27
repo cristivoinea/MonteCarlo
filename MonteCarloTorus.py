@@ -1,7 +1,12 @@
 from numba import njit, jit, prange
 from numba.typed import List
 import numpy as np
-from FQHEWaveFunctions import ThetaFunction, ThetaFunctionVectorized, LaughlinTorus, LaughlinTorusReduced
+
+from WavefnLaughlin import ThetaFunction, InitialJastrowsLaughlin, \
+    UpdateJastrowsLaughlin, StepOneAmplitudeLaughlin, StepOneAmplitudeLaughlinOld
+from WavefnCFL import StepOneAmplitudeCFL, ResetJastrowsCFL
+from WavefnCFL import InitialWavefnCFL, TmpWavefnCFL
+from utilities import SaveConfig, SaveResult, fermi_sea_kx, fermi_sea_ky
 
 
 @njit
@@ -65,9 +70,10 @@ def CoulombRealSpaceNoBackground(N: np.uint8, Lx: np.float64, tau: np.complex128
 
 
 @njit(parallel=True)
-def CoulombRealSpace(N: np.uint8, Lx: np.float64, Ly: np.float64,
-                     R: np.array, coulomb_cutoff: np.uint8 = 20):
+def CoulombRealSpace(Lx: np.float64, Ly: np.float64,
+                     coords: np.array, coulomb_cutoff: np.uint8 = 20):
     energy = 0
+    Ne = coords.size
     # get meshgrid
     # add half of the plane plus half of the real line
     qx = np.zeros((coulomb_cutoff, 2*coulomb_cutoff+1), dtype=np.float64)
@@ -79,10 +85,10 @@ def CoulombRealSpace(N: np.uint8, Lx: np.float64, Ly: np.float64,
     qx_line = np.arange(1, coulomb_cutoff+1, 1)*2*np.pi/Lx
     qy_line = np.zeros((coulomb_cutoff), dtype=np.float64)
 
-    for i in prange(N):
-        for j in range(i+1, N):
-            x = np.real(R[i]-R[j])
-            y = np.imag(R[i]-R[j])
+    for i in prange(Ne):
+        for j in range(i+1, Ne):
+            x = np.real(coords[i]-coords[j])
+            y = np.imag(coords[i]-coords[j])
 
             energy += np.sum(2*np.cos(qx*x + qy*y)/np.sqrt(qx**2+qy**2)) + \
                 np.sum(2*np.cos(qx_line*x + qy_line*y) /
@@ -122,7 +128,7 @@ def PBC(Lx: np.float64, Ly: np.float64, t: np.complex128,
     """Check if the particle position wrapped around the torus
     after one step. When a step wraps around both directions,
     the algorithm applies """
-    w = np.copy(z)
+    w = z
     if np.imag(w) > Ly:
         w -= Lx*t
     elif np.imag(w) < 0:
@@ -179,56 +185,37 @@ def PBCAll(Lx: np.float64, Ly: np.float64, t: np.complex128,
 
 
 @njit
-def TestPBC(N: np.uint8, Ns: np.uint16, t: np.complex128,
-            kCM: np.uint8 = 0, phi_1: np.float64 = 0,
-            phi_t: np.float64 = 0,):
-
-    Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
-    Ly = Lx*np.imag(t)
-    R0 = RandomConfig(N, Lx, Ly)
-
-    p = np.random.randint(0, N)
-    R_test = np.copy(R0)
-    R_test[p] += Lx
-    r_1 = np.exp(-1j*Lx*np.imag(R0[p])/2)*LaughlinTorus(
-        N, Ns, t, R_test, kCM, phi_1, phi_t)/LaughlinTorus(
-        N, Ns, t, R0, kCM, phi_1, phi_t)
-    print('t(Lx)*e^(-i phi_1) =', r_1*np.exp(-1j*phi_1))
-
-    R_test = np.copy(R0)
-    R_test[p] += Lx*t
-    r_t = np.exp(1j*Ly*np.real(R0[p])/2)*LaughlinTorus(
-        N, Ns, t, R_test, kCM, phi_1, phi_t)/LaughlinTorus(
-        N, Ns, t, R0, kCM, phi_1, phi_t)
-    print('t(Lx*tau)*e^(-i phi_t) =', r_t*np.exp(-1j*phi_t))
-
-
-@njit
-def ParticlesInRegion(R: np.array,
-                      region: np.array):
-    """
-    Checks which particles are in region A and returns their indices.
+def StepOne(Lx: np.float64, Ly: np.float64, t: np.complex128,
+            step_size: np.float64, coords_current: np.array
+            ) -> (np.array, np.uint8):
+    """Provides a new Monte Carlo configuration by updating
+    the coordinates of one particle.
 
     Parameters:
-    R : particle coordinate vector in the two copies (N)
-    region : boundaries of subregion A in the form (x0,x1,y0,y1)
+    Lx, Ly : perpendicular dimensions of the torus
+    t : torus complex aspect ratio
+    step_size : step size for each particle
+    coords_current : initial position of all particles
 
-    Outputs:
-    which_A : indices of particles in region A"""
+    Output:
+    coords_new : final position of all particles
+    moved_particle : index of particles that moves
+    """
 
-    which_A = List()
-    for p in range(R.size):
-        if np.real(R[p]) > region[0] and np.real(R[p]) < region[1] and \
-                np.imag(R[p]) > region[2] and np.imag(R[p]) < region[3]:
-            which_A.append(p)
+    coords_new = np.copy(coords_current)
+    moved_particle = np.random.randint(0, coords_current.size)
+    delta = step_size * np.random.choice(np.array([1, -1, 1j, -1j, (1+1j)*np.sqrt(2)/2, (1-1j)*np.sqrt(2)/2,
+                                                   (-1+1j)*np.sqrt(2)/2, (-1-1j)*np.sqrt(2)/2]))
+    coords_new[moved_particle] = PBC(
+        Lx, Ly, t, coords_current[moved_particle]+delta)
 
-    return which_A
+    return coords_new, moved_particle
 
 
 @njit
-def StepOne(N: np.uint8, Ns: np.uint16, t: np.complex128, R0: np.array,
-            step_size: np.float64, kCM: np.uint8,
-            phi_1: np.float64, phi_t: np.float64):
+def StepOneOld(N: np.uint8, Ns: np.uint16, t: np.complex128, R0: np.array,
+               step_size: np.float64, kCM: np.uint8,
+               phi_1: np.float64, phi_t: np.float64):
     """Performs one Monte Carlo step by attempting to update the
     coordinates of one particle.
     Particle coordinates are always between (0,Lx) and (0,Ly)."""
@@ -237,7 +224,7 @@ def StepOne(N: np.uint8, Ns: np.uint16, t: np.complex128, R0: np.array,
     p = np.random.randint(0, N)
     delta = step_size * np.exp(1j*2*np.pi*np.random.rand())
     # enforce periodic boundary conditions
-    z_p, phase = PBC(Lx, Ly, t, R0[p]+delta, phi_1, phi_t)
+    z_p = PBC(Lx, Ly, t, R0[p]+delta)
     # step
     R1 = np.copy(R0)
     R1[p] = z_p
@@ -269,14 +256,14 @@ def StepAll(N: np.uint8, Lx: np.float64, Ly: np.float64, t: np.complex128,
     return R1, phase
 
 
-@njit(parallel=True)
-def Run(N: np.uint8, Ns: np.uint16, t: np.complex64,
-        M: np.uint32, step_size: np.float64, kCM: np.uint8 = 0,
-        phi_1: np.float64 = 0, phi_t: np.float64 = 0,
-        W: np.float64 = -1.95013246, coulomb_cutoff: np.uint8 = 20):
+def RunCoulombEnergyLaughlin(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
+                             M: np.uint32, M0: np.uint32, step_size: np.float64,
+                             kCM: np.uint8 = 0, phi_1: np.float64 = 0, phi_t: np.float64 = 0,
+                             W: np.float64 = -1.95013246, coulomb_cutoff: np.uint8 = 20,
+                             save_config: np.bool_ = True, save_result: np.bool_ = True,):
     """
     Parameters:
-    N : number of particles
+    Ne : number of particles
     Ns : number of flux quanta
     t : torus complex aspect ratio
     M : total number of Monte Carlo interations
@@ -287,8 +274,158 @@ def Run(N: np.uint8, Ns: np.uint16, t: np.complex64,
 
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
     Ly = Lx*np.imag(t)
-    R0 = RandomConfig(N, Lx, Ly)
-    step_history = np.zeros((M), dtype=np.bool_)
+    print("Torus dimensions \nLx = ", Lx, "\nLy = ", Ly)
+
+    acceptance: np.float64 = 0
+    step_size *= Lx
+
+    coords_current = RandomConfig(Ne, Lx, Ly)
+    jastrows_current = InitialJastrowsLaughlin(coords_current, t, Lx)
+
+    jastrows_new = np.zeros((Ne, Ne), dtype=np.complex128)
+
+    update = CoulombRealSpace(
+        Lx, Ly, coords_current, coulomb_cutoff)
+
+    result = np.zeros(M, dtype=np.float64)
+
+    for i in range(M):
+        accept_bit = 0
+        coords_new, moved_particle = StepOne(
+            Lx, Ly, t, step_size, coords_current)
+        np.copyto(jastrows_new, jastrows_current)
+
+        UpdateJastrowsLaughlin(jastrows_new, coords_new, t, Lx, moved_particle)
+        step_amplitude = StepOneAmplitudeLaughlin(Ns, t, coords_current, coords_new,
+                                                  jastrows_current, jastrows_new,
+                                                  moved_particle, kCM, phi_1, phi_t)
+
+        if np.abs(step_amplitude)**2 > np.random.random():
+            accept_bit = 1
+            coords_current = np.copy(coords_new)
+            jastrows_current = np.copy(jastrows_new)
+
+            update = CoulombRealSpace(
+                Lx, Ly, coords_current, coulomb_cutoff)
+
+        result[i] = update
+
+        acceptance = (acceptance*i + accept_bit)/(i + 1)
+        if (i+1) % (M//20) == 0:
+            print('Iteration', i+1, 'done, current acceptance ratio:',
+                  np.round(acceptance*100, 2), '%')
+            if save_config:
+                SaveConfig('laughlin', 'coulomb', Ne, Ns, Lx, Ly, t, step_size,
+                           result, coords_current, coords_current)
+
+    result = result/Ne + W/np.sqrt(Lx*Ly)
+
+    SaveResult('laughlin', 'coulomb', Ne, Ns, Lx, Ly, M0, t, step_size,
+               result, save_result)
+
+
+def RunCoulombEnergyCFL(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
+                        M: np.uint32, M0: np.uint32, step_size: np.float64,
+                        kCM: np.uint8 = 0, phi_1: np.float64 = 0, phi_t: np.float64 = 0,
+                        W: np.float64 = -1.95013246, coulomb_cutoff: np.uint8 = 20,
+                        save_config: np.bool_ = True, save_result: np.bool_ = True,):
+    """
+    Parameters:
+    Ne : number of particles
+    Ns : number of flux quanta
+    t : torus complex aspect ratio
+    M : total number of Monte Carlo interations
+    step_size: initial step size in units of Lx
+    W : value of unnormalized self-interaction energy
+    coulomb_cutoff : cutoff for the infinite sum approx. of 
+                    Coulomb energy"""
+
+    Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
+    Ly = Lx*np.imag(t)
+    print("Torus dimensions \nLx = ", Lx, "\nLy = ", Ly)
+
+    acceptance: np.float64 = 0
+    step_size *= Lx
+    Ks = (fermi_sea_kx[Ne]*2*np.pi/Lx + 1j*fermi_sea_ky[Ne]*2*np.pi/Ly)
+
+    coords = RandomConfig(Ne, Lx, Ly)
+
+    jastrows = np.ones((Ne, Ne, Ne), dtype=np.complex128)
+    JK_matrix = np.zeros((Ne, Ne), dtype=np.complex128)
+    JK_slogdet = np.zeros(2, dtype=np.complex128)
+    JK_slogdet[0], \
+        JK_slogdet[1] = InitialWavefnCFL(t, Lx, coords, Ks,
+                                         jastrows, JK_matrix)
+    JK_slogdet_tmp = np.zeros(2, dtype=np.complex128)
+
+    jastrows_tmp = np.copy(jastrows)
+    JK_matrix_tmp = np.copy(JK_matrix)
+
+    update = CoulombRealSpace(
+        Lx, Ly, coords, coulomb_cutoff)
+
+    result = np.zeros(M, dtype=np.float64)
+
+    for i in range(M):
+        coords_tmp, moved_particle = StepOne(
+            Lx, Ly, t, step_size, coords)
+
+        JK_slogdet_tmp[0], JK_slogdet_tmp[1] = TmpWavefnCFL(t, Lx, coords_tmp, Ks,
+                                                            jastrows, jastrows_tmp,
+                                                            JK_matrix_tmp, moved_particle)
+        step_amplitude = StepOneAmplitudeCFL(Ns, t, coords, coords_tmp,
+                                             JK_slogdet, JK_slogdet_tmp,
+                                             moved_particle, Ks, kCM, phi_1, phi_t)
+
+        if np.abs(step_amplitude)**2 > np.random.random():
+            accept_bit = 1
+            coords[moved_particle] = coords_tmp[moved_particle]
+            np.copyto(JK_slogdet, JK_slogdet_tmp)
+            ResetJastrowsCFL(jastrows_tmp, jastrows,
+                             JK_matrix_tmp, JK_matrix, moved_particle)
+
+            update = CoulombRealSpace(
+                Lx, Ly, coords, coulomb_cutoff)
+
+        else:
+            accept_bit = 0
+            ResetJastrowsCFL(jastrows, jastrows_tmp, JK_matrix,
+                             JK_matrix_tmp, moved_particle)
+
+        result[i] = update
+
+        acceptance = (acceptance*i + accept_bit)/(i + 1)
+        if (i+1) % (M//20) == 0:
+            print('Iteration', i+1, 'done, current acceptance ratio:',
+                  np.round(acceptance*100, 2), '%')
+            if save_config:
+                SaveConfig('cfl', 'coulomb', Ne, Ns, Lx, Ly, t, step_size,
+                           result, coords, coords)
+
+    result = result/Ne + W/np.sqrt(Lx*Ly)
+
+    SaveResult('cfl', 'coulomb', Ne, Ns, Lx, Ly, M0, t, step_size,
+               result, save_result)
+
+
+def RunCoulombEnergyOld(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
+                        M: np.uint32, step_size: np.float64, kCM: np.uint8 = 0,
+                        phi_1: np.float64 = 0, phi_t: np.float64 = 0,
+                        W: np.float64 = -1.95013246, coulomb_cutoff: np.uint8 = 20):
+    """
+    Parameters:
+    Ne : number of particles
+    Ns : number of flux quanta
+    t : torus complex aspect ratio
+    M : total number of Monte Carlo interations
+    step_size: initial step size in units of Lx
+    W : value of unnormalized self-interaction energy
+    coulomb_cutoff : cutoff for the infinite sum approx. of 
+                    Coulomb energy"""
+
+    Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
+    Ly = Lx*np.imag(t)
+    R0 = RandomConfig(Ne, Lx, Ly)
     current_acceptance: np.float64 = 0
     all_values = np.zeros(M, dtype=np.float64)
     # coordinates = np.zeros((N, M), dtype=np.complex128)
@@ -296,15 +433,13 @@ def Run(N: np.uint8, Ns: np.uint16, t: np.complex64,
     step_size *= Lx
     print("Torus dimensions \nLx = ", Lx, "\nLy = ", Ly)
 
-    TestPBC(N, Ns, t, kCM, phi_1, phi_t)
-
     for i in range(M):
 
         # coordinates[:,i] = R0
-        R1, b = StepOne(N, Ns, t, R0, step_size, kCM, phi_1, phi_t)
+        R1, b = StepOneOld(Ne, Ns, t, R0, step_size, kCM, phi_1, phi_t)
         R0 = R1
 
-        update = CoulombRealSpace(N, Lx, Ly, R0, coulomb_cutoff)
+        update = CoulombRealSpace(Lx, Ly, R0, coulomb_cutoff)
         all_values[i] = update
 
         current_acceptance = (current_acceptance*i+b)/(i+1)
@@ -313,7 +448,7 @@ def Run(N: np.uint8, Ns: np.uint16, t: np.complex64,
             print('Iteration', i+1, 'done, current acceptance ratio:',
                   np.round(current_acceptance*100, 2), '%')
 
-    return step_history, all_values/N + W/np.sqrt(Lx*Ly)
+    return all_values/Ne + W/np.sqrt(Lx*Ly)
 
 
 @njit
