@@ -9,7 +9,7 @@ from WavefnCFL import InitialWavefnCFL, InitialWavefnSwapCFL, \
     InitialModCFL, InitialSignCFL, TmpWavefnCFL, TmpWavefnSwapCFL, StepOneAmplitudeSwapCFL, \
     ResetJastrowsCFL, StepOneAmplitudeCFL, UpdateJastrowsCFL
 
-from utilities import SaveConfig, SaveResult, fermi_sea_kx, fermi_sea_ky
+from utilities import SaveConfig, SaveResults, fermi_sea_kx, fermi_sea_ky, LoadRun
 
 
 @njit
@@ -234,43 +234,41 @@ def AssignOrderSWAP(R: np.array, inside_A: np.array
     return swap_order, swap_R
 
 
-def AssignOrderSwap(inside_A: np.array
-                    ) -> (np.array, np.array):
+def AssignOrderToSwap(inside_A: np.array
+                      ) -> (np.array):  # , np.array):
     """
-    Given an array of coordinates for the two copies, and an array telling us
-    whther each particle is inside the subregion A, this method returns two
-    arrays: one containing the conversion from original -> swap indices and its
+    Given an array telling us whether each particle is inside the subregion A, 
+    this method returns two arrays: 
+    one containing the conversion from original -> swap indices and its
     inverse.
 
     Parameters:
-
-    coords : particles configuration in the two copies
     inside_A : array specifying which particles in the two copies
                 are in subregion A
 
     Output:
     to_swap : order of original particles in the swapped copies. [0,Ne) go into coords_swap[:,0]
                         and [Ne, 2*Ne) go into coords_swap[:,1]
-    from_Swap : order of swapped particles in the original copies. [0,Ne) go into coords[:,0]
+    from_swap : order of swapped particles in the original copies. [0,Ne) go into coords[:,0]
                         and [Ne, 2*Ne) go into coords[:,1]
     """
     Ne = inside_A.shape[0]
     to_swap = np.zeros(
         (inside_A.shape[0], inside_A.shape[1]), dtype=np.uint8)
-    from_swap = np.zeros(
-        (inside_A.shape[0], inside_A.shape[1]), dtype=np.uint8)
+    # from_swap = np.zeros(
+    #    (inside_A.shape[0], inside_A.shape[1]), dtype=np.uint8)
 
     i_swap = 0
     j = 0
     for i in range(Ne):
         if not inside_A[i, 1]:
             to_swap[i, 1] = i_swap
-            from_swap[i_swap, 0] = i + Ne
+            # from_swap[i_swap, 0] = i + Ne
         else:
             while not inside_A[j, 0]:
                 j += 1
             to_swap[j, 0] = i_swap
-            from_swap[i_swap, 0] = j
+            # from_swap[i_swap, 0] = j
             j += 1
         i_swap += 1
 
@@ -279,16 +277,41 @@ def AssignOrderSwap(inside_A: np.array
     for i in range(Ne):
         if not inside_A[i, 0]:
             to_swap[i, 0] = i_swap + Ne
-            from_swap[i_swap, 1] = i
+            # from_swap[i_swap, 1] = i
         else:
             while not inside_A[j, 1]:
                 j += 1
             to_swap[j, 1] = i_swap + Ne
-            from_swap[i_swap, 1] = j + Ne
+            # from_swap[i_swap, 1] = j + Ne
             j += 1
         i_swap += 1
 
-    return to_swap, from_swap
+    return to_swap  # , from_swap
+
+
+def OrderFromSwap(to_swap: np.array
+                  ) -> np.array:
+    """
+    Given ordering of particles from the original copies to the swapped copies,
+    returns the inverse mapping.
+
+    Parameters:
+    to_swap : order of original particles in the swapped copies. [0,Ne) go into coords_swap[:,0]
+                        and [Ne, 2*Ne) go into coords_swap[:,1]
+
+    Output:
+    from_swap : order of swapped particles in the original copies. [0,Ne) go into coords[:,0]
+                        and [Ne, 2*Ne) go into coords[:,1]
+    """
+    Ne = to_swap.shape[0]
+    from_swap = np.zeros(
+        (to_swap.shape[0], to_swap.shape[1]), dtype=np.uint8)
+
+    for cp in range(2):
+        for i in range(Ne):
+            from_swap[to_swap[i, cp] % Ne, to_swap[i, cp]//Ne] = i + cp*Ne
+
+    return from_swap
 
 
 def CheckCrossBoundary(coord_initial: np.complex128, coord_final: np.complex128,
@@ -540,7 +563,8 @@ def StepOneSwap(Lx: np.float64, t: np.complex128,
 def RunPSwapFreeFermions(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                          M: np.uint32, M0: np.uint32, step_size: np.float64,
                          region_geometry: str, region_size: np.float64,
-                         save_config: np.bool_ = True, save_result: np.bool_ = True
+                         save_config: np.bool_ = True, save_results: np.bool_ = True,
+                         start_acceptance: np.float64 = -1
                          ):
     """
     Parameters:
@@ -555,7 +579,7 @@ def RunPSwapFreeFermions(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     region_size : coverage of subregion A (percentage of total area)
     save_config : indicate whether the coordinate vector and the swap order
                     are saved (every 5% of the run)
-    save_result : indicate whether the full result vector is saved, the
+    save_results : indicate whether the full results vector is saved, the
                     final mean and variance are saved, or just printed
     """
 
@@ -569,8 +593,22 @@ def RunPSwapFreeFermions(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     Kxs = np.reshape(fermi_sea_kx[Ne]*2*np.pi/Lx, (-1, 1))
     Kys = np.reshape(fermi_sea_ky[Ne]*2*np.pi/Ly, (-1, 1))
 
-    result = np.zeros((M), dtype=np.float64)
-    coords = RandomConfigSWAP(Ne, Lx, Ly, region_geometry, boundary)
+    if start_acceptance > 0:
+        acceptance = start_acceptance
+        coords, _, results, prev_iter, error = LoadRun(Ne, Ns, t, M, region_size, region_geometry,
+                                                       step_size/Lx, 'free_fermions', 'p')
+        if error is not None:
+            print(error)
+            return 1
+        print(
+            f"Previous run loaded successfully. Starting at iteration {prev_iter}")
+    else:
+        acceptance: np.float64 = 0
+        coords = np.vstack(
+            (RandomConfig(Ne, Lx, Ly), RandomConfig(Ne, Lx, Ly))).T
+        results = np.zeros((M), dtype=np.float64)
+        prev_iter = 0
+
     coords_tmp = np.copy(coords)
 
     update = (np.count_nonzero(InsideRegion(Lx, Ly, coords[:, 0], region_geometry, boundary)) ==
@@ -581,7 +619,7 @@ def RunPSwapFreeFermions(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
 
     moved_particles = np.zeros(2, dtype=np.uint8)
 
-    for i in range(M):
+    for i in range(prev_iter, prev_iter+M):
         StepOneCircle(Lx, t, step_size, coords_tmp, moved_particles)
 
         UpdateWavefnFreeFermions(slogdet_tmp, coords_tmp, Kxs, Kys)
@@ -601,25 +639,26 @@ def RunPSwapFreeFermions(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
             accept_bit = 0
             np.copyto(coords_tmp, coords)
 
-        result[i] = update
+        results[i] = update
         acceptance = (acceptance*i + accept_bit)/(i + 1)
 
-        if (i+1) % (M//20) == 0:
+        if (i+1-prev_iter) % (M//20) == 0:
             print('Iteration', i+1, 'done, current acceptance ratio:',
                   np.round(acceptance*100, 2), '%')
             if save_config:
                 SaveConfig('free_fermions', 'p', Ne, Ns, Lx, Ly, t, step_size, region_geometry, region_size,
-                           result, coords, coords)
+                           results, coords, coords)
 
-    SaveResult('free_fermions', 'p', Ne, Ns, Lx, Ly, M0, t, step_size,
-               result, save_result, region_geometry, region_size)
+    SaveResults('free_fermions', 'p', Ne, Ns, Lx, Ly, M0, t, step_size,
+                results, save_results, region_geometry, region_size)
 
 
 def RunPSwapCFL(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                 M: np.uint32, M0: np.uint32, step_size: np.float64,
                 region_geometry: str, region_size: np.float64,
                 kCM: np.uint8 = 0, phi_1: np.float64 = 0, phi_t: np.float64 = 0,
-                save_config: np.bool_ = True, save_result: np.bool_ = True
+                save_config: np.bool_ = True, save_results: np.bool_ = True,
+                start_acceptance: np.float64 = 0
                 ):
     """
     Parameters:
@@ -635,21 +674,37 @@ def RunPSwapCFL(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     kCM, phi_1, phi_t : select the CM momentum and quasi-PBC manifold
     save_config : indicate whether the coordinate vector and the swap order
                     are saved (every 5% of the run)
-    save_result : indicate whether the full result vector is saved, the
+    save_results : indicate whether the full results vector is saved, the
                     final mean and variance are saved, or just printed
+    load_prev : file name containing details of a previous run. has format
+                M acceptance
     """
 
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
     Ly = Lx*np.imag(t)
     print("Torus dimensions \nLx = ", Lx, "\nLy = ", Ly)
 
-    acceptance: np.float64 = 0
     step_size *= Lx
     boundary = Lx * np.sqrt(region_size/np.pi)
     Ks = (fermi_sea_kx[Ne]*2*np.pi/Lx + 1j*fermi_sea_ky[Ne]*2*np.pi/Ly)
 
-    coords = np.vstack(
-        (RandomConfig(Ne, Lx, Ly), RandomConfig(Ne, Lx, Ly))).T
+    if start_acceptance > 0:
+        acceptance = start_acceptance
+        coords, _, results, prev_iter, error = LoadRun(Ne, Ns, t, M, region_size, region_geometry,
+                                                       step_size/Lx, 'cfl', 'p')
+        if error is not None:
+            print(error)
+            return 1
+        print(
+            f"Previous run loaded successfully. Starting at iteration {prev_iter}")
+    else:
+        acceptance: np.float64 = 0
+        coords = np.vstack(
+            (RandomConfig(Ne, Lx, Ly), RandomConfig(Ne, Lx, Ly))).T
+        results = np.zeros((M), dtype=np.float64)
+        prev_iter = 0
+
+    coords_tmp = np.copy(coords)
 
     JK_slogdet = np.zeros((2, 2), dtype=np.complex128)
     jastrows = np.ones((Ne, Ne, Ne, 2), dtype=np.complex128)
@@ -669,9 +724,7 @@ def RunPSwapCFL(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     update = (np.count_nonzero(InsideRegion(Lx, Ly, coords[:, 0], region_geometry, boundary)) ==
               np.count_nonzero(InsideRegion(Lx, Ly, coords[:, 1], region_geometry, boundary)))
 
-    result = np.zeros((M), dtype=np.float64)
-
-    for i in range(M):
+    for i in range(prev_iter, prev_iter+M):
         moved_particles = np.zeros(2, dtype=np.uint8)
         step_amplitude = 1
         StepOneCircle(Lx, t, step_size, coords_tmp, moved_particles)
@@ -709,18 +762,18 @@ def RunPSwapCFL(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                 ResetJastrowsCFL(jastrows[..., cp], jastrows_tmp[..., cp],
                                  JK_matrix[..., cp], JK_matrix_tmp[...,  cp], moved_particles[cp])
 
-        result[i] = update
+        results[i] = update
         acceptance = (acceptance*i + accept_bit)/(i + 1)
 
-        if (i+1) % (M//20) == 0:
+        if (i+1-prev_iter) % (M//20) == 0:
             print('Iteration', i+1, 'done, current acceptance ratio:',
                   np.round(acceptance*100, 2), '%')
             if save_config:
                 SaveConfig('cfl', 'p', Ne, Ns, Lx, Ly, t, step_size, region_geometry, region_size,
-                           result, coords, coords)
+                           results, coords, coords)
 
-    SaveResult('cfl', 'p', Ne, Ns, Lx, Ly, M0, t, step_size,
-               result, save_result, region_geometry, region_size)
+    SaveResults('cfl', 'p', Ne, Ns, Lx, Ly, M0, t, step_size,
+                results, save_results, region_geometry, region_size)
 
 
 def RunPSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
@@ -728,7 +781,7 @@ def RunPSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
              region_geometry: str, boundary: np.float64,
              state: str, kCM: np.uint8 = 0,
              phi_1: np.float64 = 0, phi_t: np.float64 = 0,
-             save_config: np.bool_ = True, save_result: np.bool_ = True
+             save_config: np.bool_ = True, save_results: np.bool_ = True
              ):
     """
     Parameters:
@@ -750,7 +803,7 @@ def RunPSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     kCM, phi_1, phi_t : select the CM momentum and quasi-PBC manifold
     save_config : indicate whether the coordinate vector and the swap order
                     are saved (every 5% of the run)
-    save_result : indicate whether the full result vector is saved, the
+    save_results : indicate whether the full results vector is saved, the
                     final mean and variance are saved, or just printed
     """
 
@@ -769,7 +822,7 @@ def RunPSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     update = (np.count_nonzero(InsideRegion(Lx, Ly, R_i[:, 0], region_geometry, boundary)) ==
               np.count_nonzero(InsideRegion(Lx, Ly, R_i[:, 1], region_geometry, boundary)))
 
-    result = np.zeros((M), dtype=np.float64)
+    results = np.zeros((M), dtype=np.float64)
 
     if state == 'free_fermions':
         wf_i = np.zeros((2, 2), dtype=np.complex128)
@@ -799,7 +852,7 @@ def RunPSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
             if state == 'free_fermions':
                 wf_i = np.copy(wf_f)
 
-        result[i] = update
+        results[i] = update
         acceptance = (acceptance*i + accept_bit)/(i + 1)
 
         if (i+1) % (M//20) == 0:
@@ -807,16 +860,17 @@ def RunPSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                   np.round(acceptance*100, 2), '%')
             if save_config:
                 SaveConfig(state, 'p', Ne, Ns, Lx, Ly, t, step_size, region_geometry, boundary,
-                           result, R_i, R_i)
+                           results, R_i, R_i)
 
-    SaveResult(state, 'p', Ne, Ns, Lx, Ly, M0, t, step_size,
-               result, save_result, region_geometry, boundary)
+    SaveResults(state, 'p', Ne, Ns, Lx, Ly, M0, t, step_size,
+                results, save_results, region_geometry, boundary)
 
 
 def RunModSwapFreeFermions(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                            M: np.uint32, M0: np.uint32, step_size: np.float64,
                            region_geometry: str, region_size: np.float64,
-                           save_config: np.bool_ = True, save_result: np.bool_ = True
+                           save_config: np.bool_ = True, save_results: np.bool_ = True,
+                           start_acceptance: np.float64 = -1
                            ):
     """
     Parameters:
@@ -831,7 +885,7 @@ def RunModSwapFreeFermions(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     region_size : coverage of subregion A (percentage of total area)
     save_config : indicate whether the coordinate vector and the swap order
                     are saved (every 5% of the run)
-    save_result : indicate whether the full result vector is saved, the
+    save_results : indicate whether the full results vector is saved, the
                     final mean and variance are saved, or just printed
     """
 
@@ -839,16 +893,31 @@ def RunModSwapFreeFermions(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     Ly = Lx*np.imag(t)
     print("Torus dimensions \nLx = ", Lx, "\nLy = ", Ly)
 
-    acceptance: np.float64 = 0
     step_size *= Lx
     boundary = Lx * np.sqrt(region_size/np.pi)
     Kxs = np.reshape(fermi_sea_kx[Ne]*2*np.pi/Lx, (-1, 1))
     Kys = np.reshape(fermi_sea_ky[Ne]*2*np.pi/Ly, (-1, 1))
 
-    result = np.zeros((M), dtype=np.float64)
-    coords = RandomConfigSWAP(Ne, Lx, Ly, region_geometry, boundary)
-    to_swap, from_swap = AssignOrderSwap(InsideRegion(Lx, Ly, coords,
-                                                      region_geometry, boundary))
+    if start_acceptance > 0:
+        acceptance = start_acceptance
+        coords, to_swap, results, prev_iter, error = LoadRun(Ne, Ns, t, M, region_size, region_geometry,
+                                                             step_size/Lx, 'free_fermions', 'mod')
+        if error is not None:
+            print(error)
+            return 1
+        print(
+            f"Previous run loaded successfully. Starting at iteration {prev_iter}")
+
+    else:
+        acceptance: np.float64 = 0
+        coords = RandomConfigSWAP(Ne, Lx, Ly, region_geometry, boundary)
+        to_swap = AssignOrderToSwap(InsideRegion(Lx, Ly, coords,
+                                                 region_geometry, boundary))
+        results = np.zeros((M), dtype=np.float64)
+        prev_iter = 0
+
+    from_swap = OrderFromSwap(to_swap)
+
     coords_swap = np.zeros(
         (coords.shape[0], coords.shape[1]), dtype=np.complex128)
     for cp in range(2):
@@ -871,7 +940,7 @@ def RunModSwapFreeFermions(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
 
     moved_particles = np.zeros(2, dtype=np.uint8)
 
-    for i in range(M):
+    for i in range(prev_iter, prev_iter+M):
         nbr_A_changes = StepOneSwap(
             Lx, t, step_size, coords_tmp, moved_particles, region_geometry, boundary)
 
@@ -912,25 +981,26 @@ def RunModSwapFreeFermions(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
             np.copyto(from_swap_tmp, from_swap)
             np.copyto(coords_swap_tmp, coords_swap)
 
-        result[i] = update
+        results[i] = update
         acceptance = (acceptance*i + accept_bit)/(i + 1)
 
-        if (i+1) % (M//20) == 0:
+        if (i+1-prev_iter) % (M//20) == 0:
             print('Iteration', i+1, 'done, current acceptance ratio:',
                   np.round(acceptance*100, 2), '%')
             if save_config:
                 SaveConfig('free_fermions', 'mod', Ne, Ns, Lx, Ly, t, step_size, region_geometry, region_size,
-                           result, coords, to_swap)
+                           results, coords, to_swap)
 
-    SaveResult('free_fermions', 'mod', Ne, Ns, Lx, Ly, M0, t, step_size,
-               result, save_result, region_geometry, region_size)
+    SaveResults('free_fermions', 'mod', Ne, Ns, Lx, Ly, M0, t, step_size,
+                results, save_results, region_geometry, region_size)
 
 
 def RunModSwapCFL(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                   M: np.uint32, M0: np.uint32, step_size: np.float64,
                   region_geometry: str, region_size: np.float64,
                   kCM: np.uint8 = 0, phi_1: np.float64 = 0, phi_t: np.float64 = 0,
-                  save_config: np.bool_ = True, save_result: np.bool_ = True
+                  save_config: np.bool_ = True, save_results: np.bool_ = True,
+                  start_acceptance: np.float64 = -1
                   ):
     """
     Parameters:
@@ -948,7 +1018,7 @@ def RunModSwapCFL(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     kCM, phi_1, phi_t : select the CM momentum and quasi-PBC manifold
     save_config : indicate whether the coordinate vector and the swap order
                     are saved (every 5% of the run)
-    save_result : indicate whether the full result vector is saved, the
+    save_results : indicate whether the full results vector is saved, the
                     final mean and variance are saved, or just printed
     """
 
@@ -961,11 +1031,26 @@ def RunModSwapCFL(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     boundary = Lx * np.sqrt(region_size/np.pi)
     Ks = (fermi_sea_kx[Ne] + 1j*fermi_sea_ky[Ne])*2*np.pi/Lx
 
-    result = np.zeros((M), dtype=np.float64)
+    if start_acceptance > 0:
+        acceptance = start_acceptance
+        coords, to_swap, results, prev_iter, error = LoadRun(Ne, Ns, t, M, region_size, region_geometry,
+                                                             step_size/Lx, 'cfl', 'mod')
+        if error is not None:
+            print(error)
+            return 1
+        print(
+            f"Previous run loaded successfully. Starting at iteration {prev_iter}")
 
-    coords = RandomConfigSWAP(Ne, Lx, Ly, region_geometry, boundary)
-    to_swap, from_swap = AssignOrderSwap(InsideRegion(Lx, Ly, coords,
-                                                      region_geometry, boundary))
+    else:
+        acceptance: np.float64 = 0
+        coords = RandomConfigSWAP(Ne, Lx, Ly, region_geometry, boundary)
+        to_swap = AssignOrderToSwap(InsideRegion(Lx, Ly, coords,
+                                                 region_geometry, boundary))
+        results = np.zeros((M), dtype=np.float64)
+        prev_iter = 0
+
+    from_swap = OrderFromSwap(to_swap)
+
     to_swap_tmp = np.copy(to_swap)
     from_swap_tmp = np.copy(from_swap)
 
@@ -995,7 +1080,7 @@ def RunModSwapCFL(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     jastrows_tmp = np.copy(jastrows)
     JK_matrix_tmp = np.copy(JK_matrix)
 
-    for i in range(M):
+    for i in range(prev_iter, prev_iter+M):
 
         step_amplitude = 1
         nbr_A_changes = StepOneSwap(
@@ -1057,18 +1142,18 @@ def RunModSwapCFL(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
             np.copyto(JK_matrix_tmp[..., 2], JK_matrix[..., 2])
             np.copyto(JK_matrix_tmp[..., 3], JK_matrix[..., 3])
 
-        result[i] = update
+        results[i] = update
         acceptance = (acceptance*i + accept_bit)/(i + 1)
 
-        if (i+1) % (M//20) == 0:
+        if (i+1-prev_iter) % (M//20) == 0:
             print('Iteration', i+1, 'done, current acceptance ratio:',
                   np.round(acceptance*100, 2), '%')
             if save_config:
                 SaveConfig('cfl', 'mod', Ne, Ns, Lx, Ly, t, step_size, region_geometry, region_size,
-                           result, coords, to_swap)
+                           results, coords, to_swap)
 
-    SaveResult('cfl', 'mod', Ne, Ns, Lx, Ly, M0, t, step_size,
-               result, save_result, region_geometry, region_size)
+    SaveResults('cfl', 'mod', Ne, Ns, Lx, Ly, M0, t, step_size,
+                results, save_results, region_geometry, region_size)
 
 
 def RunModSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
@@ -1076,7 +1161,7 @@ def RunModSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                region_geometry: str, boundary: np.float64,
                state: str, kCM: np.uint8 = 0,
                phi_1: np.float64 = 0, phi_t: np.float64 = 0,
-               save_config: np.bool_ = True, save_result: np.bool_ = True
+               save_config: np.bool_ = True, save_results: np.bool_ = True
                ):
     """
     Parameters:
@@ -1094,7 +1179,7 @@ def RunModSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     kCM, phi_1, phi_t : select the CM momentum and quasi-PBC manifold
     save_config : indicate whether the coordinate vector and the swap order
                     are saved (every 5% of the run)
-    save_result : indicate whether the full result vector is saved, the
+    save_results : indicate whether the full results vector is saved, the
                     final mean and variance are saved, or just printed
     """
 
@@ -1107,7 +1192,7 @@ def RunModSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     step_size *= Lx
     boundary *= Ly
 
-    result = np.zeros((M), dtype=np.float64)
+    results = np.zeros((M), dtype=np.float64)
     R_i = RandomConfigSWAP(Ne, Lx, Ly, region_geometry, boundary)
     swap_order_i, swap_R_i, where_moves = LocateParticlesSWAP(Lx, Ly, R_i, region_geometry,
                                                               boundary, step_size)
@@ -1163,7 +1248,7 @@ def RunModSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
             swap_order_i = np.copy(swap_order_f)
             swap_R_i = np.copy(swap_R_f)
 
-        result[i] = update
+        results[i] = update
         acceptance = (acceptance*i + accept_bit)/(i + 1)
 
         if (i+1) % (M//20) == 0:
@@ -1171,10 +1256,10 @@ def RunModSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                   np.round(acceptance*100, 2), '%')
             if save_config:
                 SaveConfig(state, 'mod', Ne, Ns, Lx, Ly, t, step_size, region_geometry, boundary,
-                           result, R_i, swap_order_i)
+                           results, R_i, swap_order_i)
 
-    SaveResult(state, 'mod', Ne, Ns, Lx, Ly, M0, t, step_size,
-               result, save_result, region_geometry, boundary)
+    SaveResults(state, 'mod', Ne, Ns, Lx, Ly, M0, t, step_size,
+                results, save_results, region_geometry, boundary)
 
 
 def RunSignSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
@@ -1182,7 +1267,7 @@ def RunSignSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                 region_geometry: str, boundary: np.float64,
                 state: str, kCM: np.uint8 = 0,
                 phi_1: np.float64 = 0, phi_t: np.float64 = 0,
-                save_config: np.bool_ = True, save_result: np.bool_ = True
+                save_config: np.bool_ = True, save_results: np.bool_ = True
                 ):
     """
     Parameters:
@@ -1204,7 +1289,7 @@ def RunSignSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     kCM, phi_1, phi_t : select the CM momentum and quasi-PBC manifold
     save_config : indicate whether the coordinate vector and the swap order
                     are saved (every 5% of the run)
-    save_result : indicate whether the full result vector is saved, the
+    save_results : indicate whether the full results vector is saved, the
                     final mean and variance are saved, or just printed
     """
 
@@ -1217,7 +1302,7 @@ def RunSignSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     step_size *= Lx
     boundary *= Ly
 
-    result = np.zeros((M), dtype=np.complex128)
+    results = np.zeros((M), dtype=np.complex128)
     R_i = RandomConfigSWAP(Ne, Lx, Ly, region_geometry, boundary)
     swap_order_i, swap_R_i, where_moves = LocateParticlesSWAP(Lx, Ly, R_i, region_geometry,
                                                               boundary, step_size)
@@ -1270,7 +1355,7 @@ def RunSignSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                 wf_i = np.copy(wf_f)
                 swap_wf_i = np.copy(swap_wf_f)
 
-        result[i] = update
+        results[i] = update
         acceptance = (acceptance*i + accept_bit)/(i + 1)
 
         if (i+1) % (M//20) == 0:
@@ -1278,16 +1363,17 @@ def RunSignSWAP(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                   np.round(acceptance*100, 2), '%')
             if save_config:
                 SaveConfig(state, 'sign', Ne, Ns, Lx, Ly, t, step_size, region_geometry, boundary,
-                           result, R_i, swap_order_i)
+                           results, R_i, swap_order_i)
 
-    SaveResult(state, 'sign', Ne, Ns, Lx, Ly, M0, t, step_size,
-               result, save_result, region_geometry, boundary)
+    SaveResults(state, 'sign', Ne, Ns, Lx, Ly, M0, t, step_size,
+                results, save_results, region_geometry, boundary)
 
 
 def RunSignSwapFreeFermions(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                             M: np.uint32, M0: np.uint32, step_size: np.float64,
                             region_geometry: str, region_size: np.float64,
-                            save_config: np.bool_ = True, save_result: np.bool_ = True
+                            save_config: np.bool_ = True, save_results: np.bool_ = True,
+                            start_acceptance: np.float64 = -1
                             ):
     """
     Parameters:
@@ -1302,7 +1388,7 @@ def RunSignSwapFreeFermions(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     region_size : coverage of subregion A (percentage of total area)
     save_config : indicate whether the coordinate vector and the swap order
                     are saved (every 5% of the run)
-    save_result : indicate whether the full result vector is saved, the
+    save_results : indicate whether the full results vector is saved, the
                     final mean and variance are saved, or just printed
     """
 
@@ -1316,10 +1402,26 @@ def RunSignSwapFreeFermions(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     Kxs = np.reshape(fermi_sea_kx[Ne]*2*np.pi/Lx, (-1, 1))
     Kys = np.reshape(fermi_sea_ky[Ne]*2*np.pi/Ly, (-1, 1))
 
-    result = np.zeros((M), dtype=np.complex128)
-    coords = RandomConfigSWAP(Ne, Lx, Ly, region_geometry, boundary)
-    to_swap, from_swap = AssignOrderSwap(InsideRegion(Lx, Ly, coords,
-                                                      region_geometry, boundary))
+    if start_acceptance > 0:
+        acceptance = start_acceptance
+        coords, to_swap, results, prev_iter, error = LoadRun(Ne, Ns, t, M, region_size, region_geometry,
+                                                             step_size/Lx, 'free_fermions', 'sign')
+        if error is not None:
+            print(error)
+            return 1
+        print(
+            f"Previous run loaded successfully. Starting at iteration {prev_iter}")
+
+    else:
+        acceptance: np.float64 = 0
+        coords = RandomConfigSWAP(Ne, Lx, Ly, region_geometry, boundary)
+        to_swap = AssignOrderToSwap(InsideRegion(Lx, Ly, coords,
+                                                 region_geometry, boundary))
+        results = np.zeros((M), dtype=np.complex128)
+        prev_iter = 0
+
+    from_swap = OrderFromSwap(to_swap)
+
     coords_swap = np.zeros(
         (coords.shape[0], coords.shape[1]), dtype=np.complex128)
     for cp in range(2):
@@ -1342,7 +1444,7 @@ def RunSignSwapFreeFermions(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
 
     moved_particles = np.zeros(2, dtype=np.uint8)
 
-    for i in range(M):
+    for i in range(prev_iter, prev_iter+M):
         nbr_A_changes = StepOneSwap(
             Lx, t, step_size, coords_tmp, moved_particles, region_geometry, boundary)
 
@@ -1378,25 +1480,26 @@ def RunSignSwapFreeFermions(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
             np.copyto(from_swap_tmp, from_swap)
             np.copyto(coords_swap_tmp, coords_swap)
 
-        result[i] = update
+        results[i] = update
         acceptance = (acceptance*i + accept_bit)/(i + 1)
 
-        if (i+1) % (M//20) == 0:
+        if (i+1-prev_iter) % (M//20) == 0:
             print('Iteration', i+1, 'done, current acceptance ratio:',
                   np.round(acceptance*100, 2), '%')
             if save_config:
                 SaveConfig('free_fermions', 'sign', Ne, Ns, Lx, Ly, t, step_size, region_geometry, region_size,
-                           result, coords, to_swap)
+                           results, coords, to_swap)
 
-    SaveResult('free_fermions', 'sign', Ne, Ns, Lx, Ly, M0, t, step_size,
-               result, save_result, region_geometry, region_size)
+    SaveResults('free_fermions', 'sign', Ne, Ns, Lx, Ly, M0, t, step_size,
+                results, save_results, region_geometry, region_size)
 
 
 def RunSignSwapCFL(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
                    M: np.uint32, M0: np.uint32, step_size: np.float64,
                    region_geometry: str, region_size: np.float64,
                    kCM: np.uint8 = 0, phi_1: np.float64 = 0, phi_t: np.float64 = 0,
-                   save_config: np.bool_ = True, save_result: np.bool_ = True
+                   save_config: np.bool_ = True, save_results: np.bool_ = True,
+                   start_acceptance: np.float64 = -1
                    ):
     """
     Parameters:
@@ -1414,7 +1517,7 @@ def RunSignSwapCFL(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     kCM, phi_1, phi_t : select the CM momentum and quasi-PBC manifold
     save_config : indicate whether the coordinate vector and the swap order
                     are saved (every 5% of the run)
-    save_result : indicate whether the full result vector is saved, the
+    save_results : indicate whether the full results vector is saved, the
                     final mean and variance are saved, or just printed
     """
 
@@ -1427,11 +1530,26 @@ def RunSignSwapCFL(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     boundary = Lx * np.sqrt(region_size/np.pi)
     Ks = (fermi_sea_kx[Ne] + 1j*fermi_sea_ky[Ne])*2*np.pi/Lx
 
-    result = np.zeros((M), dtype=np.complex128)
+    if start_acceptance > 0:
+        acceptance = start_acceptance
+        coords, to_swap, results, prev_iter, error = LoadRun(Ne, Ns, t, M, region_size, region_geometry,
+                                                             step_size/Lx, 'cfl', 'sign')
+        if error is not None:
+            print(error)
+            return 1
+        print(
+            f"Previous run loaded successfully. Starting at iteration {prev_iter}")
 
-    coords = RandomConfigSWAP(Ne, Lx, Ly, region_geometry, boundary)
-    to_swap, from_swap = AssignOrderSwap(InsideRegion(Lx, Ly, coords,
-                                                      region_geometry, boundary))
+    else:
+        acceptance: np.float64 = 0
+        coords = RandomConfigSWAP(Ne, Lx, Ly, region_geometry, boundary)
+        to_swap = AssignOrderToSwap(InsideRegion(Lx, Ly, coords,
+                                                 region_geometry, boundary))
+        results = np.zeros((M), dtype=np.complex128)
+        prev_iter = 0
+
+    from_swap = OrderFromSwap(to_swap)
+
     to_swap_tmp = np.copy(to_swap)
     from_swap_tmp = np.copy(from_swap)
 
@@ -1460,7 +1578,7 @@ def RunSignSwapCFL(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     jastrows_tmp = np.copy(jastrows)
     JK_matrix_tmp = np.copy(JK_matrix)
 
-    for i in range(M):
+    for i in range(prev_iter, prev_iter+M):
         step_amplitude = 1
         nbr_A_changes = StepOneSwap(
             Lx, t, step_size, coords_tmp, moved_particles, region_geometry, boundary)
@@ -1525,15 +1643,15 @@ def RunSignSwapCFL(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
             np.copyto(JK_matrix_tmp[..., 2], JK_matrix[..., 2])
             np.copyto(JK_matrix_tmp[..., 3], JK_matrix[..., 3])
 
-        result[i] = update
+        results[i] = update
         acceptance = (acceptance*i + accept_bit)/(i + 1)
 
-        if (i+1) % (M//20) == 0:
+        if (i+1-prev_iter) % (M//20) == 0:
             print('Iteration', i+1, 'done, current acceptance ratio:',
                   np.round(acceptance*100, 2), '%')
             if save_config:
                 SaveConfig('cfl', 'sign', Ne, Ns, Lx, Ly, t, step_size, region_geometry, region_size,
-                           result, coords, to_swap)
+                           results, coords, to_swap)
 
-    SaveResult('cfl', 'sign', Ne, Ns, Lx, Ly, M0, t, step_size,
-               result, save_result, region_geometry, region_size)
+    SaveResults('cfl', 'sign', Ne, Ns, Lx, Ly, M0, t, step_size,
+                results, save_results, region_geometry, region_size)
