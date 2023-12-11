@@ -1,5 +1,6 @@
 import numpy as np
 from numba import njit
+from os.path import exists
 
 fermi_sea_ky = {}
 fermi_sea_kx = {}
@@ -78,13 +79,13 @@ def SaveConfig(state: str, quantity: str, Ne: np.uint8, Ns: np.uint16,
                region_geometry: str, region_size: np.float64,
                result: np.array, R: np.array, swap_order: np.array):
     if quantity == 'sign':
-        np.save(f"{state}_full_{quantity}_real_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{region_size:.4f}_step_{step_size/Lx:.3f}.npy",
+        np.save(f"{state}_{quantity}_results_real_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{region_size:.4f}_step_{step_size/Lx:.3f}.npy",
                 np.real(result))
-        np.save(f"{state}_full_{quantity}_imag_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{region_size:.4f}_step_{step_size/Lx:.3f}.npy",
+        np.save(f"{state}_{quantity}_results_imag_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{region_size:.4f}_step_{step_size/Lx:.3f}.npy",
                 np.imag(result))
 
     else:
-        np.save(f"{state}_full_{quantity}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{region_size:.4f}_step_{step_size/Lx:.3f}.npy",
+        np.save(f"{state}_{quantity}_results_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{region_size:.4f}_step_{step_size/Lx:.3f}.npy",
                 result)
 
     if quantity == 'sign' or quantity == 'mod':
@@ -95,11 +96,11 @@ def SaveConfig(state: str, quantity: str, Ne: np.uint8, Ns: np.uint16,
             R)
 
 
-def SaveResult(state: str, quantity: str, Ne: np.uint8, Ns: np.uint16,
-               Lx: np.float64, Ly: np.float64,
-               M0: np.uint32, t: np.complex128, step_size: np.float64,
-               result: np.array, save_result: np.bool_,
-               region_geometry: str = 'none', region_size: np.float64 = 0):
+def SaveResults(state: str, quantity: str, Ne: np.uint8, Ns: np.uint16,
+                Lx: np.float64, Ly: np.float64,
+                M0: np.uint32, t: np.complex128, step_size: np.float64,
+                result: np.array, save_result: np.bool_,
+                region_geometry: str = 'none', region_size: np.float64 = 0):
 
     if save_result:
         if quantity == 'sign':
@@ -121,3 +122,51 @@ def SaveResult(state: str, quantity: str, Ne: np.uint8, Ns: np.uint16,
         else:
             mean, var = Stats(result[int(M0):])
             print(f"\nMean = {mean} \n Var = {var}")
+
+
+def LoadRun(Ne: np.uint8, Ns: np.uint16, t: np.complex128, M: np.uint64,
+            region_size: np.float64, region_geometry: str,
+            step_size: np.float64, state: str, swap_term: str):
+    error = None
+    coords = 0
+    order = 0
+    results = 0
+
+    file_coords = f"./{state}_{swap_term}_coords_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{region_size:.4f}_step_{step_size:.3f}.npy"
+    if exists(file_coords):
+        coords = np.load(file_coords)
+    else:
+        error = f"{file_coords} missing!\n"
+
+    if swap_term == 'mod' or swap_term == 'sign':
+        file_order = f"./{state}_{swap_term}_order_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{region_size:.4f}_step_{step_size:.3f}.npy"
+        if exists(file_order):
+            order = np.load(file_order)
+        else:
+            error += f"{file_order} missing!\n"
+
+    if swap_term == 'sign':
+        file_results_real = f"./{state}_{swap_term}_results_real_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{region_size:.4f}_step_{step_size:.3f}.npy"
+        file_results_imag = f"./{state}_{swap_term}_results_imag_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{region_size:.4f}_step_{step_size:.3f}.npy"
+        if exists(file_results_real) and exists(file_results_real):
+            start_results = np.load(file_results_real) + \
+                np.load(file_results_imag)
+            prev_iter = start_results.size
+
+            results = np.zeros((prev_iter+M), dtype=np.complex128)
+            results[:prev_iter] = start_results
+        else:
+            error += "Results file not found!\n"
+
+    else:
+        file_results = f"./{state}_{swap_term}_results_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}_{region_size:.4f}_step_{step_size:.3f}.npy"
+        if exists(file_results):
+            start_results = np.load(file_results)
+            prev_iter = start_results.size
+
+            results = np.zeros((prev_iter+M), dtype=np.float64)
+            results[:prev_iter] = start_results
+        else:
+            error += "Results file not found!\n"
+
+    return coords, order, results, prev_iter, error
