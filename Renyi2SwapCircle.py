@@ -1,5 +1,7 @@
-from MonteCarloTorusSWAP import RunPSwapCFL, RunModSwapCFL, RunSignSwapCFL, \
-    RunPSwapFreeFermions, RunModSwapFreeFermions, RunSignSwapFreeFermions
+# from MonteCarloTorusSWAP import RunPSwapCFL, RunModSwapCFL, RunSignSwapCFL, \
+#    RunPSwapFreeFermions, RunModSwapFreeFermions, RunSignSwapFreeFermions
+from MonteCarloTorusCFL import RunPSwapCFL, RunModSwapCFL, RunSignSwapCFL
+from MonteCarloTorusFreeFermions import RunPSwapFreeFermions, RunModSwapFreeFermions, RunSignSwapFreeFermions
 import numpy as np
 import argparse
 from datetime import datetime
@@ -30,6 +32,8 @@ parser.add_argument("--swap-term", action="store", required=True,
                     help="term in the SWAP decomposition")
 parser.add_argument("--state", action="store", required=True,
                     help="type of state")
+parser.add_argument("--JK-coeffs", action="store", default='0',
+                    help="JK translation coefficients for enforcing PBC")
 
 args = vars(parser.parse_args())
 
@@ -54,6 +58,8 @@ A_sizes = np.linspace(A_start, A_end, nbr_A, endpoint=True)
 start_acceptance = np.float64(args["start_acceptance"])
 swap_term = str(args["swap_term"])
 state = str(args["state"])
+if state == 'cfl':
+    JK_coeffs = str(args["JK_coeffs"])
 t = 1j
 
 for region_size in A_sizes:
@@ -63,7 +69,7 @@ for region_size in A_sizes:
         if state == 'cfl':
             RunPSwapCFL(Ne=Ne, Ns=Ns, t=t, M=M, M0=M0, step_size=step,
                         region_geometry='circle', region_size=region_size,
-                        start_acceptance=start_acceptance)
+                        JK_coeffs=JK_coeffs, start_acceptance=start_acceptance)
         elif state == 'free-fermions':
             RunPSwapFreeFermions(Ne=Ne, Ns=Ns, t=t, M=M, M0=M0, step_size=step,
                                  region_geometry='circle', region_size=region_size,
@@ -72,7 +78,7 @@ for region_size in A_sizes:
         if state == 'cfl':
             RunModSwapCFL(Ne=Ne, Ns=Ns, t=t, M=M, M0=M0, step_size=step,
                           region_geometry='circle', region_size=region_size,
-                          start_acceptance=start_acceptance)
+                          JK_coeffs=JK_coeffs, start_acceptance=start_acceptance)
         elif state == 'free-fermions':
             RunModSwapFreeFermions(Ne=Ne, Ns=Ns, t=t, M=M, M0=M0, step_size=step,
                                    region_geometry='circle', region_size=region_size,
@@ -81,7 +87,7 @@ for region_size in A_sizes:
         if state == 'cfl':
             RunSignSwapCFL(Ne=Ne, Ns=Ns, t=t, M=M, M0=M0, step_size=step,
                            region_geometry='circle', region_size=region_size,
-                           start_acceptance=start_acceptance)
+                           JK_coeffs=JK_coeffs, start_acceptance=start_acceptance)
         elif state == 'free-fermions':
             RunSignSwapFreeFermions(Ne=Ne, Ns=Ns, t=t, M=M, M0=M0, step_size=step,
                                     region_geometry='circle', region_size=region_size,
