@@ -5,6 +5,7 @@ __pycache__/
 
 #Plots, data etc
 *.dat
+*.npy
 *.jpeg
 *.jpg
 *.png
