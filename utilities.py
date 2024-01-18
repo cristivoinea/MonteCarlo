@@ -1,5 +1,6 @@
 import numpy as np
 from numba import njit
+from scipy.special import hyp0f1, gamma
 from os.path import exists
 
 fermi_sea_ky = {}
@@ -51,7 +52,70 @@ def FullStats(data: np.array
     return mean_vector  # , std_vector
 
 
-def GetEntropy(Ne, Ns, M, M0, t, step, region_geometry):
+def GetFermiSea(kF: np.float64):
+    kx = ky = 0
+    kx_list = [0]
+    ky_list = [0]
+    for kx in range(1, int(np.floor(kF))+1):
+        kx_list.append(kx)
+        kx_list.append(-kx)
+        ky_list.append(0)
+        ky_list.append(0)
+
+        kx_list.append(0)
+        kx_list.append(0)
+        ky_list.append(kx)
+        ky_list.append(-kx)
+
+    for kx in range(1, int(np.floor(kF))+1):
+        for ky in range(1, int(np.floor(kF))+1):
+            if kx**2 + ky**2 <= kF**2:
+                kx_list.append(kx)
+                ky_list.append(ky)
+
+                kx_list.append(kx)
+                ky_list.append(-ky)
+
+                kx_list.append(-kx)
+                ky_list.append(ky)
+
+                kx_list.append(-kx)
+                ky_list.append(-ky)
+
+    return np.array(kx_list), np.array(ky_list)
+
+
+def GetEntropyFreeFermionsED(kF, m, region_geometry, linear_sizes):
+    Kxs, Kys = GetFermiSea(kF)
+    Ne = len(Kxs)
+    Ns = m*Ne
+    t = 1j
+
+    Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
+    Ly = Lx*np.imag(t)
+
+    overlaps = np.zeros((Ne, Ne), dtype=np.float64)
+    S = np.zeros(linear_sizes.size)
+    for k in range(linear_sizes.size):
+        for i in range(Ne):
+            overlaps[i, i] = np.pi*linear_sizes[k]*linear_sizes[k]
+            for j in range(i+1, Ne):
+                if region_geometry == 'square':
+                    overlaps[i, j] = np.sinc(
+                        linear_sizes[k]*(Kxs[i]-Kxs[j]))*np.sinc(linear_sizes[k]*(Kys[i]-Kys[j]))*linear_sizes[k]*linear_sizes[k]
+                elif region_geometry == 'circle':
+                    overlaps[i, j] = np.pi*linear_sizes[k]*linear_sizes[k]*hyp0f1(
+                        2, -((Kxs[i]-Kxs[j])**2 + (Kys[i]-Kys[j])**2)*(linear_sizes[k]*np.pi)**2)/gamma(2)
+                overlaps[j, i] = overlaps[i, j]
+        e = np.linalg.eigvalsh(overlaps)
+        S[k] = -np.sum(np.log(e**2 + (1-e)**2))
+
+    x = linear_sizes*np.sqrt(2*np.pi/Ns)*kF*Lx
+
+    return x, S
+
+
+def GetEntropyLaughlin(Ne, Ns, M, M0, t, step, region_geometry):
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
     data = np.loadtxt(
         f"laughlin_SWAP_Ne_{Ne}_Ns_{Ns}_t_1.00_step_{step:.3f}_{region_geometry}s.dat")
@@ -71,6 +135,46 @@ def GetEntropy(Ne, Ns, M, M0, t, step, region_geometry):
     err = np.sqrt(err_p**2 + err_mod**2 + err_sign**2)
 
     return boundaries, np.vstack((S2, err)).T, np.vstack((S2_p, err_p)).T, np.vstack((S2_mod, err_mod)).T, np.vstack((S2_sign, err_sign)).T
+
+
+def LoadEntropy(Ne, Ns, M, M0, t, step_size, region_geometry, state):
+    kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20}
+    Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
+    file = f"{state}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_step_{step_size}_{region_geometry}s.dat"
+
+    if not exists(file):
+        boundaries = np.arange(0.0250, 0.3001, 0.0125)
+        data = np.zeros((boundaries.size, 7), dtype=np.float64)
+        data[:, 0] = boundaries
+        terms = ['p', 'mod', 'sign']
+        for j in range(3):
+            for i in range(boundaries.size):
+                result = np.loadtxt(
+                    f"../results/{state}/n_{Ne}/{terms[j]}/{state}_{terms[j]}_Ne_{Ne}_Ns_{Ns}_t_1.00_circle_{boundaries[i]:.4f}_step_{step_size:.3f}.dat")
+                if j == 2:
+                    data[i, 1+2*j:3+2*j] = result[0, :]
+                else:
+                    data[i, 1+2*j:3+2*j] = result
+
+        np.savetxt(file, data)
+
+    data = np.loadtxt(file)
+
+    entropy = np.zeros((data.shape[0], 8))
+    x = np.sqrt(data[:, 0]/np.pi)*np.sqrt(2*kf[Ne]*np.pi/(Ns))*Lx
+
+    entropy[:, 0] = -np.log(data[:, 1])
+    entropy[:, 1] = np.sqrt((data[:, 2])/(data[:, 1])**2)/np.sqrt(M-M0)
+    entropy[:, 2] = -np.log(data[:, 3])
+    entropy[:, 3] = np.sqrt((data[:, 4])/(data[:, 3])**2)/np.sqrt(M-M0)
+    entropy[:, 4] = -np.log(data[:, 5])
+    entropy[:, 5] = np.sqrt((data[:, 6])/(data[:, 5])**2)/np.sqrt(M-M0)
+
+    entropy[:, 6] = entropy[:, 0] + entropy[:, 2] + entropy[:, 4]
+    entropy[:, 7] = np.sqrt(
+        entropy[:, 1]**2 + entropy[:, 3]**2 + entropy[:, 5]**2)
+
+    return x, entropy
 
 
 def SaveConfig(state: str, quantity: str, Ne: np.uint8, Ns: np.uint16,
