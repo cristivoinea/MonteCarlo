@@ -6,11 +6,75 @@ from WavefnCFL import InitialWavefnCFL, TmpWavefnCFL, StepOneAmplitudeCFL, \
 from MonteCarloTorusSWAP import RandomConfig, RandomConfigSWAP, AssignOrderToSwap, \
     OrderFromSwap, InsideRegion, UpdateOrderSwap
 
+from src.MonteCarloTorusCFL import MonteCarloTorusCFL
 
-def TestPeriodicityCFL(Ne: np.array, Ns: np.uint16, t: np.complex128,
-                       JK_coeffs: str,
-                       kCM: np.uint8 = 0, phi_1: np.float64 = 0,
-                       phi_t: np.float64 = 0, nbr_tests: np.uint16 = 1):
+
+def TestPeriodicityCFL(Ne, Ns, t, JK_coeffs, pfaffian_flag=False, nbr_copies=1,
+                       kCM=0, phi_1=0, phi_t=0):
+    test_passed = True
+    cfl = MonteCarloTorusCFL(Ne, Ns, t, 1, 1, 'circle', 0.1, 0.1, JK_coeffs,
+                             pfaffian_flag, nbr_copies, kCM, phi_1, phi_t)
+    cfl.LoadRun('disorder')
+    cfl.InitialWavefn()
+    for moved_particle in range(cfl.coords.size):
+        cfl.moved_particles[0] = moved_particle
+        cfl.coords_tmp = np.copy(cfl.coords)
+        cfl.coords_tmp[moved_particle] += cfl.Lx
+        cfl.TmpWavefn()
+        step_amplitude = cfl.StepAmplitude()
+
+        t_L1 = (step_amplitude *
+                np.exp(-1j*cfl.Lx*np.imag(cfl.coords[moved_particle])/2)*np.exp(-1j*cfl.phi_1))
+        if np.abs(t_L1 - 1) > 1e-11:
+            print('t(Lx) * exp(-i phi_1) = ', t_L1)
+            test_passed = False
+
+        cfl.RejectJastrowsTmp('disorder')
+
+        cfl.coords_tmp[moved_particle] += 1j*cfl.Ly
+        cfl.TmpWavefn()
+        step_amplitude = cfl.StepAmplitude()
+
+        t_L2 = (step_amplitude *
+                np.exp(1j*cfl.Ly*np.real(cfl.coords[moved_particle])/2)*np.exp(-1j*phi_t))
+
+        if np.abs(t_L2 - 1) > 1e-11:
+            print('t(Lx*t) * exp(-i phi_t) = ', t_L2)
+            test_passed = False
+
+        cfl.RejectJastrowsTmp('disorder')
+
+
+def TestStepUpdateCFL(Ne, Ns, t, JK_coeffs, pfaffian_flag=False, nbr_copies=1,
+                      accept=True, kCM=0, phi_1=0, phi_t=0):
+    test_passed = True
+    cfl = MonteCarloTorusCFL(Ne, Ns, t, 1, 1, 'circle', 0.1, 0.1, JK_coeffs,
+                             pfaffian_flag, nbr_copies, kCM, phi_1, phi_t)
+    cfl.LoadRun('disorder')
+    cfl.InitialWavefn()
+
+    for i in range(100):
+        cfl.StepOneParticle()
+        cfl.TmpWavefn()
+        if accept:
+            cfl.AcceptJastrowsTmp('disorder')
+        else:
+            cfl.RejectJastrowsTmp('disorder')
+
+        if np.abs(np.sum(cfl.coords-cfl.coords_tmp)) > 1e-13:
+            print("Coordinates update failed!")
+        if np.abs(np.sum(cfl.jastrows[cfl.moved_particles[0], ...]-cfl.jastrows_tmp[cfl.moved_particles[0], ...])) > 1e-13:
+            print("Jastrows update failed!")
+        if np.abs(np.sum(cfl.JK_matrix-cfl.JK_matrix_tmp)) > 1e-13:
+            print("JK matrix update failed!")
+        if np.abs(np.sum(cfl.JK_slogdet-cfl.JK_slogdet_tmp)) > 1e-13:
+            print("JK slogdet update failed!")
+
+
+def TestPeriodicityCFLold(Ne: np.array, Ns: np.uint16, t: np.complex128,
+                          JK_coeffs: str,
+                          kCM: np.uint8 = 0, phi_1: np.float64 = 0,
+                          phi_t: np.float64 = 0, nbr_tests: np.uint16 = 1):
 
     test_passed = True
 
@@ -237,3 +301,7 @@ def TestPeriodicitySwapCFL(Ne: np.array, Ns: np.uint16, t: np.complex128,
         print('Test passed!')
     else:
         print('Test failed!')
+
+
+# add PBC test class
+# add tests for jastrow update np.sum(jastrows-jastrows_tmp) and all the rest
