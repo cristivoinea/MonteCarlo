@@ -270,27 +270,27 @@ class MonteCarloTorusBase:
 
     def SaveConfig(self, run_type: str):
         if run_type == 'sign':
-            np.save(f"{self.state}_{run_type}_results_real_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}_step_{self.step_size/self.Lx:.3f}.npy",
+            np.save(f"{self.state}_{run_type}_results_real_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
                     np.real(self.results))
-            np.save(f"{self.state}_{run_type}_results_imag_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}_step_{self.step_size/self.Lx:.3f}.npy",
+            np.save(f"{self.state}_{run_type}_results_imag_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
                     np.imag(self.results))
 
         else:
-            np.save(f"{self.state}_{run_type}_results_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}_step_{self.step_size/self.Lx:.3f}.npy",
+            np.save(f"{self.state}_{run_type}_results_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
                     self.results)
 
         if run_type == 'sign' or run_type == 'mod':
-            np.save(f"{self.state}_{run_type}_order_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}_step_{self.step_size/self.Lx:.3f}.npy",
+            np.save(f"{self.state}_{run_type}_order_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
                     self.to_swap)
 
-        np.save(f"{self.state}_{run_type}_coords_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}_step_{self.step_size/self.Lx:.3f}.npy",
+        np.save(f"{self.state}_{run_type}_coords_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
                 self.coords)
 
     def SaveResults(self, run_type: str):
 
         if self.save_result:
             if run_type == 'sign':
-                np.savetxt(f"{self.state}_{run_type}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}_step_{self.step_size/self.Lx:.3f}.dat",
+                np.savetxt(f"{self.state}_{run_type}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.dat",
                            np.vstack((Stats(np.real(self.results[int(self.nbr_nonthermal):])),
                                       Stats(
                                           np.imag(self.results[int(self.nbr_nonthermal):]))
@@ -303,10 +303,10 @@ class MonteCarloTorusBase:
                     np.imag(self.results[int(self.nbr_nonthermal):]))
                 mean = np.sqrt(mean_re**2 + mean_im**2)
                 var = var_re*((mean_re/mean)**2) + var_im*((mean_im/mean)**2)
-                np.savetxt(f"{self.state}_{run_type}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}_step_{self.step_size/self.Lx:.3f}.dat",
-                           np.vstack(mean, var))
+                np.savetxt(f"{self.state}_{run_type}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.dat",
+                           np.vstack((mean, var)))
             else:
-                np.savetxt(f"{self.state}_{run_type}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}_step_{self.step_size/self.Lx:.3f}.dat",
+                np.savetxt(f"{self.state}_{run_type}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.dat",
                            Stats(self.results[int(self.nbr_nonthermal):]))
 
         else:
