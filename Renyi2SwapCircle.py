@@ -1,7 +1,6 @@
 # from MonteCarloTorusSWAP import RunPSwapCFL, RunModSwapCFL, RunSignSwapCFL, \
 #    RunPSwapFreeFermions, RunModSwapFreeFermions, RunSignSwapFreeFermions
-from MonteCarloTorusCFL import RunPSwapCFL, RunModSwapCFL, RunSignSwapCFL
-from MonteCarloTorusFreeFermions import RunPSwapFreeFermions, RunModSwapFreeFermions, RunSignSwapFreeFermions
+from src.MonteCarloTorusCFL import MonteCarloTorusCFL
 import numpy as np
 import argparse
 from datetime import datetime
@@ -26,10 +25,14 @@ parser.add_argument("--A-end", action="store", default=-1,
                     help="final coverage of subregion A (percentage of total area)")
 parser.add_argument("--nbr-A", action="store", default=1,
                     help="number of points")
-parser.add_argument("--start-acceptance", action="store", default=-1,
+parser.add_argument("--region-geometry", action="store", default='circle',
+                    help="geometry of one of the bipartition regions")
+parser.add_argument("--linear", action="store", Default=False,
+                    help="enforce that the region size is the linear size of the subregion")
+parser.add_argument("--acceptance-ratio", action="store", default=0,
                     help="loads a previous run with given acceptance")
-parser.add_argument("--swap-term", action="store", required=True,
-                    help="term in the SWAP decomposition")
+parser.add_argument("--run-type", action="store", required=True,
+                    help="type of Monte Carlo run")
 parser.add_argument("--state", action="store", required=True,
                     help="type of state")
 parser.add_argument("--JK-coeffs", action="store", default='0',
@@ -39,13 +42,13 @@ args = vars(parser.parse_args())
 
 Ne = np.uint8(args["Ne"])
 Ns = np.uint8(args["Ns"])
-M = np.uint32(args["nbr_iter"])
-M0 = np.int32(args["nbr_nonthermal"])
-if M0 == -1:
-    if M > 1e6:
-        M0 = 1e5
+nbr_iter = np.uint32(args["nbr_iter"])
+nbr_nonthermal = np.int32(args["nbr_nonthermal"])
+if nbr_nonthermal == -1:
+    if nbr_iter > 1e6:
+        nbr_nonthermal = 1e5
     else:
-        M0 = M//10
+        nbr_nonthermal = nbr_iter//10
 
 step = np.float64(args["step"])
 A_start = np.float64(args["A_start"])
@@ -54,9 +57,10 @@ if A_end == -1:
     A_end = A_start
 nbr_A = np.uint8(args["nbr_A"])
 A_sizes = np.linspace(A_start, A_end, nbr_A, endpoint=True)
-
-start_acceptance = np.float64(args["start_acceptance"])
-swap_term = str(args["swap_term"])
+region_geometry = str(args["region_geometry"])
+linear = bool(args["linear"])
+acceptance_ratio = np.float64(args["acceptance_ratio"])
+run_type = str(args["run_type"])
 state = str(args["state"])
 if state == 'cfl':
     JK_coeffs = str(args["JK_coeffs"])
@@ -64,34 +68,20 @@ t = 1j
 
 for region_size in A_sizes:
     start_time = datetime.now()
+    if state == 'cfl':
+        fqh = MonteCarloTorusCFL(Ne=Ne, Ns=Ns, t=t, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+                                 region_geometry=region_geometry, region_size=region_size, step_size=step,
+                                 nbr_copies=(2-(run_type == 'disorder')),
+                                 linear_size=linear, JK_coeffs=JK_coeffs, acceptance_ratio=acceptance_ratio)
 
-    if swap_term == 'p':
-        if state == 'cfl':
-            RunPSwapCFL(Ne=Ne, Ns=Ns, t=t, M=M, M0=M0, step_size=step,
-                        region_geometry='circle', region_size=region_size,
-                        JK_coeffs=JK_coeffs, start_acceptance=start_acceptance)
-        elif state == 'free-fermions':
-            RunPSwapFreeFermions(Ne=Ne, Ns=Ns, t=t, M=M, M0=M0, step_size=step,
-                                 region_geometry='circle', region_size=region_size,
-                                 start_acceptance=start_acceptance)
-    elif swap_term == 'mod':
-        if state == 'cfl':
-            RunModSwapCFL(Ne=Ne, Ns=Ns, t=t, M=M, M0=M0, step_size=step,
-                          region_geometry='circle', region_size=region_size,
-                          JK_coeffs=JK_coeffs, start_acceptance=start_acceptance)
-        elif state == 'free-fermions':
-            RunModSwapFreeFermions(Ne=Ne, Ns=Ns, t=t, M=M, M0=M0, step_size=step,
-                                   region_geometry='circle', region_size=region_size,
-                                   start_acceptance=start_acceptance)
-    elif swap_term == 'sign':
-        if state == 'cfl':
-            RunSignSwapCFL(Ne=Ne, Ns=Ns, t=t, M=M, M0=M0, step_size=step,
-                           region_geometry='circle', region_size=region_size,
-                           JK_coeffs=JK_coeffs, start_acceptance=start_acceptance)
-        elif state == 'free-fermions':
-            RunSignSwapFreeFermions(Ne=Ne, Ns=Ns, t=t, M=M, M0=M0, step_size=step,
-                                    region_geometry='circle', region_size=region_size,
-                                    start_acceptance=start_acceptance)
+    if run_type == 'p':
+        fqh.RunSwapP()
+    elif run_type == 'mod':
+        fqh.RunSwapMod()
+    elif run_type == 'sign':
+        fqh.RunSwapSign()
+    elif run_type == 'disorder':
+        fqh.RunDisorderOperator()
 
     end_time = datetime.now()
     print(f"Total time = {str(end_time - start_time)[:10]} s")
