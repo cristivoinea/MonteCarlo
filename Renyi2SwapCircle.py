@@ -1,6 +1,7 @@
 # from MonteCarloTorusSWAP import RunPSwapCFL, RunModSwapCFL, RunSignSwapCFL, \
 #    RunPSwapFreeFermions, RunModSwapFreeFermions, RunSignSwapFreeFermions
 from src.MonteCarloTorusCFL import MonteCarloTorusCFL
+from src.MonteCarloTorusFreeFermions import MonteCarloTorusFreeFermions
 import numpy as np
 import argparse
 from datetime import datetime
@@ -27,7 +28,7 @@ parser.add_argument("--nbr-A", action="store", default=1,
                     help="number of points")
 parser.add_argument("--region-geometry", action="store", default='circle',
                     help="geometry of one of the bipartition regions")
-parser.add_argument("--linear", action="store", Default=False,
+parser.add_argument("--linear", action="store", default=False,
                     help="enforce that the region size is the linear size of the subregion")
 parser.add_argument("--acceptance-ratio", action="store", default=0,
                     help="loads a previous run with given acceptance")
@@ -73,6 +74,11 @@ for region_size in A_sizes:
                                  region_geometry=region_geometry, region_size=region_size, step_size=step,
                                  nbr_copies=(2-(run_type == 'disorder')),
                                  linear_size=linear, JK_coeffs=JK_coeffs, acceptance_ratio=acceptance_ratio)
+    elif state == 'free_fermions':
+        fqh = MonteCarloTorusFreeFermions(Ne=Ne, Ns=Ns, t=t, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+                                          region_geometry=region_geometry, region_size=region_size, step_size=step,
+                                          nbr_copies=(2-(run_type == 'disorder')), linear_size=linear,
+                                          acceptance_ratio=acceptance_ratio)
 
     if run_type == 'p':
         fqh.RunSwapP()

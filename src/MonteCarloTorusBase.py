@@ -14,11 +14,6 @@ class MonteCarloTorusBase:
     region_geometry: str
     region_size: np.float64
     step_size: np.float64
-    kCM: np.uint8 = 0
-    phi_1: np.float64 = 0
-    phi_t: np.float64 = 0
-    aCM: np.float64
-    bCM: np.float64
     boundary: np.float64
     state: str
 
@@ -270,27 +265,27 @@ class MonteCarloTorusBase:
 
     def SaveConfig(self, run_type: str):
         if run_type == 'sign':
-            np.save(f"{self.state}_{run_type}_results_real_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
+            np.save(f"{run_type}_{self.state}_results_real_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
                     np.real(self.results))
-            np.save(f"{self.state}_{run_type}_results_imag_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
+            np.save(f"{run_type}_{self.state}_results_imag_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
                     np.imag(self.results))
 
         else:
-            np.save(f"{self.state}_{run_type}_results_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
+            np.save(f"{run_type}_{self.state}_results_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
                     self.results)
 
         if run_type == 'sign' or run_type == 'mod':
-            np.save(f"{self.state}_{run_type}_order_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
+            np.save(f"{run_type}_{self.state}_order_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
                     self.to_swap)
 
-        np.save(f"{self.state}_{run_type}_coords_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
+        np.save(f"{run_type}_{self.state}_coords_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
                 self.coords)
 
     def SaveResults(self, run_type: str):
 
         if self.save_result:
             if run_type == 'sign':
-                np.savetxt(f"{self.state}_{run_type}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.dat",
+                np.savetxt(f"{run_type}_{self.state}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.dat",
                            np.vstack((Stats(np.real(self.results[int(self.nbr_nonthermal):])),
                                       Stats(
                                           np.imag(self.results[int(self.nbr_nonthermal):]))
@@ -303,10 +298,10 @@ class MonteCarloTorusBase:
                     np.imag(self.results[int(self.nbr_nonthermal):]))
                 mean = np.sqrt(mean_re**2 + mean_im**2)
                 var = var_re*((mean_re/mean)**2) + var_im*((mean_im/mean)**2)
-                np.savetxt(f"{self.state}_{run_type}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.dat",
+                np.savetxt(f"{run_type}_{self.state}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.dat",
                            np.vstack((mean, var)))
             else:
-                np.savetxt(f"{self.state}_{run_type}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.dat",
+                np.savetxt(f"{run_type}_{self.state}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.dat",
                            Stats(self.results[int(self.nbr_nonthermal):]))
 
         else:
@@ -332,22 +327,22 @@ class MonteCarloTorusBase:
     def LoadRun(self, run_type: str):
 
         if self.acceptance_ratio > 0:
-            file_coords = f"./{self.state}_{run_type}_coords_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy"
+            file_coords = f"./{run_type}_{self.state}_coords_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy"
             if exists(file_coords):
                 self.coords = np.load(file_coords)
             else:
                 print(f"{file_coords} missing!\n")
 
             if run_type == 'mod' or run_type == 'sign':
-                file_order = f"./{self.state}_{run_type}_order_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy"
+                file_order = f"./{run_type}_{self.state}_order_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy"
                 if exists(file_order):
                     self.to_swap = np.load(file_order)
                 else:
                     print(f"{file_order} missing!\n")
 
             if run_type == 'sign' or run_type == 'disorder':
-                file_results_real = f"./{self.state}_{run_type}_results_real_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy"
-                file_results_imag = f"./{self.state}_{run_type}_results_imag_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy"
+                file_results_real = f"./{run_type}_{self.state}_results_real_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy"
+                file_results_imag = f"./{run_type}_{self.state}_results_imag_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy"
                 if exists(file_results_real) and exists(file_results_real):
                     start_results = np.load(file_results_real) + \
                         np.load(file_results_imag)
@@ -360,7 +355,7 @@ class MonteCarloTorusBase:
                     print("Results file not found!\n")
 
             else:
-                file_results = f"./{self.state}_{run_type}_results_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy"
+                file_results = f"./{run_type}_{self.state}_results_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy"
                 if exists(file_results):
                     start_results = np.load(file_results)
                     self.load_iter = start_results.size
@@ -394,8 +389,170 @@ class MonteCarloTorusBase:
         if self.save_config:
             self.SaveConfig(run_type)
 
+    def InitialWavefn():
+        pass
+
+    def InitialWavefnSwap():
+        pass
+
+    def TmpWavefn():
+        pass
+
+    def TmpWavefnSwap():
+        pass
+
+    def StepAmplitude():
+        pass
+
+    def StepAmplitudeTwoCopies():
+        pass
+
+    def StepAmplitudeTwoCopiesSwap():
+        pass
+
+    def AcceptTmp(self, run_type):
+        self.acceptance_ratio += 1
+        self.coords[self.moved_particles] = self.coords_tmp[self.moved_particles]
+
+        if run_type == 'mod' or run_type == 'sign':
+            np.copyto(self.to_swap, self.to_swap_tmp)
+            np.copyto(self.from_swap, self.from_swap_tmp)
+
+    def RejectTmp(self, run_type):
+        self.coords_tmp[self.moved_particles] = self.coords[self.moved_particles]
+
+        if run_type == 'mod' or run_type == 'sign':
+            np.copyto(self.to_swap_tmp, self.to_swap)
+            np.copyto(self.from_swap_tmp, self.from_swap)
+
+    def InitialMod():
+        pass
+
+    def InitialSign():
+        pass
+
+    def RunDisorderOperator(self):
+        """
+        Computes the disorder operator.
+        """
+        self.LoadRun('disorder')
+        self.InitialWavefn()
+        inside_region = self.InsideRegion(self.coords)
+        update = np.exp(1j*(np.count_nonzero(inside_region))*np.pi/2)
+
+        for i in range(self.load_iter, self.load_iter+self.nbr_iter):
+            self.StepOneParticle()
+            self.TmpWavefn()
+            step_amplitude = self.StepAmplitude()
+
+            if np.abs(step_amplitude)**2 > np.random.random():
+                self.AcceptTmp('disorder')
+                inside_region = self.InsideRegion(self.coords)
+                update = np.exp(1j*(np.count_nonzero(inside_region))*np.pi/2)
+
+            else:
+                self.RejectTmp('disorder')
+
+            self.results[i] = update
+            if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
+                self.Checkpoint(i, 'disorder')
+
+        self.SaveResults('disorder')
+
+    def RunSwapP(self):
+        """
+        Computes the p-term in the entanglement entropy swap decomposition 
+        (the probability of two copies being swappable).
+        """
+        self.LoadRun('p')
+        self.InitialWavefn()
+        inside_region = self.InsideRegion(self.coords)
+        update = (np.count_nonzero(inside_region[:self.Ne]) ==
+                  np.count_nonzero(inside_region[self.Ne:]))
+
+        for i in range(self.load_iter, self.load_iter+self.nbr_iter):
+            self.StepOneParticleTwoCopies()
+            self.TmpWavefn()
+            step_amplitude = self.StepAmplitudeTwoCopies()
+
+            if np.abs(step_amplitude)**2 > np.random.random():
+                self.AcceptTmp('p')
+                inside_region = self.InsideRegion(self.coords)
+                update = (np.count_nonzero(inside_region[:self.Ne]) ==
+                          np.count_nonzero(inside_region[self.Ne:]))
+            else:
+                self.RejectTmp('p')
+
+            self.results[i] = update
+            if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
+                self.Checkpoint(i, 'p')
+
+        self.SaveResults('p')
+
+    def RunSwapMod(self):
+        """
+        Computes the mod-term in the entanglement entropy swap decomposition .
+        """
+        self.LoadRun('mod')
+        self.InitialWavefn()
+        self.InitialWavefnSwap()
+        update = self.InitialMod()
+
+        for i in range(self.load_iter, self.load_iter+self.nbr_iter):
+            nbr_in_region_changes = self.StepOneSwap()
+            self.TmpWavefn()
+            step_amplitude = self.StepAmplitudeTwoCopies()
+
+            if step_amplitude*np.conj(step_amplitude) > np.random.random():
+                self.UpdateOrderSwap(nbr_in_region_changes)
+                self.TmpWavefnSwap()
+                step_amplitude_swap = self.StepAmplitudeTwoCopiesSwap()
+                update *= np.abs(step_amplitude_swap / step_amplitude)
+                self.AcceptTmp('mod')
+
+            else:
+                self.RejectTmp('mod')
+
+            self.results[i] = update
+            # if (i+1-self.load_iter) % (self.nbr_iter//100) == 0:
+            # print(step_amplitude, step_amplitude_swap)
+            if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
+                self.Checkpoint(i, 'mod')
+
+        self.SaveResults('mod')
+
+    def RunSwapSign(self):
+        """
+        Computes the sign-term in the entanglement entropy swap decomposition .
+        """
+        self.LoadRun('sign')
+        self.InitialWavefn()
+        self.InitialWavefnSwap()
+        update = self.InitialSign()
+
+        for i in range(self.load_iter, self.load_iter+self.nbr_iter):
+            nbr_in_region_changes = self.StepOneSwap()
+            self.TmpWavefn()
+            step_amplitude = self.StepAmplitudeTwoCopies()
+            self.UpdateOrderSwap(nbr_in_region_changes)
+            self.TmpWavefnSwap()
+            step_amplitude *= np.conj(self.StepAmplitudeTwoCopiesSwap())
+
+            if np.abs(step_amplitude) > np.random.random():
+                update *= step_amplitude / np.abs(step_amplitude)
+                self.AcceptTmp('sign')
+
+            else:
+                self.RejectTmp('sign')
+
+            self.results[i] = update
+            if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
+                self.Checkpoint(i, 'sign')
+
+        self.SaveResults('sign')
+
     def __init__(self, Ne, Ns, t, nbr_iter, nbr_nonthermal, region_geometry,
-                 step_size, region_size, linear_size=False, kCM=0, phi_1=0, phi_t=0,
+                 step_size, region_size, linear_size=False,
                  save_results=True, save_config=True, acceptance_ratio=0):
         self.Ne = Ne
         self.Ns = Ns
@@ -404,11 +561,6 @@ class MonteCarloTorusBase:
         self.nbr_nonthermal = nbr_nonthermal
         self.region_geometry = region_geometry
         self.region_size = region_size
-        self.kCM = kCM
-        self.phi_1 = phi_1
-        self.phi_t = phi_t
-        self.aCM = phi_1/(2*np.pi*Ns/Ne) + kCM/(Ns/Ne) + (Ne-1)/2
-        self.bCM = -phi_t/(2*np.pi) + (Ns/Ne)*(Ne-1)/2
         self.save_config = save_config
         self.save_result = save_results
 

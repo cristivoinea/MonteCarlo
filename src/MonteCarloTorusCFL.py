@@ -178,6 +178,11 @@ def njit_StepAmplitudeTwoCopiesSwap(Ne, coords, coords_tmp) -> np.complex128:
 
 
 class MonteCarloTorusCFL (MonteCarloTorusBase):
+    kCM: np.uint8 = 0
+    phi_1: np.float64 = 0
+    phi_t: np.float64 = 0
+    aCM: np.float64
+    bCM: np.float64
     Ks: np.array
     JK_coeffs: str
     JK_coeffs_unique: np.array
@@ -314,7 +319,7 @@ class MonteCarloTorusCFL (MonteCarloTorusBase):
             self.JK_slogdet_tmp[0], self.JK_slogdet_tmp[1] = np.linalg.slogdet(
                 self.JK_matrix_tmp)
 
-    def RejectJastrowsTmp(self, run_type):
+    def RejectTmp(self, run_type):
         self.coords_tmp[self.moved_particles] = self.coords[self.moved_particles]
 
         for p in range(self.moved_particles.size):
@@ -330,7 +335,7 @@ class MonteCarloTorusCFL (MonteCarloTorusBase):
         np.copyto(self.JK_matrix_tmp, self.JK_matrix)
         np.copyto(self.JK_slogdet_tmp, self.JK_slogdet)
 
-    def AcceptJastrowsTmp(self, run_type):
+    def AcceptTmp(self, run_type):
         self.acceptance_ratio += 1
         self.coords[self.moved_particles] = self.coords_tmp[self.moved_particles]
 
@@ -578,130 +583,16 @@ class MonteCarloTorusCFL (MonteCarloTorusBase):
 
         return step_amplitude
 
-    def RunDisorderOperator(self):
-        """
-        Computes the disorder operator.
-        """
-        self.LoadRun('disorder')
-        self.InitialWavefn()
-        inside_region = self.InsideRegion(self.coords)
-        update = np.exp(1j*(np.count_nonzero(inside_region))*np.pi/2)
-
-        for i in range(self.load_iter, self.load_iter+self.nbr_iter):
-            self.StepOneParticle()
-            self.TmpWavefn()
-            step_amplitude = self.StepAmplitude()
-
-            if np.abs(step_amplitude)**2 > np.random.random():
-                self.AcceptJastrowsTmp('disorder')
-                inside_region = self.InsideRegion(self.coords)
-                update = np.exp(1j*(np.count_nonzero(inside_region))*np.pi/2)
-
-            else:
-                self.RejectJastrowsTmp('disorder')
-
-            self.results[i] = update
-            if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
-                self.Checkpoint(i, 'disorder')
-
-        self.SaveResults('disorder')
-
-    def RunSwapP(self):
-        """
-        Computes the p-term in the entanglement entropy swap decomposition 
-        (the probability of two copies being swappable).
-        """
-        self.LoadRun('p')
-        self.InitialWavefn()
-        inside_region = self.InsideRegion(self.coords)
-        update = (np.count_nonzero(inside_region[:self.Ne]) ==
-                  np.count_nonzero(inside_region[self.Ne:]))
-
-        for i in range(self.load_iter, self.load_iter+self.nbr_iter):
-            self.StepOneParticleTwoCopies()
-            self.TmpWavefn()
-            step_amplitude = self.StepAmplitudeTwoCopies()
-
-            if np.abs(step_amplitude)**2 > np.random.random():
-                self.AcceptJastrowsTmp('p')
-                inside_region = self.InsideRegion(self.coords)
-                update = (np.count_nonzero(inside_region[:self.Ne]) ==
-                          np.count_nonzero(inside_region[self.Ne:]))
-            else:
-                self.RejectJastrowsTmp('p')
-
-            self.results[i] = update
-            if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
-                self.Checkpoint(i, 'p')
-
-        self.SaveResults('p')
-
-    def RunSwapMod(self):
-        """
-        Computes the mod-term in the entanglement entropy swap decomposition .
-        """
-        self.LoadRun('mod')
-        self.InitialWavefn()
-        self.InitialWavefnSwap()
-        update = self.InitialMod()
-
-        for i in range(self.load_iter, self.load_iter+self.nbr_iter):
-            nbr_in_region_changes = self.StepOneSwap()
-            self.TmpWavefn()
-            step_amplitude = self.StepAmplitudeTwoCopies()
-
-            if step_amplitude*np.conj(step_amplitude) > np.random.random():
-                self.UpdateOrderSwap(nbr_in_region_changes)
-                self.TmpWavefnSwap()
-                step_amplitude_swap = self.StepAmplitudeTwoCopiesSwap()
-                update *= np.abs(step_amplitude_swap / step_amplitude)
-                self.AcceptJastrowsTmp('mod')
-
-            else:
-                self.RejectJastrowsTmp('mod')
-
-            self.results[i] = update
-            # if (i+1-self.load_iter) % (self.nbr_iter//100) == 0:
-            # print(step_amplitude, step_amplitude_swap)
-            if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
-                self.Checkpoint(i, 'mod')
-
-        self.SaveResults('mod')
-
-    def RunSwapSign(self):
-        """
-        Computes the sign-term in the entanglement entropy swap decomposition .
-        """
-        self.LoadRun('sign')
-        self.InitialWavefn()
-        self.InitialWavefnSwap()
-        update = self.InitialSign()
-
-        for i in range(self.load_iter, self.load_iter+self.nbr_iter):
-            nbr_in_region_changes = self.StepOneSwap()
-            self.TmpWavefn()
-            step_amplitude = self.StepAmplitudeTwoCopies()
-            self.UpdateOrderSwap(nbr_in_region_changes)
-            self.TmpWavefnSwap()
-            step_amplitude *= np.conj(self.StepAmplitudeTwoCopiesSwap())
-
-            if np.abs(step_amplitude) > np.random.random():
-                update *= step_amplitude / np.abs(step_amplitude)
-                self.AcceptJastrowsTmp('sign')
-
-            else:
-                self.RejectJastrowsTmp('sign')
-
-            self.results[i] = update
-            if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
-                self.Checkpoint(i, 'sign')
-
-        self.SaveResults('sign')
-
     def __init__(self, Ne, Ns, t, nbr_iter, nbr_nonthermal, region_geometry,
                  region_size, linear_size, step_size, JK_coeffs='0', pfaffian_flag=False,
                  nbr_copies=1, kCM=0, phi_1=0, phi_t=0,
                  save_results=True, save_config=True, acceptance_ratio=0):
+
+        self.kCM = kCM
+        self.phi_1 = phi_1
+        self.phi_t = phi_t
+        self.aCM = phi_1/(2*np.pi*Ns/Ne) + kCM/(Ns/Ne) + (Ne-1)/2
+        self.bCM = -phi_t/(2*np.pi) + (Ns/Ne)*(Ne-1)/2
 
         self.JK_coeffs = JK_coeffs
         JK_coeffs_parsed = np.array(list(JK_coeffs), dtype=int)
@@ -720,7 +611,7 @@ class MonteCarloTorusCFL (MonteCarloTorusBase):
         self.state = 'cfl'+self.JK_coeffs
 
         super().__init__(Ne, Ns, t, nbr_iter, nbr_nonthermal, region_geometry,
-                         step_size, region_size, linear_size, kCM, phi_1, phi_t,
+                         step_size, region_size, linear_size,
                          save_results, save_config, acceptance_ratio)
 
         self.Ks = (fermi_sea_kx[self.Ne]*2*np.pi/self.Lx +
