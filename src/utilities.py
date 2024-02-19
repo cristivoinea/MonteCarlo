@@ -33,14 +33,14 @@ fermi_sea_ky[21] = fermi_sea_ky[69][:21]
 
 @njit  # (parallel=True)
 def ThetaFunction(z: np.complex128, t: np.complex128, a: np.float64,
-                  b: np.float64, n_max: np.uint32 = 75
+                  b: np.float64, n_max: np.uint32 = 150
                   ) -> np.complex128:
     index_a = np.arange(-n_max+a, n_max+a, 1)
     terms = np.exp(1j*np.pi*index_a*(t*(index_a) + 2*(z + b)))
     return np.sum(terms)
 
 
-def Stats(data: np.array) -> (np.float64, np.float64):
+def Stats(data: np.array) -> tuple[np.float64, np.float64]:
     data_copy = data
     mean = np.sum(data_copy)/data_copy.size
     var = np.var(data_copy, ddof=1)
@@ -60,19 +60,12 @@ def LoadEntropy(Ne, Ns, M, M0, t, step_size, region_geometry, state):
         terms = ['p', 'mod', 'sign']
         for j in range(3):
             for i in range(boundaries.size):
-                if state != 'cfl0':
-                    single_file = f"../results/{state}/n_{Ne}/{terms[j]}/{state}_{terms[j]}_Ne_{Ne}_Ns_{Ns}_t_1.00_circle_{boundaries[i]:.4f}_step_{step_size:.3f}.dat"
+                result = np.loadtxt(
+                    f"../results/{state}/n_{Ne}/{terms[j]}/{state}_{terms[j]}_Ne_{Ne}_Ns_{Ns}_t_1.00_circle_{boundaries[i]:.4f}_step_{step_size:.3f}.dat")
+                if j == 2:
+                    data[i, 1+2*j:3+2*j] = result[0, :]
                 else:
-                    single_file = f"../results/cfl{int(Ns//Ne)}_unproj/n_{Ne}/{terms[j]}/{state}_{terms[j]}_Ne_{Ne}_Ns_{Ns}_t_1.00_circle_{boundaries[i]:.4f}_step_{step_size:.3f}.dat"
-
-                if exists(single_file):
-                    result = np.loadtxt(single_file)
-                    if j == 2:
-                        data[i, 1+2*j:3+2*j] = result[0, :]
-                    else:
-                        data[i, 1+2*j:3+2*j] = result
-                else:
-                    data[i, 1+2*j:3+2*j] = np.array([0, 0])
+                    data[i, 1+2*j:3+2*j] = result
 
         np.savetxt(file, data)
 
@@ -91,5 +84,32 @@ def LoadEntropy(Ne, Ns, M, M0, t, step_size, region_geometry, state):
     entropy[:, 6] = entropy[:, 0] + entropy[:, 2] + entropy[:, 4]
     entropy[:, 7] = np.sqrt(
         entropy[:, 1]**2 + entropy[:, 3]**2 + entropy[:, 5]**2)
+
+    return x, entropy
+
+
+def LoadDisorderOperator(Ne, Ns, M, M0, t, region_geometry, state):
+    kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20}
+    Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
+    file = f"disorder_{state}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}s.dat"
+
+    if not exists(file):
+        boundaries = np.arange(0.08, 0.35, 0.01)
+        data = np.zeros((boundaries.size, 3), dtype=np.float64)
+        data[:, 0] = boundaries
+        for i in range(boundaries.size):
+            result = np.loadtxt(
+                f"../results/disorder/{state}/n_{Ne}/disorder_{state}_Ne_{Ne}_Ns_{Ns}_t_1.00_circle_{boundaries[i]:.4f}.dat")
+            data[i, 1:3] = result
+
+        np.savetxt(file, data)
+
+    data = np.loadtxt(file)
+
+    entropy = np.zeros((data.shape[0], 2))
+    x = data[:, 0]*np.sqrt(2*kf[Ne]*np.pi/(Ns))*Lx
+
+    entropy[:, 0] = -2*np.log(data[:, 1])
+    entropy[:, 1] = np.sqrt((data[:, 2])/(data[:, 1])**2)/np.sqrt(M-M0)
 
     return x, entropy

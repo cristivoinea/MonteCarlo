@@ -473,7 +473,7 @@ class MonteCarloTorusBase:
         for i in range(self.load_iter, self.load_iter+self.nbr_iter):
             self.StepOneParticleTwoCopies()
             self.TmpWavefn()
-            step_amplitude = self.StepAmplitudeTwoCopies()
+            step_amplitude = self.StepAmplitude()
 
             if np.abs(step_amplitude)**2 > np.random.random():
                 self.AcceptTmp('p')
@@ -501,7 +501,7 @@ class MonteCarloTorusBase:
         for i in range(self.load_iter, self.load_iter+self.nbr_iter):
             nbr_in_region_changes = self.StepOneSwap()
             self.TmpWavefn()
-            step_amplitude = self.StepAmplitudeTwoCopies()
+            step_amplitude = self.StepAmplitude()
 
             if step_amplitude*np.conj(step_amplitude) > np.random.random():
                 self.UpdateOrderSwap(nbr_in_region_changes)
@@ -533,7 +533,7 @@ class MonteCarloTorusBase:
         for i in range(self.load_iter, self.load_iter+self.nbr_iter):
             nbr_in_region_changes = self.StepOneSwap()
             self.TmpWavefn()
-            step_amplitude = self.StepAmplitudeTwoCopies()
+            step_amplitude = self.StepAmplitude()
             self.UpdateOrderSwap(nbr_in_region_changes)
             self.TmpWavefnSwap()
             step_amplitude *= np.conj(self.StepAmplitudeTwoCopiesSwap())
