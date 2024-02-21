@@ -46,7 +46,7 @@ def njit_UpdateJastrows(t: np.complex128, Lx: np.float64,
                                                         np.imag(Ks) * np.imag(coords_tmp[moved_particle])))
 
 
-@njit  # (parallel=True)
+@njit(parallel=True)
 def njit_UpdatePfJastrows(t: np.complex128, Lx: np.float64,
                           coords_tmp: np.array, jastrows_tmp: np.array,
                           pf_jastrows_tmp: np.array,
