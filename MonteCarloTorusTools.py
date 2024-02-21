@@ -499,7 +499,7 @@ def StepOneSWAPRandom(Lx: np.float64, Ly: np.float64, t: np.complex128,
     return R_f, p, delta
 
 
-@njit
+# @njit
 def StepOneSwap(Lx: np.float64, t: np.complex128,
                 step_size: np.float64, coords_new: np.array,
                 p: np.array, region_geometry: str, boundary: np.float64

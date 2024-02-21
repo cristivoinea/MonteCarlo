@@ -140,7 +140,7 @@ def GetEntropyLaughlin(Ne, Ns, M, M0, t, step, region_geometry):
 def LoadEntropy(Ne, Ns, M, M0, t, step_size, region_geometry, state):
     kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20}
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
-    file = f"{state}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_step_{step_size}_{region_geometry}s.dat"
+    file = f"{state}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}s.dat"
 
     if not exists(file):
         boundaries = np.arange(0.0250, 0.3001, 0.0125)
@@ -150,7 +150,7 @@ def LoadEntropy(Ne, Ns, M, M0, t, step_size, region_geometry, state):
         for j in range(3):
             for i in range(boundaries.size):
                 result = np.loadtxt(
-                    f"../results/{state}/n_{Ne}/{terms[j]}/{state}_{terms[j]}_Ne_{Ne}_Ns_{Ns}_t_1.00_circle_{boundaries[i]:.4f}_step_{step_size:.3f}.dat")
+                    f"../results/entropy/{state}/n_{Ne}/{terms[j]}/{terms[j]}_{state}_Ne_{Ne}_Ns_{Ns}_t_1.00_circle_{boundaries[i]:.4f}.dat")
                 if j == 2:
                     data[i, 1+2*j:3+2*j] = result[0, :]
                 else:
@@ -173,6 +173,32 @@ def LoadEntropy(Ne, Ns, M, M0, t, step_size, region_geometry, state):
     entropy[:, 6] = entropy[:, 0] + entropy[:, 2] + entropy[:, 4]
     entropy[:, 7] = np.sqrt(
         entropy[:, 1]**2 + entropy[:, 3]**2 + entropy[:, 5]**2)
+
+    return x, entropy
+
+
+def LoadDisorderOperator(Ne, Ns, M, M0, t, region_geometry, state, boundaries):
+    kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20}
+    Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
+    file = f"disorder_{state}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}s.dat"
+
+    if not exists(file):
+        data = np.zeros((boundaries.size, 3), dtype=np.float64)
+        data[:, 0] = boundaries
+        for i in range(boundaries.size):
+            result = np.loadtxt(
+                f"../results/disorder/{state}/n_{Ne}/disorder_{state}_Ne_{Ne}_Ns_{Ns}_t_1.00_circle_{boundaries[i]:.4f}.dat")
+            data[i, 1:3] = result
+
+        np.savetxt(file, data)
+
+    data = np.loadtxt(file)
+
+    entropy = np.zeros((data.shape[0], 2))
+    x = data[:, 0]*np.sqrt(2*kf[Ne]*np.pi/(Ns))*Lx
+
+    entropy[:, 0] = -2*np.log(data[:, 1])
+    entropy[:, 1] = np.sqrt((data[:, 2])/(data[:, 1])**2)/np.sqrt(M-M0)
 
     return x, entropy
 

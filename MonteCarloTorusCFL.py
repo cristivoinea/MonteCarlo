@@ -43,11 +43,6 @@ def RunPSwapCFL(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     boundary = Lx * np.sqrt(region_size/np.pi)
     Ks = (fermi_sea_kx[Ne]*2*np.pi/Lx + 1j*fermi_sea_ky[Ne]*2*np.pi/Ly)
 
-    if (Ns//Ne) % 2 == 0:
-        statistics = 'fermions'
-    elif (Ns//Ne) % 2 == 1:
-        statistics = 'bosons'
-
     JK_coeffs_parsed = np.array(list(JK_coeffs), dtype=int)
     if np.sum(JK_coeffs_parsed) != Ns/Ne:
         print("JK coefficients are incorrect for the given filling!")
@@ -229,12 +224,11 @@ def RunModSwapCFL(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
     moved_particles = np.zeros(2, dtype=np.uint8)
 
     for cp in range(2):
-        JK_slogdet[0, cp], \
-            JK_slogdet[1, cp] = InitialWavefnCFL(t, Lx, coords[:, cp], Ks,
-                                                 jastrows[cp*Ne:(cp+1)*Ne,
-                                                          cp*Ne:(cp+1)*Ne, ...],
-                                                 JK_coeffs_unique,
-                                                 JK_matrix[:, :, cp])
+        JK_slogdet[:, cp] = InitialWavefnCFL(t, Lx, coords[:, cp], Ks,
+                                             jastrows[cp*Ne:(cp+1)*Ne,
+                                                      cp*Ne:(cp+1)*Ne, ...],
+                                             JK_coeffs_unique,
+                                             JK_matrix[:, :, cp])
 
     JK_slogdet[0, 2:4], \
         JK_slogdet[1, 2:4] = InitialWavefnSwapCFL(t, Lx, coords, Ks, jastrows,
@@ -252,14 +246,13 @@ def RunModSwapCFL(Ne: np.uint8, Ns: np.uint16, t: np.complex64,
         nbr_A_changes = StepOneSwap(
             Lx, t, step_size, coords_tmp, moved_particles, region_geometry, boundary)
         for cp in range(2):
-            JK_slogdet_tmp[0, cp], \
-                JK_slogdet_tmp[1, cp] = TmpWavefnCFL(t, Lx, coords_tmp[:, cp], Ks,
-                                                     jastrows[cp*Ne:(cp+1)*Ne,
+            JK_slogdet_tmp[:, cp] = TmpWavefnCFL(t, Lx, coords_tmp[:, cp], Ks,
+                                                 jastrows[cp*Ne:(cp+1)*Ne,
+                                                          cp*Ne:(cp+1)*Ne, ...],
+                                                 jastrows_tmp[cp*Ne:(cp+1)*Ne,
                                                               cp*Ne:(cp+1)*Ne, ...],
-                                                     jastrows_tmp[cp*Ne:(cp+1)*Ne,
-                                                                  cp*Ne:(cp+1)*Ne, ...],
-                                                     JK_coeffs_unique,
-                                                     JK_matrix_tmp[..., cp], moved_particles[cp])
+                                                 JK_coeffs_unique,
+                                                 JK_matrix_tmp[..., cp], moved_particles[cp])
             step_amplitude *= StepOneAmplitudeCFL(Ns, t, coords[:, cp], coords_tmp[:, cp],
                                                   jastrows[cp*Ne:(cp+1)*Ne,
                                                            cp*Ne:(cp+1)*Ne, 0, 0],
