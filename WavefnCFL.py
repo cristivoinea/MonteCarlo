@@ -142,14 +142,12 @@ def UpdateJastrowsCFL(t: np.complex128, Lx: np.float64,
     """
     Ne = coords_tmp.size
 
-    # JK_matrix_tmp[:, moved_particle] = np.ones(Ne)
-
+    JK_matrix_tmp[:, moved_particle] = np.exp(
+        1j*np.real(Ks)*coords_tmp[moved_particle])
     for k in prange(Ne):
-        JK_matrix_tmp[k, moved_particle] = np.exp(
-            1j*np.real(Ks[k])*coords_tmp[moved_particle])
-        for i in range(Ne):
-            if i != moved_particle:
-                for l in range(JK_coeffs.shape[1]):
+        for l in range(JK_coeffs.shape[1]):
+            for i in range(Ne):
+                if i != moved_particle:
                     jastrows_tmp[i, moved_particle, k, l] = ThetaFunction(
                         (coords_tmp[i] - coords_tmp[moved_particle] + JK_coeffs[0, l]*1j*Ks[k])/Lx, t, 1/2, 1/2)
 
@@ -160,11 +158,10 @@ def UpdateJastrowsCFL(t: np.complex128, Lx: np.float64,
                         jastrows_tmp[moved_particle, i, k, l] = - \
                             jastrows_tmp[i, moved_particle, k, l]
 
-                    JK_matrix_tmp[k, i] *= np.power((jastrows_tmp[i, moved_particle, k, l] /
-                                                     jastrows[i, moved_particle, k, l]), JK_coeffs[1, l])
-
-                    JK_matrix_tmp[k, moved_particle] *= np.power(jastrows_tmp[moved_particle, i, k, l],
-                                                                 JK_coeffs[1, l])
+            JK_matrix_tmp[k, moved_particle] *= np.prod(jastrows_tmp[moved_particle,
+                                                                     :, k, l]) ** JK_coeffs[1, l]
+            JK_matrix_tmp[k, :] *= (jastrows_tmp[:, moved_particle, k, l] /
+                                    jastrows[:, k, l]) ** JK_coeffs[1, l]
 
 
 def TmpWavefnCFL(t: np.complex128, Lx: np.float64,
@@ -174,7 +171,7 @@ def TmpWavefnCFL(t: np.complex128, Lx: np.float64,
                  JK_matrix_tmp: np.array, moved_particle: np.uint16
                  ) -> (np.complex128, np.float64):
 
-    UpdateJastrowsCFL(t, Lx, coords_tmp, Ks, jastrows, jastrows_tmp,
+    UpdateJastrowsCFL(t, Lx, coords_tmp, Ks, jastrows[:, moved_particle, :, :], jastrows_tmp,
                       JK_coeffs, JK_matrix_tmp, moved_particle)
     return np.linalg.slogdet(JK_matrix_tmp)
 
@@ -239,6 +236,7 @@ def UpdateJastrowsAllSwapCFL(t: np.complex128, Lx: np.float64,
                 (coords[moved_particles[0], 0] - coords[i, 1] + 2*1j*Ks[k])/Lx, t, 1/2, 1/2)
 
 
+# @njit
 def ResetJastrowsCFL(jastrows: np.array, jastrows_tmp: np.array,
                      JK_matrix: np.array, JK_matrix_tmp: np.array,
                      moved_particle: np.uint16):
@@ -384,7 +382,7 @@ def GetExtraJastrowFactorSwap(Ne, Ns, jastrows, from_swap):
     return jastrows_factor
 
 
-@njit
+# @njit
 def StepOneAmplitudeCFL(Ns: np.uint16, t: np.complex128,
                         coords: np.array, coords_tmp: np.array,
                         jastrows: np.array, jastrows_tmp: np.array,
