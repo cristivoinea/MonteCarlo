@@ -1,7 +1,15 @@
 # from MonteCarloTorusSWAP import RunPSwapCFL, RunModSwapCFL, RunSignSwapCFL, \
 #    RunPSwapFreeFermions, RunModSwapFreeFermions, RunSignSwapFreeFermions
-from src.MonteCarloTorusCFL import MonteCarloTorusCFL
-from src.MonteCarloTorusFreeFermions import MonteCarloTorusFreeFermions
+import sys
+import os
+
+module_path = os.path.abspath(os.path.join('..'))  # nopep8
+if module_path not in sys.path:
+    sys.path.append(module_path)
+
+from src.MonteCarloTorusCFL import MonteCarloTorusCFL  # nopep8
+from src.MonteCarloTorusFreeFermions import MonteCarloTorusFreeFermions  # nopep8
+from src.MonteCarloSphereFreeFermions import MonteCarloSphereFreeFermions  # nopep8
 import numpy as np
 import argparse
 from datetime import datetime
@@ -26,6 +34,8 @@ parser.add_argument("--A-end", action="store", default=-1,
                     help="final coverage of subregion A (percentage of total area)")
 parser.add_argument("--nbr-A", action="store", default=1,
                     help="number of points")
+parser.add_argument("--geometry", action="store", default='torus',
+                    help="system geometry")
 parser.add_argument("--region-geometry", action="store", default='circle',
                     help="geometry of one of the bipartition regions")
 parser.add_argument("--linear", action="store_true",
@@ -60,6 +70,7 @@ if A_end == -1:
     A_end = A_start
 nbr_A = np.uint8(args["nbr_A"])
 A_sizes = np.linspace(A_start, A_end, nbr_A, endpoint=True)
+geometry = str(args["geometry"])
 region_geometry = str(args["region_geometry"])
 linear = bool(args["linear"])
 pf = bool(args["pf"])
@@ -72,16 +83,23 @@ t = 1j
 
 for region_size in A_sizes:
     start_time = datetime.now()
-    if state == 'cfl':
-        fqh = MonteCarloTorusCFL(Ne=Ne, Ns=Ns, t=t, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
-                                 region_geometry=region_geometry, region_size=region_size, step_size=step,
-                                 nbr_copies=(2-(run_type == 'disorder')), flag_pf=pf,
-                                 linear_size=linear, JK_coeffs=JK_coeffs, acceptance_ratio=acceptance_ratio)
-    elif state == 'free_fermions':
-        fqh = MonteCarloTorusFreeFermions(Ne=Ne, Ns=Ns, t=t, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
-                                          region_geometry=region_geometry, region_size=region_size, step_size=step,
-                                          nbr_copies=(2-(run_type == 'disorder')), linear_size=linear,
-                                          acceptance_ratio=acceptance_ratio)
+    if geometry == "torus":
+        if state == 'cfl':
+            fqh = MonteCarloTorusCFL(Ne=Ne, Ns=Ns, t=t, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+                                     region_geometry=region_geometry, region_size=region_size, step_size=step,
+                                     nbr_copies=(2-(run_type == 'disorder')), flag_pf=pf,
+                                     linear_size=linear, JK_coeffs=JK_coeffs, acceptance_ratio=acceptance_ratio)
+        elif state == 'free_fermions':
+            fqh = MonteCarloTorusFreeFermions(Ne=Ne, Ns=Ns, t=t, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+                                              region_geometry=region_geometry, region_size=region_size, step_size=step,
+                                              nbr_copies=(2-(run_type == 'disorder')), linear_size=linear,
+                                              acceptance_ratio=acceptance_ratio)
+    elif geometry == "sphere":
+        if state == "free_fermions":
+            fqh = MonteCarloSphereFreeFermions(Ne=Ne, Ns=Ns, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+                                               region_geometry=region_geometry, region_size=region_size, step_size=step,
+                                               nbr_copies=(2-(run_type == 'disorder')), linear_size=linear,
+                                               acceptance_ratio=acceptance_ratio)
 
     if run_type == 'p':
         fqh.RunSwapP()

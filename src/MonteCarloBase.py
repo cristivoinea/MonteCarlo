@@ -5,12 +5,14 @@ import numpy as np
 from .utilities import Stats, ThetaFunction
 
 
-class MonteCarloTorus:
+class MonteCarloBase:
     Ne: np.uint8
     Ns: np.uint16
+    geometry: str
     region_geometry: str
     region_size: np.float64
     step_size: np.float64
+    step_pattern: np.array
     boundary: np.float64
     state: str
     geometry: str
@@ -27,7 +29,26 @@ class MonteCarloTorus:
     save_config: np.bool_
     save_result: np.bool_
 
-    # njit
+    def RandomPoint(self):
+        """Returns random coordinates for one particle."""
+        pass
+
+    def RandomConfig(self) -> np.array:
+        """Returns a random configuration of particles."""
+        pass
+
+    def RandomConfigSwap(self):
+        """Returns two random configurations of particles, swappable
+        with respect to region A.
+        """
+        pass
+
+    def BoundaryConditions(self, z) -> np.complex128:
+        """Check if the particle position wrapped around the torus
+        after one step. When a step wraps around both directions,
+        the algorithm applies """
+        pass
+
     def UpdateOrderSwap(self, nbr_A_changes: bool):
         """
         Updates the order of particles in the swapped copies after one step.
@@ -54,15 +75,10 @@ class MonteCarloTorus:
 
     def AssignOrderToSwap(self):
         """
-        Given an array telling us whether each particle is inside the subregion A, 
+        Given an array specifying whether each particle is inside the subregion A, 
         this method returns two arrays: 
         one containing the conversion from original -> swap indices and its
         inverse.
-
-        Parameters:
-        inside_A : array specifying which particles in the two copies
-                    are in subregion A
-
         Output:
         to_swap : order of original particles in the swapped copies. [0,Ne) go into coords_swap[:,0]
                             and [Ne, 2*Ne) go into coords_swap[:,1]
@@ -117,7 +133,7 @@ class MonteCarloTorus:
 
         return from_swap
 
-    def InsideRegion(self, coords):
+    def InsideRegion(self):
         """
         Given an array of coordinates, returns a boolean array telling
         which particles are inside the subregion. Coordinates do not have
@@ -127,10 +143,9 @@ class MonteCarloTorus:
 
     def StepOneParticle(self):
         self.moved_particles = np.random.randint(0, self.Ne, 1)
-        self.coords_tmp[self.moved_particles] = self.PBC(
+        self.coords_tmp[self.moved_particles] = self.BoundaryConditions(
             self.coords_tmp[self.moved_particles] +
-            self.step_size*np.random.choice(np.array([1, -1, 1j, -1j, (1+1j)*np.sqrt(2)/2, (1-1j)*np.sqrt(2)/2,
-                                                      (-1+1j)*np.sqrt(2)/2, (-1-1j)*np.sqrt(2)/2]), 1))
+            self.step_size*np.random.default_rng().choice(self.step_pattern, 1))
 
     def StepOneParticleTwoCopies(self):
         """Provides a new Monte Carlo configuration by updating
@@ -140,9 +155,8 @@ class MonteCarloTorus:
         self.moved_particles[0] = np.random.randint(0, self.Ne)
         self.moved_particles[1] = np.random.randint(self.Ne, 2*self.Ne)
         self.coords_tmp[self.moved_particles] = \
-            self.PBC(self.coords_tmp[self.moved_particles] +
-                     self.step_size*np.random.choice(np.array([1, -1, 1j, -1j, (1+1j)*np.sqrt(2)/2, (1-1j)*np.sqrt(2)/2,
-                                                               (-1+1j)*np.sqrt(2)/2, (-1-1j)*np.sqrt(2)/2]), 2))
+            self.BoundaryConditions(self.coords_tmp[self.moved_particles] +
+                                    self.step_size*np.random.default_rng().choice(self.step_pattern, 2))
 
     def StepOneSwap(self) -> np.array:
         """Provides a new Monte Carlo configuration by updating
@@ -166,9 +180,8 @@ class MonteCarloTorus:
             self.moved_particles[1] = np.random.randint(self.Ne, 2*self.Ne)
             inside_region = self.InsideRegion(
                 self.coords_tmp[self.moved_particles])
-            coords_step = self.PBC(self.coords_tmp[self.moved_particles] +
-                                   self.step_size*np.random.choice(np.array([1, -1, 1j, -1j, (1+1j)*np.sqrt(2)/2, (1-1j)*np.sqrt(2)/2,
-                                                                             (-1+1j)*np.sqrt(2)/2, (-1-1j)*np.sqrt(2)/2]), 2))
+            coords_step = self.BoundaryConditions(self.coords_tmp[self.moved_particles] +
+                                                  self.step_size*np.random.default_rng().choice(self.step_pattern, 2))
             inside_region_tmp = self.InsideRegion(coords_step)
             if ((int(inside_region[0]) - int(inside_region_tmp[0])) ==
                     (int(inside_region[1]) - int(inside_region_tmp[1]))):
@@ -181,27 +194,27 @@ class MonteCarloTorus:
 
     def SaveConfig(self, run_type: str):
         if run_type == 'sign':
-            np.save(f"{run_type}_{self.state}_results_real_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
+            np.save(f"{self.state}_{run_type}_results_real_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
                     np.real(self.results))
-            np.save(f"{run_type}_{self.state}_results_imag_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
+            np.save(f"{self.state}_{run_type}_results_imag_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
                     np.imag(self.results))
 
         else:
-            np.save(f"{run_type}_{self.state}_results_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
+            np.save(f"{self.state}_{run_type}_results_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
                     self.results)
 
         if run_type == 'sign' or run_type == 'mod':
-            np.save(f"{run_type}_{self.state}_order_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
+            np.save(f"{self.state}_{run_type}_order_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
                     self.to_swap)
 
-        np.save(f"{run_type}_{self.state}_coords_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
+        np.save(f"{self.state}_{run_type}_coords_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.npy",
                 self.coords)
 
     def SaveResults(self, run_type: str):
 
         if self.save_result:
             if run_type == 'sign':
-                np.savetxt(f"{run_type}_{self.state}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.dat",
+                np.savetxt(f"{self.state}_{run_type}_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.dat",
                            np.vstack((Stats(np.real(self.results[int(self.nbr_nonthermal):])),
                                       Stats(
                                           np.imag(self.results[int(self.nbr_nonthermal):]))
@@ -214,10 +227,10 @@ class MonteCarloTorus:
                     np.imag(self.results[int(self.nbr_nonthermal):]))
                 mean = np.sqrt(mean_re**2 + mean_im**2)
                 var = var_re*((mean_re/mean)**2) + var_im*((mean_im/mean)**2)
-                np.savetxt(f"{run_type}_{self.state}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.dat",
+                np.savetxt(f"{self.state}_{run_type}_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.dat",
                            np.vstack((mean, var)))
             else:
-                np.savetxt(f"{run_type}_{self.state}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.dat",
+                np.savetxt(f"{self.state}_{run_type}_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_t_{np.imag(self.t):.2f}_{self.region_geometry}_{self.region_size:.4f}.dat",
                            Stats(self.results[int(self.nbr_nonthermal):]))
 
         else:
@@ -305,25 +318,25 @@ class MonteCarloTorus:
         if self.save_config:
             self.SaveConfig(run_type)
 
-    def InitialWavefn():
+    def InitialWavefn(self):
         pass
 
-    def InitialWavefnSwap():
+    def InitialWavefnSwap(self):
         pass
 
-    def TmpWavefn():
+    def TmpWavefn(self):
         pass
 
-    def TmpWavefnSwap():
+    def TmpWavefnSwap(self):
         pass
 
-    def StepAmplitude():
+    def StepAmplitude(self):
         pass
 
-    def StepAmplitudeTwoCopies():
+    def StepAmplitudeTwoCopies(self):
         pass
 
-    def StepAmplitudeTwoCopiesSwap():
+    def StepAmplitudeTwoCopiesSwap(self):
         pass
 
     def AcceptTmp(self, run_type):
@@ -341,10 +354,10 @@ class MonteCarloTorus:
             np.copyto(self.to_swap_tmp, self.to_swap)
             np.copyto(self.from_swap_tmp, self.from_swap)
 
-    def InitialMod():
+    def InitialMod(self):
         pass
 
-    def InitialSign():
+    def InitialSign(self):
         pass
 
     def RunDisorderOperator(self):

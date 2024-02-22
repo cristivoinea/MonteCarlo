@@ -1,6 +1,6 @@
 import numpy as np
 from numba import njit, prange
-from .MonteCarloTorusBase import MonteCarloTorusBase
+from .MonteCarloTorus import MonteCarloTorus
 from .utilities import fermi_sea_kx, fermi_sea_ky, ThetaFunction
 
 
@@ -164,7 +164,7 @@ def njit_StepAmplitudeTwoCopiesSwap(Ne, coords, coords_tmp) -> np.complex128:
     return step_amplitude"""
 
 
-class MonteCarloTorusWithSpin (MonteCarloTorusBase):
+class MonteCarloTorusWithSpin (MonteCarloTorus):
     Ks: np.array
     jastrows: np.array
     jastrows_tmp: np.array

@@ -1,22 +1,22 @@
 import numpy as np
 # from numba import njit, prange
-from .MonteCarloTorus import MonteCarloTorus
-from .utilities import fermi_sea_kx, fermi_sea_ky
+from scipy.special import sph_harm
+from .MonteCarloSphere import MonteCarloSphere
 
 
-class MonteCarloTorusFreeFermions (MonteCarloTorus):
+class MonteCarloSphereFreeFermions (MonteCarloSphere):
     slater: np.array
     slater_tmp: np.array
     slogdet: np.array
     slogdet_tmp: np.array
-    Ks: np.array
 
     def InitialSlater(self, coords, slater):
-        np.copyto(slater, np.exp(1j * (np.reshape(np.real(self.Ks), (-1, 1)) * np.real(coords) +
-                                       np.reshape(np.imag(self.Ks), (-1, 1)) * np.imag(coords))))
+        for i in range(self.Ne):
+            slater[i, :] = sph_harm(
+                self.Ls[i, 1], self.Ls[i, 0], coords[:, 1], coords[:, 0])
 
     def InitialWavefn(self):
-        nbr_copies = self.coords.size//self.Ne
+        nbr_copies = self.coords.shape[0]//self.Ne
         self.moved_particles = np.zeros(nbr_copies, dtype=np.uint16)
         for copy in range(nbr_copies):
             self.InitialSlater(self.coords[copy*self.Ne:(copy+1)*self.Ne],
@@ -39,7 +39,7 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
         np.copyto(self.slogdet_tmp, self.slogdet)
 
     def TmpWavefn(self):
-        nbr_copies = self.coords.size//self.Ne
+        nbr_copies = self.coords.shape[0]//self.Ne
         for copy in range(nbr_copies):
             self.InitialSlater(self.coords_tmp[copy*self.Ne:(copy+1)*self.Ne],
                                self.slater_tmp[..., copy])
@@ -69,7 +69,7 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
 
     def StepAmplitude(self) -> np.complex128:
         step_amplitude = 1
-        nbr_copies = self.coords.size//self.Ne
+        nbr_copies = self.coords.shape[0]//self.Ne
         for copy in range(nbr_copies):
             step_amplitude *= (self.slogdet_tmp[0, copy]/self.slogdet[0, copy])*np.exp(
                 self.slogdet_tmp[1, copy]-self.slogdet[1, copy])
@@ -108,18 +108,15 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
 
         return step_amplitude
 
-    def __init__(self, Ne, Ns, t, nbr_iter, nbr_nonthermal, region_geometry,
+    def __init__(self, Ne, Ns, nbr_iter, nbr_nonthermal, region_geometry,
                  region_size, linear_size, step_size, nbr_copies=1,
                  save_results=True, save_config=True, acceptance_ratio=0):
 
         self.state = 'free_fermions'
 
-        super().__init__(Ne, Ns, t, nbr_iter, nbr_nonthermal, region_geometry,
+        super().__init__(Ne, Ns, nbr_iter, nbr_nonthermal, region_geometry,
                          step_size, region_size, linear_size,
                          save_results, save_config, acceptance_ratio)
-
-        self.Ks = (fermi_sea_kx[self.Ne]*2*np.pi/self.Lx +
-                   1j*fermi_sea_ky[self.Ne]*2*np.pi/self.Ly)
 
         self.slater = np.zeros(
             (Ne, Ne, 4**(nbr_copies-1)), dtype=np.complex128)

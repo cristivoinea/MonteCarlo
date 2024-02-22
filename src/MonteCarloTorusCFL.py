@@ -1,7 +1,7 @@
 import numpy as np
 from numba import njit, prange
 from pfapack import pfaffian as pf
-from .MonteCarloTorusBase import MonteCarloTorusBase
+from .MonteCarloTorus import MonteCarloTorus
 from .utilities import fermi_sea_kx, fermi_sea_ky, ThetaFunction
 
 
@@ -162,7 +162,7 @@ def njit_GetPfMatrixSwap(Ne, from_swap, jastrows, pf_jastrows, pf_matrix):
                 pf_matrix[j, i, 2+copy] = - pf_matrix[i, j, 2+copy]
 
 
-class MonteCarloTorusCFL (MonteCarloTorusBase):
+class MonteCarloTorusCFL (MonteCarloTorus):
     kCM: np.uint8 = 0
     phi_1: np.float64 = 0
     phi_t: np.float64 = 0
