@@ -1,11 +1,5 @@
 import numpy as np
-from utilities import fermi_sea_kx, fermi_sea_ky
-from WavefnCFL import InitialWavefnCFL, TmpWavefnCFL, StepOneAmplitudeCFL, \
-    ResetJastrowsCFL,  GetExtraJastrowFactor, InitialWavefnSwapCFL, \
-    TmpWavefnSwapCFL, StepOneAmplitudeSwapCFL, GetExtraJastrowFactorSwap
-from MonteCarloTorusSWAP import RandomConfig, RandomConfigSWAP, AssignOrderToSwap, \
-    OrderFromSwap, InsideRegion, UpdateOrderSwap
-
+from src.utilities import fermi_sea_kx, fermi_sea_ky
 from src.MonteCarloTorusCFL import MonteCarloTorusCFL
 
 
