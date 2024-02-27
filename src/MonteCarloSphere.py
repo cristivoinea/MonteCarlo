@@ -184,7 +184,7 @@ class MonteCarloSphere (MonteCarloBase):
                          region_size, save_results, save_config, acceptance_ratio)
 
         self.geometry = "sphere"
-        self.Ls = np.zeros((self.Ne, 2))
+        self.Ls = np.zeros((self.Ne, 2), dtype=np.int16)
         l = m = 0
         for i in range(self.Ne):
             self.Ls[i] = np.array([l, m])
@@ -200,5 +200,5 @@ class MonteCarloSphere (MonteCarloBase):
         else:
             self.boundary = 1 - np.arccos(region_size)
 
-        self.step_pattern = np.array([[0, 2], [0, -2], [1, 0], [-1, 0],
+        self.step_pattern = np.array([[0, 1], [0, -1], [1, 0], [-1, 0],
                                       [1, 1], [1, -1], [-1, 1], [-1, -1]])

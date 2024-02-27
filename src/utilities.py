@@ -1,6 +1,7 @@
 import numpy as np
 from numba import njit
 from os.path import exists
+from scipy.special import gamma, hyp2f1, factorial, factorial2
 
 
 fermi_sea_ky = {}
@@ -200,20 +201,26 @@ def GetEntropyLaughlin(Ne, Ns, M, M0, t, step, region_geometry):
     return boundaries, np.vstack((S2, err)).T, np.vstack((S2_p, err_p)).T, np.vstack((S2_mod, err_mod)).T, np.vstack((S2_sign, err_sign)).T
 
 
-def LoadEntropy(Ne, Ns, M, M0, t, step_size, region_geometry, state):
-    kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20}
-    Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
-    file = f"{state}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}s.dat"
+def LoadEntropy(Ne, Ns, M, M0, geometry, region_geometry, state, boundaries, t=1j):
+    if geometry == "torus":
+        kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20}
+        Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
+        file = f"../data/{state}_entropy_{geometry}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}s.dat"
+    elif geometry == "sphere":
+        file = f"../data/{state}_entropy_{geometry}_Ne_{Ne}_Ns_{Ns}_{region_geometry}s.dat"
 
     if not exists(file):
-        boundaries = np.arange(0.0250, 0.3001, 0.0125)
         data = np.zeros((boundaries.size, 7), dtype=np.float64)
         data[:, 0] = boundaries
         terms = ['p', 'mod', 'sign']
         for j in range(3):
             for i in range(boundaries.size):
-                result = np.loadtxt(
-                    f"../results/entropy/{state}/n_{Ne}/{terms[j]}/{terms[j]}_{state}_Ne_{Ne}_Ns_{Ns}_t_1.00_circle_{boundaries[i]:.4f}.dat")
+                if geometry == "torus":
+                    result = np.loadtxt(
+                        f"../../results/entropy/{state}/n_{Ne}/{terms[j]}/{terms[j]}_{state}_Ne_{Ne}_Ns_{Ns}_t_1.00_circle_{boundaries[i]:.4f}.dat")
+                elif geometry == "sphere":
+                    result = np.loadtxt(
+                        f"../../results/{geometry}/{state}/n_{Ne}/{terms[j]}/{state}_{terms[j]}_{geometry}_Ne_{Ne}_Ns_{Ns}_circle_{boundaries[i]:.4f}.dat")
                 if j == 2:
                     data[i, 1+2*j:3+2*j] = result[0, :]
                 else:
@@ -224,7 +231,10 @@ def LoadEntropy(Ne, Ns, M, M0, t, step_size, region_geometry, state):
     data = np.loadtxt(file)
 
     entropy = np.zeros((data.shape[0], 8))
-    x = np.sqrt(data[:, 0]/np.pi)*np.sqrt(2*kf[Ne]*np.pi/(Ns))*Lx
+    if geometry == "torus":
+        x = np.sqrt(data[:, 0]/np.pi)*np.sqrt(2*kf[Ne]*np.pi/(Ns))*Lx
+    elif geometry == "sphere":
+        x = boundaries*np.sqrt(Ns/2)
 
     entropy[:, 0] = -np.log(data[:, 1])
     entropy[:, 1] = np.sqrt((data[:, 2])/(data[:, 1])**2)/np.sqrt(M-M0)
@@ -264,3 +274,31 @@ def LoadDisorderOperator(Ne, Ns, M, M0, t, region_geometry, state, boundaries):
     entropy[:, 1] = np.sqrt((data[:, 2])/(data[:, 1])**2)/np.sqrt(M-M0)
 
     return x, entropy
+
+
+def LegendreOffDiagIntegral(x, legendre, l, k, m):
+    if np.abs(m) > k or np.abs(m) > l:
+        return 0
+    else:
+        return ((x*legendre[l][l+m]*legendre[k][k+m]*(k-l) - (k-m+1)*legendre[l][l+m]*legendre[k+1][k+1+m]
+                 + (l-m+1)*legendre[k][k+m]*legendre[l+1][l+1+m]) / (k*(k+1) - l*(l+1)))
+
+
+def LegendreDiagIntegral(x, l_max, legendre_values):
+    diag = {}
+    for l in range(l_max+1):
+        diag[l] = np.zeros(2*l+1, dtype=np.float64)
+    diag[0][0] = (1-x)
+    diag[1][0] = (2 - 3*x + x**3)/12
+    diag[1][1] = (1-x**3)/3
+    diag[1][2] = (2 - 3*x + x**3)/3
+    for l in range(2, l_max+1):
+        diag[l][2*l] = ((factorial2(2*l-1)**2)*(np.sqrt(np.pi)*gamma(1+l) /
+                        (2*gamma(3/2+l)) - x*hyp2f1(1/2, -l, 3/2, x**2)))
+        diag[l][0] = diag[l][2*l] / (factorial(2*l)**2)
+        for m in range(-l+1, l):
+            diag[l][l+m] = (((2*l-1) / ((2*l+1)*(l-m))) * ((l+m)*diag[l-1][l-1+m] + (l+1-m) *
+                            LegendreOffDiagIntegral(x, legendre_values, l+1, l-1, m)) -
+                            ((l+m-1)/(l-m))*LegendreOffDiagIntegral(x, legendre_values, l, l-2, m))
+
+    return diag
