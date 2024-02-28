@@ -56,6 +56,57 @@ class MonteCarloSphere (MonteCarloBase):
 
         return inside_A
 
+    def StepOneParticle(self):
+        self.moved_particles = np.random.randint(0, self.Ne, 1)
+        self.coords_tmp[self.moved_particles] = self.BoundaryConditions(
+            self.coords_tmp[self.moved_particles] + np.sin(self.coords_tmp[self.moved_particles][0]) *
+            self.step_size*np.random.default_rng().choice(self.step_pattern, 1))
+
+    def StepOneParticleTwoCopies(self):
+        """Provides a new Monte Carlo configuration by updating
+        the coordinates of one particle in each copy, ensuring that
+        the copies are swappable with respect to region A.
+        """
+        self.moved_particles[0] = np.random.randint(0, self.Ne)
+        self.moved_particles[1] = np.random.randint(self.Ne, 2*self.Ne)
+        self.coords_tmp[self.moved_particles] = \
+            self.BoundaryConditions(self.coords_tmp[self.moved_particles] + np.sin(self.coords_tmp[self.moved_particles][0]) *
+                                    self.step_size*np.random.default_rng().choice(self.step_pattern, 2))
+
+    def StepOneSwap(self) -> np.array:
+        """Provides a new Monte Carlo configuration by updating
+        the coordinates of one particle in each copy, ensuring that
+        the copies are swappable with respect to region A.
+
+        Parameters:
+
+        coords_tmp : initial position of all particles
+
+        Output:
+
+        coords_final : final position of all particles
+        p : indices of particles that move in each copy
+        delta : contains information about which step is taken
+        """
+
+        valid = False
+        while not valid:
+            self.moved_particles[0] = np.random.randint(0, self.Ne)
+            self.moved_particles[1] = np.random.randint(self.Ne, 2*self.Ne)
+            inside_region = self.InsideRegion(
+                self.coords_tmp[self.moved_particles])
+            coords_step = self.BoundaryConditions(self.coords_tmp[self.moved_particles] + np.sin(self.coords_tmp[self.moved_particles][0]) *
+                                                  self.step_size*np.random.default_rng().choice(self.step_pattern, 2))
+            inside_region_tmp = self.InsideRegion(coords_step)
+            if ((int(inside_region[0]) - int(inside_region_tmp[0])) ==
+                    (int(inside_region[1]) - int(inside_region_tmp[1]))):
+                valid = True
+                nbr_A_changes = (inside_region[0] ^ inside_region_tmp[0])
+
+        self.coords_tmp[self.moved_particles] = coords_step
+
+        return nbr_A_changes
+
     def SaveConfig(self, run_type: str):
         if run_type == 'sign':
             np.save(f"{self.state}_{run_type}_results_real_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy",

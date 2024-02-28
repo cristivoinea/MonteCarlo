@@ -234,7 +234,7 @@ def LoadEntropy(Ne, Ns, M, M0, geometry, region_geometry, state, boundaries, t=1
     if geometry == "torus":
         x = np.sqrt(data[:, 0]/np.pi)*np.sqrt(2*kf[Ne]*np.pi/(Ns))*Lx
     elif geometry == "sphere":
-        x = boundaries*np.sqrt(Ns/2)
+        x = boundaries*np.sqrt(Ne-1)
 
     entropy[:, 0] = -np.log(data[:, 1])
     entropy[:, 1] = np.sqrt((data[:, 2])/(data[:, 1])**2)/np.sqrt(M-M0)
