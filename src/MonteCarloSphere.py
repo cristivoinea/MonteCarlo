@@ -59,7 +59,7 @@ class MonteCarloSphere (MonteCarloBase):
     def StepOneParticle(self):
         self.moved_particles = np.random.randint(0, self.Ne, 1)
         self.coords_tmp[self.moved_particles] = self.BoundaryConditions(
-            self.coords_tmp[self.moved_particles] + np.sin(self.coords_tmp[self.moved_particles][0]) *
+            self.coords_tmp[self.moved_particles] + np.array([1, np.sin(self.coords_tmp[self.moved_particles][0])]) *
             self.step_size*np.random.default_rng().choice(self.step_pattern, 1))
 
     def StepOneParticleTwoCopies(self):
@@ -69,8 +69,10 @@ class MonteCarloSphere (MonteCarloBase):
         """
         self.moved_particles[0] = np.random.randint(0, self.Ne)
         self.moved_particles[1] = np.random.randint(self.Ne, 2*self.Ne)
+        measure = np.sin(self.coords_tmp[self.moved_particles][0, :])
+        meas_array = np.array([[1, measure[0]], [1, measure[1]]])
         self.coords_tmp[self.moved_particles] = \
-            self.BoundaryConditions(self.coords_tmp[self.moved_particles] + np.sin(self.coords_tmp[self.moved_particles][0]) *
+            self.BoundaryConditions(self.coords_tmp[self.moved_particles] + meas_array *
                                     self.step_size*np.random.default_rng().choice(self.step_pattern, 2))
 
     def StepOneSwap(self) -> np.array:
@@ -95,7 +97,10 @@ class MonteCarloSphere (MonteCarloBase):
             self.moved_particles[1] = np.random.randint(self.Ne, 2*self.Ne)
             inside_region = self.InsideRegion(
                 self.coords_tmp[self.moved_particles])
-            coords_step = self.BoundaryConditions(self.coords_tmp[self.moved_particles] + np.sin(self.coords_tmp[self.moved_particles][0]) *
+
+            measure = np.sin(self.coords_tmp[self.moved_particles][0, :])
+            meas_array = np.array([[1, measure[0]], [1, measure[1]]])
+            coords_step = self.BoundaryConditions(self.coords_tmp[self.moved_particles] + meas_array *
                                                   self.step_size*np.random.default_rng().choice(self.step_pattern, 2))
             inside_region_tmp = self.InsideRegion(coords_step)
             if ((int(inside_region[0]) - int(inside_region_tmp[0])) ==
