@@ -31,6 +31,9 @@ class MonteCarloSphere (MonteCarloBase):
             self.coords[self.Ne:] = self.RandomConfig()
             inside_region = self.InsideRegion(self.coords)
 
+    def Jacobian(self):
+        return np.prod(np.sin(self.coords_tmp[:, 0])/np.sin(self.coords[:, 0]))
+
     def BoundaryConditions(self, z) -> np.complex128:
         """Check if the particle position wrapped around the torus
         after one step. When a step wraps around both directions,
@@ -69,7 +72,7 @@ class MonteCarloSphere (MonteCarloBase):
         """
         self.moved_particles[0] = np.random.randint(0, self.Ne)
         self.moved_particles[1] = np.random.randint(self.Ne, 2*self.Ne)
-        measure = np.sin(self.coords_tmp[self.moved_particles][0, :])
+        measure = np.sin(self.coords_tmp[self.moved_particles][:, 0])
         meas_array = np.array([[1, measure[0]], [1, measure[1]]])
         self.coords_tmp[self.moved_particles] = \
             self.BoundaryConditions(self.coords_tmp[self.moved_particles] + meas_array *
@@ -98,7 +101,7 @@ class MonteCarloSphere (MonteCarloBase):
             inside_region = self.InsideRegion(
                 self.coords_tmp[self.moved_particles])
 
-            measure = np.sin(self.coords_tmp[self.moved_particles][0, :])
+            measure = np.sin(self.coords_tmp[self.moved_particles][:, 0])
             meas_array = np.array([[1, measure[0]], [1, measure[1]]])
             coords_step = self.BoundaryConditions(self.coords_tmp[self.moved_particles] + meas_array *
                                                   self.step_size*np.random.default_rng().choice(self.step_pattern, 2))
@@ -250,7 +253,7 @@ class MonteCarloSphere (MonteCarloBase):
             else:
                 m += 1
 
-        self.step_size = step_size*np.pi
+        self.step_size = np.arcsin(step_size)
         if linear_size:
             self.boundary = np.arcsin(region_size)
         else:

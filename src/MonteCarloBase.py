@@ -240,6 +240,9 @@ class MonteCarloBase:
     def InitialSign(self):
         pass
 
+    def Jacobian(self):
+        return 1
+
     def RunDisorderOperator(self):
         """
         Computes the disorder operator.
@@ -254,7 +257,7 @@ class MonteCarloBase:
             self.TmpWavefn()
             step_amplitude = self.StepAmplitude()
 
-            if np.abs(step_amplitude)**2 > np.random.random():
+            if self.Jacobian()*np.abs(step_amplitude)**2 > np.random.random():
                 self.AcceptTmp('disorder')
                 inside_region = self.InsideRegion(self.coords)
                 update = np.exp(1j*(np.count_nonzero(inside_region))*np.pi/2)
@@ -284,7 +287,7 @@ class MonteCarloBase:
             self.TmpWavefn()
             step_amplitude = self.StepAmplitude()
 
-            if np.abs(step_amplitude)**2 > np.random.random():
+            if self.Jacobian()*np.abs(step_amplitude)**2 > np.random.random():
                 self.AcceptTmp('p')
                 inside_region = self.InsideRegion(self.coords)
                 update = (np.count_nonzero(inside_region[:self.Ne]) ==
@@ -312,7 +315,7 @@ class MonteCarloBase:
             self.TmpWavefn()
             step_amplitude = self.StepAmplitude()
 
-            if step_amplitude*np.conj(step_amplitude) > np.random.random():
+            if self.Jacobian()*step_amplitude*np.conj(step_amplitude) > np.random.random():
                 self.UpdateOrderSwap(nbr_in_region_changes)
                 self.TmpWavefnSwap()
                 step_amplitude_swap = self.StepAmplitudeTwoCopiesSwap()
@@ -347,7 +350,7 @@ class MonteCarloBase:
             self.TmpWavefnSwap()
             step_amplitude *= np.conj(self.StepAmplitudeTwoCopiesSwap())
 
-            if np.abs(step_amplitude) > np.random.random():
+            if self.Jacobian()*np.abs(step_amplitude) > np.random.random():
                 update *= step_amplitude / np.abs(step_amplitude)
                 self.AcceptTmp('sign')
 
