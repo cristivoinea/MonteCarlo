@@ -8,6 +8,7 @@ if module_path not in sys.path:
     sys.path.append(module_path)
 
 from src.MonteCarloTorusCFL import MonteCarloTorusCFL  # nopep8
+from src.MonteCarloSphereCFL import MonteCarloSphereCFL  # nopep8
 from src.MonteCarloTorusFreeFermions import MonteCarloTorusFreeFermions  # nopep8
 from src.MonteCarloSphereFreeFermions import MonteCarloSphereFreeFermions  # nopep8
 import numpy as np
@@ -100,6 +101,11 @@ for region_size in A_sizes:
                                                region_geometry=region_geometry, region_size=region_size, step_size=step,
                                                nbr_copies=(2-(run_type == 'disorder')), linear_size=linear,
                                                acceptance_ratio=acceptance_ratio)
+        elif state == 'cfl':
+            fqh = MonteCarloSphereCFL(Ne=Ne, Ns=Ns, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+                                      region_geometry=region_geometry, region_size=region_size, step_size=step,
+                                      nbr_copies=(2-(run_type == 'disorder')), linear_size=linear,
+                                      acceptance_ratio=acceptance_ratio)
 
     if run_type == 'p':
         fqh.RunSwapP()
