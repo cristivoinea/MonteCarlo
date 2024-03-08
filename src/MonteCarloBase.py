@@ -8,6 +8,8 @@ from .utilities import Stats, ThetaFunction
 class MonteCarloBase:
     Ne: np.uint8
     Ns: np.uint16
+    vortices: np.uint8
+    Ns_eff: np.int64
     geometry: str
     region_geometry: str
     region_size: np.float64
@@ -243,14 +245,20 @@ class MonteCarloBase:
     def Jacobian(self):
         return 1
 
-    def RunDisorderOperator(self):
+    def CF(self):
+        pass
+
+    def RunDisorderOperator(self, composite=False):
         """
         Computes the disorder operator.
         """
         self.LoadRun('disorder')
         self.InitialWavefn()
         inside_region = self.InsideRegion(self.coords)
-        update = np.exp(1j*(np.count_nonzero(inside_region))*np.pi/2)
+        if composite:
+            update = self.CF()
+        else:
+            update = np.exp(1j*(np.count_nonzero(inside_region))*np.pi/2)
 
         for i in range(self.load_iter, self.load_iter+self.nbr_iter):
             self.StepOneParticle()
@@ -260,7 +268,11 @@ class MonteCarloBase:
             if self.Jacobian()*np.abs(step_amplitude)**2 > np.random.random():
                 self.AcceptTmp('disorder')
                 inside_region = self.InsideRegion(self.coords)
-                update = np.exp(1j*(np.count_nonzero(inside_region))*np.pi/2)
+                if composite == True:
+                    update = self.CF()
+                else:
+                    update = np.exp(
+                        1j*(np.count_nonzero(inside_region))*np.pi/2)
 
             else:
                 self.RejectTmp('disorder')

@@ -157,14 +157,17 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
         return step_amplitude
 
     def __init__(self, Ne, Ns, nbr_iter, nbr_nonthermal, region_geometry,
-                 region_size, linear_size, step_size, nbr_copies=1,
+                 step_size, theta_size=0, linear_size=0, nbr_copies=1,
                  save_results=True, save_config=True, acceptance_ratio=0):
 
         self.state = 'free_fermions'
 
         super().__init__(Ne, Ns, nbr_iter, nbr_nonthermal, region_geometry,
-                         step_size, region_size, linear_size,
+                         step_size, theta_size, linear_size,
                          save_results, save_config, acceptance_ratio)
+
+        self.Ns_eff = 0
+        self.FillLambdaLevels()
 
         self.slater = np.zeros(
             (Ne, Ne, 4**(nbr_copies-1)), dtype=np.complex128)

@@ -8,6 +8,18 @@ from .utilities import Stats
 class MonteCarloSphere (MonteCarloBase):
     Ls: np.array
 
+    def FillLambdaLevels(self):
+        self.Ls = np.zeros((self.Ne, 2), dtype=np.float64)
+        l = self.Ns_eff/2
+        m = -l
+        for i in range(self.Ne):
+            self.Ls[i] = np.array([l, m])
+            if m == l:
+                l += 1
+                m = -l
+            else:
+                m += 1
+
     def RandomPoint(self):
         return np.array([np.random.random()*np.pi, np.random.random()*2*np.pi])
 
@@ -55,14 +67,15 @@ class MonteCarloSphere (MonteCarloBase):
             y = np.imag(coords)
             inside_A = (y < self.boundary)
         elif self.region_geometry == 'circle':
-            inside_A = (coords[:, 0] < self.boundary)
+            inside_A = (coords[..., 0] < self.boundary)
 
         return inside_A
 
     def StepOneParticle(self):
         self.moved_particles = np.random.randint(0, self.Ne, 1)
-        self.coords_tmp[self.moved_particles] = self.BoundaryConditions(
-            self.coords_tmp[self.moved_particles] + np.array([1, np.sin(self.coords_tmp[self.moved_particles][0])]) *
+        p = self.moved_particles[0]
+        self.coords_tmp[p, :] = self.BoundaryConditions(
+            self.coords_tmp[p, :] + np.array([1, np.sin(self.coords_tmp[p, :][0])]) *
             self.step_size*np.random.default_rng().choice(self.step_pattern, 1))
 
     def StepOneParticleTwoCopies(self):
@@ -236,28 +249,28 @@ class MonteCarloSphere (MonteCarloBase):
             self.from_swap_tmp = np.copy(self.from_swap)
 
     def __init__(self, Ne, Ns, nbr_iter, nbr_nonthermal, region_geometry,
-                 step_size, region_size, linear_size=False,
+                 step_size, theta_size, linear_size,
                  save_results=True, save_config=True, acceptance_ratio=0):
+
+        self.step_size = np.arcsin(step_size)
+        if linear_size == 0 and theta_size == 0:
+            print("Region undefined, redefining as the whole system.")
+            self.boundary = np.pi
+            region_size = self.boundary
+        elif linear_size != 0 and theta_size != 0:
+            print(
+                "Region defined in two different ways, a single definition must be chosen.")
+        elif linear_size != 0:
+            self.boundary = np.arcsin(linear_size)
+            region_size = linear_size
+        else:
+            self.boundary = theta_size
+            region_size = self.boundary
 
         super().__init__(Ne, Ns, nbr_iter, nbr_nonthermal, region_geometry,
                          region_size, save_results, save_config, acceptance_ratio)
 
         self.geometry = "sphere"
-        self.Ls = np.zeros((self.Ne, 2), dtype=np.int16)
-        l = m = 0
-        for i in range(self.Ne):
-            self.Ls[i] = np.array([l, m])
-            if m == l:
-                l += 1
-                m = -l
-            else:
-                m += 1
-
-        self.step_size = np.arcsin(step_size)
-        if linear_size:
-            self.boundary = np.arcsin(region_size)
-        else:
-            self.boundary = 1 - np.arccos(region_size)
 
         self.step_pattern = np.array([[0, 1], [0, -1], [1, 0], [-1, 0],
                                       [1, 1], [1, -1], [-1, 1], [-1, -1]])
