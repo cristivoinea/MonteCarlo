@@ -201,10 +201,10 @@ class MonteCarloSphereCFL (MonteCarloSphere):
                                2+copy]/self.slogdet[0, 2+copy])
 
             for n in range(copy*self.Ne, (copy+1)*self.Ne):
-                step_amplitude *= (np.exp((self.slogdet_tmp[1, 2+copy]-self.slogdet[1, 2+copy]) / (self.Ne*(self.Ne-1)/2)) *
-                                   np.power(np.prod(self.jastrows_tmp[self.from_swap_tmp[n], self.from_swap_tmp[n+1: (copy+1)*self.Ne], 0, 0] /
-                                                    self.jastrows[self.from_swap[n], self.from_swap[n+1: (copy+1)*self.Ne], 0, 0]),
-                                            self.vortices))
+                step_amplitude *= np.prod(np.exp((self.slogdet_tmp[1, 2+copy]-self.slogdet[1, 2+copy]) / (self.Ne*(self.Ne-1)/2)) *
+                                          np.power(self.jastrows_tmp[self.from_swap_tmp[n], self.from_swap_tmp[n+1: (copy+1)*self.Ne], 0, 0] /
+                                                   self.jastrows[self.from_swap[n], self.from_swap[n+1: (copy+1)*self.Ne], 0, 0],  # nopep8
+                                                   self.vortices))
 
         return step_amplitude
 

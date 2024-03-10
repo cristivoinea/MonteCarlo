@@ -17,10 +17,10 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
         norms = (2*self.Ls[:, 0]+1)/(4*np.pi)
         for i in range(self.Ne):
             if self.Ls[i, 1] > 0:
-                for m in range(-self.Ls[i, 1], self.Ls[i, 1]):
+                for m in range(-int(self.Ls[i, 1]), int(self.Ls[i, 1])):
                     norms[i] /= (self.Ls[i, 0] + m + 1)
             elif self.Ls[i, 1] < 0:
-                for m in range(self.Ls[i, 1], -self.Ls[i, 1]):
+                for m in range(int(self.Ls[i, 1]), -int(self.Ls[i, 1])):
                     norms[i] *= (self.Ls[i, 0] + m + 1)
         norms = np.sqrt(2*np.pi*norms)
         legendre = {}
@@ -36,13 +36,13 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
                 x[k], floor(np.sqrt(self.Ne))-1, legendre)
             # print("Diag overlaps: ", diag)
             for i in range(self.Ne):
-                overlap_matrix[i, i] = (diag[self.Ls[i, 0]][np.sum(self.Ls[i])] *
+                overlap_matrix[i, i] = (diag[self.Ls[i, 0]][int(np.sum(self.Ls[i]))] *
                                         (norms[i]**2))
                 for j in range(i+1, self.Ne):
                     if self.Ls[i, 1] == self.Ls[j, 1]:
                         overlap_matrix[i, j] = (norms[i] * norms[j] *
-                                                LegendreOffDiagIntegral(x[k], legendre, self.Ls[i, 0],
-                                                                        self.Ls[j, 0], self.Ls[i, 1]))
+                                                LegendreOffDiagIntegral(x[k], legendre, int(self.Ls[i, 0]),
+                                                                        int(self.Ls[j, 0]), int(self.Ls[i, 1])))
                         # print(f"Off-Diag overlap: l = {self.Ls[i,0]}, k = {self.Ls[j,0]}, m = {self.Ls[i,1]}", LegendreOffDiagIntegral(x[k], legendre, self.Ls[i, 0],
                         #                                                                                                               self.Ls[j, 0], self.Ls[i, 1]))
 
