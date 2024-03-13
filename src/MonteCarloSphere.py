@@ -3,6 +3,7 @@ from os.path import exists
 
 from .MonteCarloBase import MonteCarloBase
 from .utilities import Stats
+from .fast_math import JackknifeMean, JackknifeVariance
 
 
 class MonteCarloSphere (MonteCarloBase):
@@ -146,7 +147,7 @@ class MonteCarloSphere (MonteCarloBase):
         np.save(f"{self.state}_{run_type}_coords_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy",
                 self.coords)
 
-    def SaveResults(self, run_type: str):
+    def SaveResults(self, run_type: str, extra_param=0):
 
         if self.save_result:
             if run_type == 'sign':
@@ -165,6 +166,14 @@ class MonteCarloSphere (MonteCarloBase):
                 var = var_re*((mean_re/mean)**2) + var_im*((mean_im/mean)**2)
                 np.savetxt(f"{self.state}_{run_type}_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.dat",
                            np.vstack((mean, var)))
+            elif run_type == 'nbr_particles':
+                print('yes')
+                if extra_param == 0:
+                    np.savetxt(f"{self.state}_fluct_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.dat",
+                               JackknifeVariance(self.results[int(self.nbr_nonthermal):]))
+                else:
+                    np.savetxt(f"{self.state}_disorder_{extra_param:.3f}_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.dat",
+                               Stats(self.results[int(self.nbr_nonthermal):]))
             else:
                 np.savetxt(f"{self.state}_{run_type}_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.dat",
                            Stats(self.results[int(self.nbr_nonthermal):]))
@@ -232,7 +241,7 @@ class MonteCarloSphere (MonteCarloBase):
                     print("Results file not found!\n")
 
         else:
-            if run_type == 'disorder':
+            if run_type == 'disorder' or run_type == 'nbr_particles':
                 self.coords = self.RandomConfig()
             else:
                 self.RandomConfigSwap()

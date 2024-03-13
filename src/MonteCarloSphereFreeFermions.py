@@ -12,8 +12,10 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
     slogdet: np.array
     slogdet_tmp: np.array
 
-    def ComputeEntropyED(self, boundaries, entropy):
+    def GetOverlapMatrix(self):
         overlap_matrix = np.zeros((self.Ne, self.Ne), dtype=np.complex128)
+        x = np.cos(self.boundary)
+
         norms = (2*self.Ls[:, 0]+1)/(4*np.pi)
         for i in range(self.Ne):
             if self.Ls[i, 1] > 0:
@@ -26,37 +28,33 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
         legendre = {}
         for l in range(floor(np.sqrt(self.Ne))+2):
             legendre[l] = np.zeros(2*l+1, dtype=np.float64)
-        S = np.zeros(boundaries.size)
-        x = np.cos(boundaries)
-        for k in range(boundaries.size):
-            for l in range(floor(np.sqrt(self.Ne))+2):
-                for m in range(-l, l+1):
-                    legendre[l][l+m] = lpmv(m, l, x[k])
-            diag = LegendreDiagIntegral(
-                x[k], floor(np.sqrt(self.Ne))-1, legendre)
-            # print("Diag overlaps: ", diag)
-            for i in range(self.Ne):
-                overlap_matrix[i, i] = (diag[self.Ls[i, 0]][int(np.sum(self.Ls[i]))] *
-                                        (norms[i]**2))
-                for j in range(i+1, self.Ne):
-                    if self.Ls[i, 1] == self.Ls[j, 1]:
-                        overlap_matrix[i, j] = (norms[i] * norms[j] *
-                                                LegendreOffDiagIntegral(x[k], legendre, int(self.Ls[i, 0]),
-                                                                        int(self.Ls[j, 0]), int(self.Ls[i, 1])))
-                        # print(f"Off-Diag overlap: l = {self.Ls[i,0]}, k = {self.Ls[j,0]}, m = {self.Ls[i,1]}", LegendreOffDiagIntegral(x[k], legendre, self.Ls[i, 0],
-                        #                                                                                                               self.Ls[j, 0], self.Ls[i, 1]))
+            for m in range(-l, l+1):
+                legendre[l][l+m] = lpmv(m, l, x)
+        diag = LegendreDiagIntegral(x, floor(np.sqrt(self.Ne))-1, legendre)
+        for i in range(self.Ne):
+            overlap_matrix[i, i] = (diag[self.Ls[i, 0]][int(np.sum(self.Ls[i]))] *
+                                    (norms[i]**2))
+            for j in range(i+1, self.Ne):
+                if self.Ls[i, 1] == self.Ls[j, 1]:
+                    overlap_matrix[i, j] = (norms[i] * norms[j] *
+                                            LegendreOffDiagIntegral(x, legendre, int(self.Ls[i, 0]),
+                                                                    int(self.Ls[j, 0]), int(self.Ls[i, 1])))
+                    overlap_matrix[j, i] = overlap_matrix[i, j]
 
-                        overlap_matrix[j, i] = overlap_matrix[i, j]
+        return overlap_matrix
 
-            # print(overlap_matrix)
-            eigs = np.linalg.eigvalsh(overlap_matrix)
+    def ComputeEntropyED(self, entropy="r2"):
+        overlap_matrix = self.GetOverlapMatrix()
+        eigs = np.linalg.eigvalsh(overlap_matrix)
 
-            if entropy == 'r2':
-                S[k] = -np.sum(np.log(eigs**2 + (1-eigs)**2))
-            elif entropy == 'vN':
-                S[k] = -np.sum(np.log(eigs**2 + (1-eigs)**2))
+        if entropy == 'r2':
+            return -np.sum(np.log(eigs**2 + (1-eigs)**2))
+        elif entropy == 'vN':
+            return -np.sum(np.log(eigs**2 + (1-eigs)**2))
 
-        return S  # , overlap_matrix
+    def ComputeParticleFluctuationsED(self):
+        overlap_matrix = self.GetOverlapMatrix()
+        return np.trace(np.matmul(overlap_matrix, (np.eye(self.Ne)-overlap_matrix)))
 
     def InitialSlater(self, coords, slater):
         for i in range(self.Ne):

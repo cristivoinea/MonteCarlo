@@ -29,3 +29,35 @@ def _MonopoleHarmonics(s: np.int64, l: np.int64, m: np.int64, theta: np.float64,
 @vectorize([complex128(int64, int64, int64, float64, float64)])
 def MonopoleHarmonics(s: np.int64, l: np.int64, m: np.int64, theta: np.float64, phi: np.float64) -> np.array:
     return _MonopoleHarmonics(s, l, m, theta, phi)
+
+
+@njit
+def Variance(array: np.array, ddof: np.int64 = 0):
+    mean = np.sum(array)/array.size
+    return np.sum((array - mean)**2)/(array.size-ddof)
+
+
+@njit
+def JackknifeVariance(results: np.array, nbr_blocks: np.int64 = 100):
+    mean = Variance(results, ddof=1)
+    block_len = results.size//nbr_blocks
+    var = 0
+    for i in range(nbr_blocks):
+        rm_block = np.hstack(
+            (results[:block_len*i], results[block_len*(i+1):]))
+        var += (Variance(rm_block, ddof=1)-mean)**2
+
+    return mean, np.sqrt(var*(nbr_blocks-1)/nbr_blocks)
+
+
+@njit
+def JackknifeMean(results: np.array, nbr_blocks: np.int64 = 1000):
+    mean = np.sum(results)/results.size
+    block_len = results.size//nbr_blocks
+    var = 0
+    for i in range(nbr_blocks):
+        rm_block = np.hstack(
+            (results[:block_len*i], results[block_len*(i+1):]))
+        var += (np.sum(rm_block)/rm_block.size-mean)**2
+
+    return mean, np.sqrt(var*(nbr_blocks-1)/nbr_blocks)

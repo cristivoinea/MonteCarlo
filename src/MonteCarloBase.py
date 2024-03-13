@@ -283,6 +283,37 @@ class MonteCarloBase:
 
         self.SaveResults('disorder')
 
+    def RunParticleFluctuations(self, theta: np.float64 = 0):
+        """
+        Computes the particle number fluctuations.
+        """
+        self.LoadRun('nbr_particles')
+        self.InitialWavefn()
+        inside_region = self.InsideRegion(self.coords)
+        update = np.count_nonzero(inside_region)
+
+        for i in range(self.load_iter, self.load_iter+self.nbr_iter):
+            self.StepOneParticle()
+            self.TmpWavefn()
+            step_amplitude = self.StepAmplitude()
+
+            if self.Jacobian()*np.abs(step_amplitude)**2 > np.random.random():
+                self.AcceptTmp('nbr_particles')
+                inside_region = self.InsideRegion(self.coords)
+                update = np.count_nonzero(inside_region)
+
+            else:
+                self.RejectTmp('nbr_particles')
+
+            self.results[i] = update
+            if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
+                self.Checkpoint(i, 'nbr_particles')
+
+        if theta != 0:
+            self.result = np.exp(1j*self.result*theta)
+
+        self.SaveResults('nbr_particles', theta)
+
     def RunSwapP(self):
         """
         Computes the p-term in the entanglement entropy swap decomposition 
