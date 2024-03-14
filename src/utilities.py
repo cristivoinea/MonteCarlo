@@ -276,6 +276,32 @@ def LoadDisorderOperator(Ne, Ns, M, M0, t, region_geometry, state, boundaries):
     return x, entropy
 
 
+def LoadParticleFluctuations(Ne, Ns, M, M0, geometry, state, boundaries, region_geometry='circle'):
+    # kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20}
+    # Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
+    file = f"{state}_fluct_{geometry}_Ne_{Ne}_Ns_{Ns}_{region_geometry}s.dat"
+
+    if not exists(file):
+        data = np.zeros((boundaries.size, 3), dtype=np.float64)
+        data[:, 0] = boundaries
+        for i in range(boundaries.size):
+            result = np.loadtxt(
+                f"../../results/fluctuations/{geometry}/{state}/n_{Ne}/{state}_fluct_{geometry}_Ne_{Ne}_Ns_{Ns}_{region_geometry}_{boundaries[i]:.4f}.dat")
+            data[i, 1:3] = result
+
+        np.savetxt(file, data)
+
+    data = np.loadtxt(file)
+
+    fluctuations = np.zeros((data.shape[0], 2))
+    x = data[:, 0]*np.sqrt(Ne)
+
+    fluctuations[:, 0] = data[:, 1]
+    fluctuations[:, 1] = data[:, 2]
+
+    return x, fluctuations
+
+
 def LegendreOffDiagIntegral(x, legendre, l, k, m):
     if np.abs(m) > k or np.abs(m) > l:
         return 0

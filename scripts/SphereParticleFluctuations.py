@@ -7,6 +7,7 @@ if module_path not in sys.path:
 
 from src.MonteCarloSphereCFL import MonteCarloSphereCFL  # nopep8
 from src.MonteCarloSphereFreeFermions import MonteCarloSphereFreeFermions  # nopep8
+from src.MonteCarloSphereLaughlin import MonteCarloSphereLaughlin  # nopep8
 import numpy as np
 import argparse
 from datetime import datetime
@@ -60,7 +61,7 @@ if A_end == -1:
     A_end = A_start
 nbr_A = np.uint8(args["nbr_A"])
 A_sizes = np.linspace(A_start, A_end, nbr_A, endpoint=True)
-region_geometry = str(args["region_geometry"])
+region_geometry = str(args["region_geometryF"])
 theta = bool(args["theta"])
 acceptance_ratio = np.float64(args["acc_ratio"])
 state = str(args["state"])
@@ -79,6 +80,11 @@ for region_size in A_sizes:
                                   region_geometry=region_geometry, step_size=step, linear_size=region_size,
                                   nbr_copies=1,
                                   acceptance_ratio=acceptance_ratio)
+    elif state == 'laughlin':
+        fqh = MonteCarloSphereLaughlin(Ne=Ne, Ns=Ns, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+                                       region_geometry=region_geometry, step_size=step, linear_size=region_size,
+                                       nbr_copies=1,
+                                       acceptance_ratio=acceptance_ratio)
 
     fqh.RunParticleFluctuations()
 
