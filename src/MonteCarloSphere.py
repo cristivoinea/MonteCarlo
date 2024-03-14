@@ -167,7 +167,6 @@ class MonteCarloSphere (MonteCarloBase):
                 np.savetxt(f"{self.state}_{run_type}_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.dat",
                            np.vstack((mean, var)))
             elif run_type == 'nbr_particles':
-                print('yes')
                 if extra_param == 0:
                     np.savetxt(f"{self.state}_fluct_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.dat",
                                JackknifeVariance(self.results[int(self.nbr_nonthermal):]))
