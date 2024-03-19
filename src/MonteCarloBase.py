@@ -2,7 +2,8 @@ from os.path import exists
 from numba import njit
 import numpy as np
 
-from .utilities import Stats, ThetaFunction
+# from .utilities import Stats, ThetaFunction
+from .fast_math import JackknifeMean, JackknifeVariance, ThetaFunction
 
 
 class MonteCarloBase:
@@ -248,6 +249,120 @@ class MonteCarloBase:
     def CF(self):
         pass
 
+    def SaveConfig(self, run_type: str):
+        # if run_type == 'sign':
+        #    np.save(f"{self.state}_{run_type}_results_real_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy",
+        #            np.real(self.results))
+        #    np.save(f"{self.state}_{run_type}_results_imag_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy",
+        #            np.imag(self.results))
+
+        # else:
+        np.save(f"{self.state}_{self.geometry}_{run_type}_results_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy",
+                self.results)
+
+        save_coords = np.copy(self.coords)
+
+        if run_type == 'sign' or run_type == 'mod':
+            if len(self.coords.shape) == 1:
+                save_coords = np.vstack((save_coords, self.to_swap)).T
+            else:
+                save_coords = np.hstack((save_coords, self.to_swap[:, None]))
+            # np.save(f"{self.state}_{run_type}_order_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy",
+            #        self.to_swap)
+
+        np.save(f"{self.state}_{self.geometry}_{run_type}_coords_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy",
+                save_coords)
+
+    def SaveResults(self, run_type: str, extra_param=0):
+        if run_type == 'fluct':
+            final_value = JackknifeVariance(
+                np.real(self.results[np.int64(self.nbr_nonthermal):]))
+        else:
+            final_value = JackknifeMean(
+                np.real(self.results[np.int64(self.nbr_nonthermal):]))
+            if run_type == 'sign':
+                imag_value = JackknifeMean(
+                    np.imag(self.results[np.int64(self.nbr_nonthermal):]))
+
+        if self.save_result:
+            file_name = f"{self.state}_{self.geometry}_{run_type}_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.dat"
+            np.savetxt(file_name, final_value)
+
+        else:
+            print(f"\nMean = {final_value[0]} \n Var = {final_value[1]}")
+            if run_type == 'sign':
+                print(f"\nMean = {imag_value[0]} \n Var = {imag_value[1]}")
+            elif run_type == 'disorder':
+                mean_re, var_re = JackknifeMean(
+                    np.real(self.results[int(self.nbr_nonthermal):]))
+                mean_im, var_im = JackknifeMean(
+                    np.imag(self.results[int(self.nbr_nonthermal):]))
+                mean = np.sqrt(mean_re**2 + mean_im**2)
+                var = var_re*((mean_re/mean)**2) + var_im*((mean_im/mean)**2)
+                print("Check implementation", np.vstack((mean, var)))
+
+    def LoadRun(self, run_type: str):
+
+        if self.acceptance_ratio > 0:
+            file_coords = f"./{self.state}_{self.geometry}_{run_type}_coords_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy"
+            if exists(file_coords):
+                coords = np.load(file_coords)
+                if run_type == "mod" or run_type == "sign":
+                    if self.geometry == "sphere":
+                        self.coords = coords[:, :-1]
+                    elif self.geometry == "torus":
+                        self.coords = coords[:, 0]
+                    self.to_swap = np.int64(np.real(coords[:, -1]))
+                else:
+                    self.coords = coords
+                """
+                file_order = f"./{run_type}_{self.state}_order_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy"
+                if exists(file_order):
+                    self.to_swap = np.load(file_order)
+                    self.coords = coords
+                else:
+
+                    print(f"{file_order} missing!\n")"""
+
+            else:
+                print(f"{file_coords} missing!\n")
+
+            file_results = f"./{self.state}_{self.geometry}_{run_type}_results_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy"
+            if exists(file_results):
+                start_results = np.load(file_results)
+                self.load_iter = start_results.size
+
+                if run_type == 'sign' or run_type == 'disorder':
+                    self.results = np.zeros(
+                        (self.load_iter+self.nbr_iter), dtype=np.complex128)
+                else:
+                    self.results = np.zeros(
+                        (self.load_iter+self.nbr_iter), dtype=np.float64)
+                self.results[:self.load_iter] = start_results
+            else:
+                print("Results file not found!\n")
+            print(f"Successfully loaded run of {self.load_iter} iterations.")
+            self.acceptance_ratio *= self.load_iter
+
+        else:
+            if run_type == 'disorder' or run_type == 'fluct':
+                self.coords = self.RandomConfig()
+            else:
+                self.RandomConfigSwap()
+            if run_type == 'sign' or run_type == 'disorder':
+                self.results = np.zeros((self.nbr_iter), dtype=np.complex128)
+            else:
+                self.results = np.zeros((self.nbr_iter), dtype=np.float64)
+
+            if run_type == 'mod' or run_type == 'sign':
+                self.AssignOrderToSwap()
+
+        self.coords_tmp = np.copy(self.coords)
+        if run_type == 'mod' or run_type == 'sign':
+            self.from_swap = self.OrderFromSwap(self.to_swap)
+            self.to_swap_tmp = np.copy(self.to_swap)
+            self.from_swap_tmp = np.copy(self.from_swap)
+
     def RunDisorderOperator(self, composite=False):
         """
         Computes the disorder operator.
@@ -287,7 +402,7 @@ class MonteCarloBase:
         """
         Computes the particle number fluctuations.
         """
-        self.LoadRun('nbr_particles')
+        self.LoadRun('fluct')
         self.InitialWavefn()
         inside_region = self.InsideRegion(self.coords)
         update = np.count_nonzero(inside_region)
@@ -298,21 +413,21 @@ class MonteCarloBase:
             step_amplitude = self.StepAmplitude()
 
             if self.Jacobian()*np.abs(step_amplitude)**2 > np.random.random():
-                self.AcceptTmp('nbr_particles')
+                self.AcceptTmp('fluct')
                 inside_region = self.InsideRegion(self.coords)
                 update = np.count_nonzero(inside_region)
 
             else:
-                self.RejectTmp('nbr_particles')
+                self.RejectTmp('fluct')
 
             self.results[i] = update
             if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
-                self.Checkpoint(i, 'nbr_particles')
+                self.Checkpoint(i, 'fluct')
 
         if theta != 0:
             self.result = np.exp(1j*self.result*theta)
 
-        self.SaveResults('nbr_particles', theta)
+        self.SaveResults('fluct', theta)
 
     def RunSwapP(self):
         """

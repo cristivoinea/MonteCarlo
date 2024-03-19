@@ -2,8 +2,9 @@ from os.path import exists
 from numba import njit
 import numpy as np
 
-from .utilities import Stats, ThetaFunction
+from .utilities import Stats
 from .MonteCarloBase import MonteCarloBase
+from .fast_math import ThetaFunction
 
 
 class MonteCarloTorus (MonteCarloBase):
@@ -96,6 +97,8 @@ class MonteCarloTorus (MonteCarloBase):
             zCM - c*m*self.t, m*self.t, self.aCM + c, self.bCM)
 
         return reduced_CM, expo_CM
+
+    """
 
     def SaveConfig(self, run_type: str):
         if run_type == 'sign':
@@ -216,24 +219,32 @@ class MonteCarloTorus (MonteCarloBase):
             self.from_swap = self.OrderFromSwap(self.to_swap)
             self.to_swap_tmp = np.copy(self.to_swap)
             self.from_swap_tmp = np.copy(self.from_swap)
+            """
 
     def __init__(self, Ne, Ns, t, nbr_iter, nbr_nonthermal, region_geometry,
-                 step_size, region_size, linear_size=False,
+                 step_size, area_size, linear_size,
                  save_results=True, save_config=True, acceptance_ratio=0):
-
-        super().__init__(Ne, Ns, nbr_iter, nbr_nonthermal, region_geometry,
-                         region_size, save_results, save_config, acceptance_ratio)
 
         self.geometry = 'torus'
         self.t = t
-        self.Lx = np.sqrt(2*np.pi*self.Ns/np.imag(self.t))
+        self.Lx = np.sqrt(2*np.pi*Ns/np.imag(self.t))
         self.Ly = self.Lx*np.imag(self.t)
         print(f"Torus dimensions \nLx = {self.Lx}, \nLy = {self.Ly}")
 
-        if linear_size:
-            self.boundary = self.Lx * self.region_size
+        if linear_size == 0 and area_size == 0:
+            print("Region undefined, please define a subsystem.")
+        elif linear_size != 0 and area_size != 0:
+            print(
+                "Region defined in two different ways, a single definition must be chosen.")
+        elif linear_size != 0:
+            self.boundary = self.Lx * linear_size
+            region_size = linear_size
         else:
-            self.boundary = self.Lx * np.sqrt(self.region_size/np.pi)
+            self.boundary = self.Lx * np.sqrt(area_size/np.pi)
+            region_size = area_size
+
+        super().__init__(Ne, Ns, nbr_iter, nbr_nonthermal, region_geometry,
+                         region_size, save_results, save_config, acceptance_ratio)
 
         self.step_size = step_size*self.Lx
         print(f"Step size = {step_size:.4f}*Lx = {self.step_size}")

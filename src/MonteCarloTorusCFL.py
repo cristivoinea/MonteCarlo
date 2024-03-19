@@ -2,7 +2,13 @@ import numpy as np
 from numba import njit, prange
 from pfapack import pfaffian as pf
 from .MonteCarloTorus import MonteCarloTorus
-from .utilities import fermi_sea_kx, fermi_sea_ky, ThetaFunction
+from .utilities import fermi_sea_kx, fermi_sea_ky
+from .fast_math import ThetaFunction
+
+
+def njit_UpdateSlater(coords, moved_particle, slater, Ks):
+    slater[:, moved_particle] = np.exp(1j * (np.real(Ks) * np.real(coords[moved_particle]) +
+                                             np.imag(Ks) * np.imag(coords[moved_particle])))
 
 
 @njit(parallel=True)
@@ -360,7 +366,6 @@ class MonteCarloTorusCFL (MonteCarloTorus):
             np.copyto(self.pf, self.pf_tmp)
 
     def TmpWavefnSwap(self):
-
         njit_UpdateJastrowsSwap(self.t, self.Lx, self.coords_tmp, self.Ks, self.jastrows_tmp,
                                 self.JK_coeffs, self.moved_particles,
                                 self.to_swap_tmp, self.flag_proj)
@@ -462,22 +467,19 @@ class MonteCarloTorusCFL (MonteCarloTorus):
             else:
                 for copy in range(2):
                     for n in range(copy*self.Ne, (copy+1)*self.Ne):
-                        for m in range(n+1, (copy+1)*self.Ne):
-                            jastrows_factor = (self.jastrows_tmp[self.from_swap_tmp[n], self.from_swap_tmp[m], 0, 0] /
-                                               self.jastrows[self.from_swap[n], self.from_swap[m], 0, 0])
-                            if self.Ns//self.Ne == 3:
-                                step_amplitude *= jastrows_factor
-                            elif self.Ns//self.Ne == 1:
-                                step_amplitude /= jastrows_factor
-                            step_amplitude *= np.exp(step_exponent /
-                                                     (self.Ne*(self.Ne-1)))
+                        jastrows_factor = np.prod(np.exp(step_exponent / (self.Ne*(self.Ne-1))) *
+                                                  np.power(self.jastrows_tmp[self.from_swap_tmp[n], self.from_swap_tmp[n+1: (copy+1)*self.Ne], 0, 0] /
+                                                           self.jastrows[self.from_swap[n], self.from_swap[n+1: (copy+1)*self.Ne], 0, 0], self.Ns/self.Ne))
+                        if self.Ns//self.Ne == 3:
+                            step_amplitude *= jastrows_factor
+                        elif self.Ns//self.Ne == 1:
+                            step_amplitude /= jastrows_factor
         else:
             for copy in range(2):
                 for n in range(copy*self.Ne, (copy+1)*self.Ne):
-                    for m in range(n+1, (copy+1)*self.Ne):
-                        step_amplitude *= (np.exp(step_exponent / (self.Ne*(self.Ne-1))) *
-                                           np.power((self.jastrows_tmp[self.from_swap_tmp[n], self.from_swap_tmp[m], 0, 0] /
-                                                     self.jastrows[self.from_swap[n], self.from_swap[m], 0, 0]), self.Ns/self.Ne))
+                    step_amplitude *= np.prod(np.exp(step_exponent / (self.Ne*(self.Ne-1))) *
+                                              np.power(self.jastrows_tmp[self.from_swap_tmp[n], self.from_swap_tmp[n+1: (copy+1)*self.Ne], 0, 0] /
+                                                       self.jastrows[self.from_swap[n], self.from_swap[n+1: (copy+1)*self.Ne], 0, 0], self.Ns/self.Ne))
 
         return step_amplitude
 
@@ -575,7 +577,7 @@ class MonteCarloTorusCFL (MonteCarloTorus):
         return step_amplitude
 
     def __init__(self, Ne, Ns, t, nbr_iter, nbr_nonthermal, region_geometry,
-                 region_size, linear_size, step_size, JK_coeffs='2', flag_pf=False,
+                 step_size=0.1, area_size=0, linear_size=0, JK_coeffs='2', flag_pf=False,
                  nbr_copies=2, kCM=0, phi_1=0, phi_t=0,
                  save_results=True, save_config=True, acceptance_ratio=0):
 
@@ -602,7 +604,7 @@ class MonteCarloTorusCFL (MonteCarloTorus):
             self.state += 'pf'
 
         super().__init__(Ne, Ns, t, nbr_iter, nbr_nonthermal, region_geometry,
-                         step_size, region_size, linear_size,
+                         step_size, area_size, linear_size,
                          save_results, save_config, acceptance_ratio)
 
         self.Ks = (fermi_sea_kx[self.Ne]*2*np.pi/self.Lx +

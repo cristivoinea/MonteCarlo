@@ -109,13 +109,13 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
         return step_amplitude
 
     def __init__(self, Ne, Ns, t, nbr_iter, nbr_nonthermal, region_geometry,
-                 region_size, linear_size, step_size, nbr_copies=1,
+                 step_size, area_size, linear_size, nbr_copies=1,
                  save_results=True, save_config=True, acceptance_ratio=0):
 
         self.state = 'free_fermions'
 
         super().__init__(Ne, Ns, t, nbr_iter, nbr_nonthermal, region_geometry,
-                         step_size, region_size, linear_size,
+                         step_size, area_size, linear_size,
                          save_results, save_config, acceptance_ratio)
 
         self.Ks = (fermi_sea_kx[self.Ne]*2*np.pi/self.Lx +

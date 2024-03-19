@@ -32,15 +32,6 @@ fermi_sea_kx[21] = fermi_sea_kx[69][:21]
 fermi_sea_ky[21] = fermi_sea_ky[69][:21]
 
 
-@njit  # (parallel=True)
-def ThetaFunction(z: np.complex128, t: np.complex128, a: np.float64,
-                  b: np.float64, n_max: np.uint32 = 150
-                  ) -> np.complex128:
-    index_a = np.arange(-n_max+a, n_max+a, 1)
-    terms = np.exp(1j*np.pi*index_a*(t*(index_a) + 2*(z + b)))
-    return np.sum(terms)
-
-
 def Stats(data: np.array) -> tuple[np.float64, np.float64]:
     data_copy = data
     mean = np.sum(data_copy)/data_copy.size

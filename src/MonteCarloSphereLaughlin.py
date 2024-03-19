@@ -1,6 +1,7 @@
 import numpy as np
 from numba import njit
 from .MonteCarloSphere import MonteCarloSphere
+from scipy.special import betainc, beta
 
 
 def njit_UpdateJastrows(spinors_tmp: np.array, jastrows_tmp: np.array,
@@ -40,6 +41,28 @@ class MonteCarloSphereLaughlin (MonteCarloSphere):
     spinors_tmp: np.array
     jastrows: np.array
     jastrows_tmp: np.array
+
+    def GetOverlapMatrix(self):
+        overlap_matrix = np.zeros((self.Ne, self.Ne), dtype=np.complex128)
+        x = np.cos(self.boundary/2)
+
+        for i in range(self.Ne):
+            overlap_matrix[i, i] = 1 - betainc(
+                i+1, self.Ns-i+1, x**2)
+        return overlap_matrix
+
+    def ComputeEntropyED(self, entropy="r2"):
+        overlap_matrix = self.GetOverlapMatrix()
+        eigs = np.linalg.eigvalsh(overlap_matrix)
+
+        if entropy == 'r2':
+            return -np.sum(np.log(eigs**2 + (1-eigs)**2))
+        elif entropy == 'vN':
+            return -np.sum(np.log(eigs**2 + (1-eigs)**2))
+
+    def ComputeParticleFluctuationsED(self):
+        overlap_matrix = self.GetOverlapMatrix()
+        return np.trace(np.matmul(overlap_matrix, (np.eye(self.Ne)-overlap_matrix)))
 
     def InitialJastrows(self):
         for copy in range(self.moved_particles.size):

@@ -5,9 +5,8 @@ module_path = os.path.abspath(os.path.join('..'))  # nopep8
 if module_path not in sys.path:
     sys.path.append(module_path)
 
-from src.MonteCarloSphereCFL import MonteCarloSphereCFL  # nopep8
-from src.MonteCarloSphereFreeFermions import MonteCarloSphereFreeFermions  # nopep8
-from src.MonteCarloSphereLaughlin import MonteCarloSphereLaughlin  # nopep8
+from src.MonteCarloTorusCFL import MonteCarloTorusCFL  # nopep8
+from src.MonteCarloTorusFreeFermions import MonteCarloTorusFreeFermions  # nopep8
 import numpy as np
 import argparse
 from datetime import datetime
@@ -44,10 +43,10 @@ parser.add_argument("--JK-coeffs", action="store", default='0',
 
 args = vars(parser.parse_args())
 
-Ne = np.uint8(args["Ne"])
-Ns = np.uint8(args["Ns"])
-nbr_iter = np.uint32(args["nbr_iter"])
-nbr_nonthermal = np.int32(args["nbr_nonthermal"])
+Ne = np.int64(args["Ne"])
+Ns = np.int64(args["Ns"])
+nbr_iter = np.int64(args["nbr_iter"])
+nbr_nonthermal = np.int64(args["nbr_nonthermal"])
 if nbr_nonthermal == -1:
     if nbr_iter > 1e6:
         nbr_nonthermal = 1e5
@@ -71,20 +70,15 @@ if state == 'cfl':
 for region_size in A_sizes:
     start_time = datetime.now()
     if state == "free_fermions":
-        fqh = MonteCarloSphereFreeFermions(Ne=Ne, Ns=Ns, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
-                                           region_geometry=region_geometry, step_size=step, linear_size=region_size,
-                                           nbr_copies=1,
-                                           acceptance_ratio=acceptance_ratio)
+        fqh = MonteCarloTorusFreeFermions(Ne=Ne, Ns=Ns, t=1j, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+                                          region_geometry=region_geometry, step_size=step, linear_size=region_size,
+                                          nbr_copies=1, JK_coeffs=JK_coeffs,
+                                          acceptance_ratio=acceptance_ratio)
     elif state == 'cfl':
-        fqh = MonteCarloSphereCFL(Ne=Ne, Ns=Ns, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
-                                  region_geometry=region_geometry, step_size=step, linear_size=region_size,
-                                  nbr_copies=1,
-                                  acceptance_ratio=acceptance_ratio)
-    elif state == 'laughlin':
-        fqh = MonteCarloSphereLaughlin(Ne=Ne, Ns=Ns, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
-                                       region_geometry=region_geometry, step_size=step, linear_size=region_size,
-                                       nbr_copies=1,
-                                       acceptance_ratio=acceptance_ratio)
+        fqh = MonteCarloTorusCFL(Ne=Ne, Ns=Ns, t=1j, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+                                 region_geometry=region_geometry, step_size=step, linear_size=region_size,
+                                 nbr_copies=1, JK_coeffs=JK_coeffs,
+                                 acceptance_ratio=acceptance_ratio)
 
     fqh.RunParticleFluctuations()
 

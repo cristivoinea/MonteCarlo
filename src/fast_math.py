@@ -2,6 +2,15 @@ from numba import njit, vectorize, int64, float64, complex128
 import numpy as np
 
 
+@njit  # (parallel=True)
+def ThetaFunction(z: np.complex128, t: np.complex128, a: np.float64,
+                  b: np.float64, n_max: np.uint32 = 100
+                  ) -> np.complex128:
+    index_a = np.arange(-n_max+a, n_max+a, 1)
+    # terms = np.exp(1j*np.pi*index_a*(t*(index_a) + 2*(z + b)))
+    return np.sum(np.exp(1j*np.pi*index_a*(t*(index_a) + 2*(z + b))))
+
+
 @njit
 def combs(n: np.int64, k: np.int64) -> np.int64:
     return np.prod(np.arange(n+1-k, n+1)/np.arange(1, k+1))
