@@ -3,7 +3,7 @@ from numba import njit, prange
 from pfapack import pfaffian as pf
 from .MonteCarloTorus import MonteCarloTorus
 from .utilities import fermi_sea_kx, fermi_sea_ky
-from .fast_math import ThetaFunction
+from .fast_math import ThetaFunction, ThetaFunctionVectorized
 
 
 def njit_UpdateSlater(coords, moved_particle, slater, Ks):
@@ -11,45 +11,34 @@ def njit_UpdateSlater(coords, moved_particle, slater, Ks):
                                              np.imag(Ks) * np.imag(coords[moved_particle])))
 
 
-@njit(parallel=True)
+@njit  # (parallel=True)
 def njit_UpdateJastrows(t: np.complex128, Lx: np.float64,
                         coords_tmp: np.array, Ks: np.array,
                         jastrows: np.array, jastrows_tmp: np.array,
                         JK_coeffs: np.array, slater_tmp: np.array,
-                        moved_particle: np.uint16, flag_proj: np.bool_):
+                        moved_particle: np.uint16):
     Ne = coords_tmp.size
-    if flag_proj:
-        slater_tmp[:, moved_particle] = np.exp(
-            1j*np.real(Ks)*coords_tmp[moved_particle])
-        for k in prange(Ne):
-            for i in range(Ne):
-                if i != moved_particle:
-                    for l in range(JK_coeffs.shape[1]):
-                        jastrows_tmp[i, moved_particle, k, l] = ThetaFunction(
-                            (coords_tmp[i] - coords_tmp[moved_particle] + JK_coeffs[0, l]*1j*Ks[k])/Lx, t, 1/2, 1/2)
-
-                        if JK_coeffs[0, l] != 0:
-                            jastrows_tmp[moved_particle, i, k, l] = ThetaFunction(
-                                (coords_tmp[moved_particle] - coords_tmp[i] + JK_coeffs[0, l]*1j*Ks[k])/Lx, t, 1/2, 1/2)
-                        else:
-                            jastrows_tmp[moved_particle, i, k, l] = - \
-                                jastrows_tmp[i, moved_particle, k, l]
-
-                        slater_tmp[k, i] *= np.power((jastrows_tmp[i, moved_particle, k, l] /
-                                                      jastrows[i, moved_particle, k, l]), JK_coeffs[1, l])
-
-                        slater_tmp[k, moved_particle] *= np.power(jastrows_tmp[moved_particle, i, k, l],
-                                                                  JK_coeffs[1, l])
-    else:
+    slater_tmp[:, moved_particle] = np.exp(
+        1j*np.real(Ks)*coords_tmp[moved_particle])
+    for k in prange(Ne):
         for i in range(Ne):
             if i != moved_particle:
-                jastrows_tmp[i, moved_particle, 0, 0] = ThetaFunction(
-                    (coords_tmp[i] - coords_tmp[moved_particle])/Lx, t, 1/2, 1/2)
-                jastrows_tmp[moved_particle, i, 0, 0] = - \
-                    jastrows_tmp[i, moved_particle, 0, 0]
+                for l in range(JK_coeffs.shape[1]):
+                    jastrows_tmp[i, moved_particle, k, l] = ThetaFunction(
+                        (coords_tmp[i] - coords_tmp[moved_particle] + JK_coeffs[0, l]*1j*Ks[k])/Lx, t, 1/2, 1/2)
 
-        slater_tmp[:, moved_particle] = np.exp(1j * (np.real(Ks) * np.real(coords_tmp[moved_particle]) +
-                                                     np.imag(Ks) * np.imag(coords_tmp[moved_particle])))
+                    if JK_coeffs[0, l] != 0:
+                        jastrows_tmp[moved_particle, i, k, l] = ThetaFunction(
+                            (coords_tmp[moved_particle] - coords_tmp[i] + JK_coeffs[0, l]*1j*Ks[k])/Lx, t, 1/2, 1/2)
+                    else:
+                        jastrows_tmp[moved_particle, i, k, l] = - \
+                            jastrows_tmp[i, moved_particle, k, l]
+
+                    slater_tmp[k, i] *= np.power((jastrows_tmp[i, moved_particle, k, l] /
+                                                  jastrows[i, moved_particle, k, l]), JK_coeffs[1, l])
+
+                    slater_tmp[k, moved_particle] *= np.power(jastrows_tmp[moved_particle, i, k, l],
+                                                              JK_coeffs[1, l])
 
 
 @njit(parallel=True)
@@ -301,26 +290,40 @@ class MonteCarloTorusCFL (MonteCarloTorus):
             np.copyto(self.pf_tmp, self.pf)
 
     def TmpWavefn(self):
-        for copy in range(self.moved_particles.size):
-            njit_UpdateJastrows(self.t, self.Lx, self.coords_tmp[copy*self.Ne:(copy+1)*self.Ne],
-                                self.Ks, self.jastrows[copy*self.Ne:(copy+1)*self.Ne,
-                                                       copy*self.Ne:(copy+1)*self.Ne, ...],
-                                self.jastrows_tmp[copy*self.Ne:(copy+1)*self.Ne,
-                                                  copy*self.Ne:(copy+1)*self.Ne, ...],
-                                self.JK_coeffs, self.slater_tmp[..., copy],
-                                self.moved_particles[copy]-copy*self.Ne, self.flag_proj)
-            self.slogdet_tmp[:, copy] = np.linalg.slogdet(
-                self.slater_tmp[..., copy])
+        for c in range(self.moved_particles.size):
+            p = self.moved_particles[c]
+            if not self.flag_proj:
+                self.jastrows_tmp[c*self.Ne:(c+1)*self.Ne,
+                                  p, 0, 0] = ThetaFunctionVectorized(
+                    (self.coords_tmp[c*self.Ne:(c+1)*self.Ne] -
+                     self.coords_tmp[p])/self.Lx, self.t, 1/2, 1/2, 100)
+                self.jastrows_tmp[p, p, 0, 0] = 1
+                self.jastrows_tmp[p, c*self.Ne:(c+1)*self.Ne, 0, 0] = - \
+                    self.jastrows_tmp[c*self.Ne:(c+1)*self.Ne, p, 0, 0]
+                self.slater_tmp[:, p-c*self.Ne, c] = np.exp(1j * (
+                    np.real(self.Ks) * np.real(self.coords_tmp[p]) +
+                    np.imag(self.Ks) * np.imag(self.coords_tmp[p])))
+            else:
+                njit_UpdateJastrows(self.t, self.Lx, self.coords_tmp[c*self.Ne:(c+1)*self.Ne],
+                                    self.Ks, self.jastrows[c*self.Ne:(c+1)*self.Ne,
+                                                           c*self.Ne:(c+1)*self.Ne, ...],
+                                    self.jastrows_tmp[c*self.Ne:(c+1)*self.Ne,
+                                                      c*self.Ne:(c+1)*self.Ne, ...],
+                                    self.JK_coeffs, self.slater_tmp[..., c],
+                                    p-c*self.Ne)
+
+            self.slogdet_tmp[:, c] = np.linalg.slogdet(
+                self.slater_tmp[..., c])
 
             if self.flag_pf:
-                njit_UpdatePfJastrows(self.t, self.Lx, self.coords_tmp[copy*self.Ne:(copy+1)*self.Ne],
-                                      self.jastrows_tmp[copy*self.Ne:(copy+1)*self.Ne,
-                                                        copy*self.Ne:(copy+1)*self.Ne, ...],
-                                      self.pf_jastrows_tmp[copy*self.Ne:(copy+1)*self.Ne,
-                                                           copy*self.Ne:(copy+1)*self.Ne, ...],
-                                      self.pf_matrix_tmp[..., copy], self.moved_particles[copy]-copy*self.Ne)
-                self.pf_tmp[copy] = pf.pfaffian(
-                    self.pf_matrix_tmp[..., copy])
+                njit_UpdatePfJastrows(self.t, self.Lx, self.coords_tmp[c*self.Ne:(c+1)*self.Ne],
+                                      self.jastrows_tmp[c*self.Ne:(c+1)*self.Ne,
+                                                        c*self.Ne:(c+1)*self.Ne, ...],
+                                      self.pf_jastrows_tmp[c*self.Ne:(c+1)*self.Ne,
+                                                           c*self.Ne:(c+1)*self.Ne, ...],
+                                      self.pf_matrix_tmp[..., c], p-c*self.Ne)
+                self.pf_tmp[c] = pf.pfaffian(
+                    self.pf_matrix_tmp[..., c])
 
     def RejectTmp(self, run_type):
         super().RejectTmp(run_type)

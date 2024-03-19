@@ -267,9 +267,10 @@ def LoadDisorderOperator(Ne, Ns, M, M0, t, region_geometry, state, boundaries):
     return x, entropy
 
 
-def LoadParticleFluctuations(Ne, Ns, M, M0, geometry, state, boundaries, region_geometry='circle'):
-    # kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20}
-    # Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
+def LoadParticleFluctuations(Ne, Ns, geometry, state, boundaries, region_geometry='circle',
+                             linear_size=True, t=1j):
+    kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20}
+    Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
     file = f"{state}_fluct_{geometry}_Ne_{Ne}_Ns_{Ns}_{region_geometry}s.dat"
 
     if not exists(file):
@@ -277,7 +278,7 @@ def LoadParticleFluctuations(Ne, Ns, M, M0, geometry, state, boundaries, region_
         data[:, 0] = boundaries
         for i in range(boundaries.size):
             result = np.loadtxt(
-                f"../../results/fluctuations/{geometry}/{state}/n_{Ne}/{state}_fluct_{geometry}_Ne_{Ne}_Ns_{Ns}_{region_geometry}_{boundaries[i]:.4f}.dat")
+                f"../../results/{geometry}/fluctuations/{state}/n_{Ne}/{state}_{geometry}_fluct_Ne_{Ne}_Ns_{Ns}_{region_geometry}_{boundaries[i]:.4f}.dat")
             data[i, 1:3] = result
 
         np.savetxt(file, data)
@@ -285,7 +286,12 @@ def LoadParticleFluctuations(Ne, Ns, M, M0, geometry, state, boundaries, region_
     data = np.loadtxt(file)
 
     fluctuations = np.zeros((data.shape[0], 2))
-    x = data[:, 0]*np.sqrt(Ne)
+    if geometry == "sphere":
+        if linear_size:
+            x = data[:, 0]*np.sqrt(Ne)
+    elif geometry == "torus":
+        if linear_size:
+            x = data[:, 0] * np.sqrt(2*kf[Ne]*np.pi/(Ns))*Lx
 
     fluctuations[:, 0] = data[:, 1]
     fluctuations[:, 1] = data[:, 2]

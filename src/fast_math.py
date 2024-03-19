@@ -1,14 +1,21 @@
-from numba import njit, vectorize, int64, float64, complex128
+from numba import njit, vectorize, int64, float64, complex128, optional
 import numpy as np
 
 
 @njit  # (parallel=True)
 def ThetaFunction(z: np.complex128, t: np.complex128, a: np.float64,
-                  b: np.float64, n_max: np.uint32 = 100
+                  b: np.float64, n_max: np.int64 = 100
                   ) -> np.complex128:
     index_a = np.arange(-n_max+a, n_max+a, 1)
     # terms = np.exp(1j*np.pi*index_a*(t*(index_a) + 2*(z + b)))
     return np.sum(np.exp(1j*np.pi*index_a*(t*(index_a) + 2*(z + b))))
+
+
+@vectorize([complex128(complex128, complex128, float64, float64, int64)])
+def ThetaFunctionVectorized(z: np.complex128, t: np.complex128, a: np.float64,
+                            b: np.float64, n_max: np.int64 = 100
+                            ) -> np.complex128:
+    return ThetaFunction(z, t, a, b, n_max)
 
 
 @njit
