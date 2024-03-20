@@ -29,11 +29,32 @@ def njit_UpdateJastrows(Ns_eff: np.uint64, coords_tmp: np.array, spinors_tmp: np
     njit_UpdateSlater(Ns_eff, coords_tmp, p, slater_tmp, Ls)
 
 
-@njit
+# @njit
 def njit_UpdateJastrowsSwap(coords_tmp: np.array, spinors_tmp: np.array,
                             jastrows_tmp: np.array, moved_particles: np.array,
                             to_swap_tmp: np.array):
     Ne = coords_tmp.shape[0]//2
+    """
+    mask_1 = ((to_swap_tmp[moved_particles[1]] // Ne)
+              == (to_swap_tmp[:Ne] // Ne))
+    spinors_1 = spinors_tmp[:Ne][mask_1]
+    jastrows_tmp[mask_1, moved_particles[1], 0, 0] = (
+        spinors_1[:, 0]*spinors_tmp[moved_particles[1], 1] -
+        spinors_tmp[moved_particles[1], 0]*spinors_1[:, 1])
+    jastrows_tmp[moved_particles[1], mask_1, 0, 0] = - \
+        jastrows_tmp[mask_1, moved_particles[1], 0, 0]
+    jastrows_tmp[moved_particles[1], moved_particles[1], 0, 0] = 1
+
+    mask_2 = ((to_swap_tmp[moved_particles[0]] // Ne)
+              == (to_swap_tmp[Ne:] // Ne))
+    spinors_2 = spinors_tmp[Ne:][mask_2]
+    jastrows_tmp[mask_2+Ne, moved_particles[0], 0, 0] = (
+        spinors_2[:, 0]*spinors_tmp[moved_particles[0], 1] -
+        spinors_tmp[moved_particles[0], 0]*spinors_2[:, 1])
+    jastrows_tmp[moved_particles[0], mask_2+Ne, 0, 0] = - \
+        jastrows_tmp[mask_2+Ne, moved_particles[0], 0, 0]
+    jastrows_tmp[moved_particles[0], moved_particles[0], 0, 0] = 1
+    """
     for i in range(Ne):
         if (to_swap_tmp[moved_particles[1]] // Ne) == (to_swap_tmp[i] // Ne):
             jastrows_tmp[i, moved_particles[1], 0, 0] = (
@@ -62,19 +83,21 @@ class MonteCarloSphereCFL (MonteCarloSphere):
     slogdet_tmp: np.array
 
     def InitialJastrows(self):
-        for copy in range(self.moved_particles.size):
-            for i in range(copy*self.Ne, (copy+1)*self.Ne):
-                for j in range(i+1, (copy+1)*self.Ne):
-                    self.jastrows[i, j, 0, 0] = (self.spinors[i, 0]*self.spinors[j, 1] -
-                                                 self.spinors[j, 0]*self.spinors[i, 1])
-                    self.jastrows[j, i, 0, 0] = - self.jastrows[i, j, 0, 0]
+        for c in range(self.moved_particles.size):
+            for i in range(c*self.Ne, (c+1)*self.Ne):
+                spinors_slice = self.spinors[i+1:(c+1)*self.Ne, :]
+                self.jastrows[i, i+1:(c+1)*self.Ne, 0, 0] = (
+                    self.spinors[i, 0]*spinors_slice[:, 1] - spinors_slice[:, 0]*self.spinors[i, 1])
+                self.jastrows[i+1:(c+1)*self.Ne, i, 0, 0] = - \
+                    self.jastrows[i, i+1:(c+1)*self.Ne, 0, 0]
 
     def InitialJastrowsSwap(self):
         for i in range(self.Ne):
-            for j in range(self.Ne, 2*self.Ne):
-                self.jastrows[i, j, 0, 0] = (self.spinors[i, 0]*self.spinors[j, 1] -
-                                             self.spinors[j, 0]*self.spinors[i, 1])
-                self.jastrows[j, i, 0, 0] = - self.jastrows[i, j, 0, 0]
+            self.jastrows[i, self.Ne:2*self.Ne, 0, 0] = (
+                self.spinors[i, 0]*self.spinors[self.Ne:2*self.Ne, 1] -
+                self.spinors[self.Ne:2*self.Ne, 0]*self.spinors[i, 1])
+            self.jastrows[self.Ne:2*self.Ne, i, 0, 0] = - \
+                self.jastrows[i, self.Ne:2*self.Ne, 0, 0]
 
     def InitialSlater(self, coords, slater):
         if self.Ns_eff == 0:
@@ -197,11 +220,11 @@ class MonteCarloSphereCFL (MonteCarloSphere):
         to coordinates R_f, given that the particle with index p has moved."""
         step_amplitude = 1
         for copy in range(2):
-            step_amplitude *= (self.slogdet_tmp[0,
-                               2+copy]/self.slogdet[0, 2+copy])
+            step_amplitude *= (self.slogdet_tmp[0, 2+copy] /
+                               self.slogdet[0, 2+copy])
 
             for n in range(copy*self.Ne, (copy+1)*self.Ne):
-                step_amplitude *= np.prod(np.exp((self.slogdet_tmp[1, 2+copy]-self.slogdet[1, 2+copy]) / (self.Ne*(self.Ne-1))) *
+                step_amplitude *= np.prod(np.exp((self.slogdet_tmp[1, 2+copy]-self.slogdet[1, 2+copy]) / (self.Ne*(self.Ne-1)/2)) *
                                           np.power(self.jastrows_tmp[self.from_swap_tmp[n], self.from_swap_tmp[n+1: (copy+1)*self.Ne], 0, 0] /
                                                    self.jastrows[self.from_swap[n], self.from_swap[n+1: (copy+1)*self.Ne], 0, 0],  # nopep8
                                                    self.vortices))
@@ -214,10 +237,9 @@ class MonteCarloSphereCFL (MonteCarloSphere):
             step_amplitude *= (self.slogdet[0, copy+2] / self.slogdet[0, copy])
 
             for n in range(copy*self.Ne, (copy+1)*self.Ne):
-                for m in range(n+1, (copy+1)*self.Ne):
-                    step_amplitude *= (np.exp((self.slogdet[1, copy+2] - self.slogdet[1, copy]) / (self.Ne*(self.Ne-1)/2)) *
-                                       np.power((self.jastrows[self.from_swap[n], self.from_swap[m], 0, 0] /
-                                                 self.jastrows[n, m, 0, 0]), self.vortices))
+                step_amplitude *= np.prod((np.exp((self.slogdet[1, copy+2] - self.slogdet[1, copy]) / (self.Ne*(self.Ne-1)/2)) *
+                                           np.power((self.jastrows[self.from_swap[n], self.from_swap[n+1: (copy+1)*self.Ne], 0, 0] /
+                                                     self.jastrows[n, n+1:(copy+1)*self.Ne, 0, 0]), self.vortices)))
 
         return np.abs(step_amplitude)
 
@@ -228,11 +250,10 @@ class MonteCarloSphereCFL (MonteCarloSphere):
                                * self.slogdet[0, copy])
 
             for n in range(copy*self.Ne, (copy+1)*self.Ne):
-                for m in range(n+1, (copy+1)*self.Ne):
-                    step_amplitude *= np.power((np.conj(
-                        self.jastrows[self.from_swap[n], self.from_swap[m], 0, 0]) *
-                        self.jastrows[n, m, 0, 0]), self.vortices)
-                    step_amplitude /= np.abs(step_amplitude)
+                step_amplitude *= np.prod(np.power((np.conj(
+                    self.jastrows[self.from_swap[n], self.from_swap[n+1:(copy+1)*self.Ne], 0, 0]) *
+                    self.jastrows[n, n+1:(copy+1)*self.Ne, 0, 0]), self.vortices))
+                step_amplitude /= np.abs(step_amplitude)
 
         return step_amplitude
 

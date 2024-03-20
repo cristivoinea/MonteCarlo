@@ -2,6 +2,7 @@ import numpy as np
 # from numba import njit, prange
 from .MonteCarloTorus import MonteCarloTorus
 from .utilities import fermi_sea_kx, fermi_sea_ky
+from scipy.special import gamma, hyp0f1
 
 
 class MonteCarloTorusFreeFermions (MonteCarloTorus):
@@ -10,6 +11,24 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
     slogdet: np.array
     slogdet_tmp: np.array
     Ks: np.array
+
+    def GetOverlapMatrix(self):
+        overlap_matrix = np.zeros((self.Ne, self.Ne), dtype=np.complex128)
+        Kxs = np.real(self.Ks)*self.Lx/(2*np.pi)
+        Kys = np.imag(self.Ks)*self.Lx/(2*np.pi)
+        R = self.boundary/self.Lx
+        for i in range(self.Ne):
+            overlap_matrix[i, i] = np.pi*R*R
+            for j in range(i+1, self.Ne):
+                if self.region_geometry == 'square':
+                    overlap_matrix[i, j] = np.sinc(
+                        R*(Kxs[i]-Kxs[j]))*np.sinc(R*(Kys[i]-Kys[j]))*(R)**2
+                elif self.region_geometry == 'circle':
+                    overlap_matrix[i, j] = np.pi*R*R*hyp0f1(
+                        2, -((Kxs[i]-Kxs[j])**2 + (Kys[i]-Kys[j])**2)*(R*np.pi)**2)/gamma(2)
+                overlap_matrix[j, i] = overlap_matrix[i, j]
+
+        return overlap_matrix
 
     def InitialSlater(self, coords, slater):
         np.copyto(slater, np.exp(1j * (np.reshape(np.real(self.Ks), (-1, 1)) * np.real(coords) +
@@ -109,7 +128,7 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
         return step_amplitude
 
     def __init__(self, Ne, Ns, t, nbr_iter, nbr_nonthermal, region_geometry,
-                 step_size, area_size, linear_size, nbr_copies=1,
+                 step_size, area_size=0, linear_size=0, nbr_copies=1,
                  save_results=True, save_config=True, acceptance_ratio=0):
 
         self.state = 'free_fermions'

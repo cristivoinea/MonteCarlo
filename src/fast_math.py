@@ -85,7 +85,7 @@ def BootstrapVariance(results: np.array, nbr_blocks: np.int64 = 100,
 
 
 @njit
-def JackknifeMean(results: np.array, nbr_blocks: np.int64 = 500):
+def JackknifeMean(results: np.array, nbr_blocks: np.int64 = 250):
     mean = np.sum(results)/results.size
     block_len = results.size//nbr_blocks
     var = 0

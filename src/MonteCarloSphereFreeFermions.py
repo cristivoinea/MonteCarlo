@@ -43,19 +43,6 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
 
         return overlap_matrix
 
-    def ComputeEntropyED(self, entropy="r2"):
-        overlap_matrix = self.GetOverlapMatrix()
-        eigs = np.linalg.eigvalsh(overlap_matrix)
-
-        if entropy == 'r2':
-            return -np.sum(np.log(eigs**2 + (1-eigs)**2))
-        elif entropy == 'vN':
-            return -np.sum(np.log(eigs**2 + (1-eigs)**2))
-
-    def ComputeParticleFluctuationsED(self):
-        overlap_matrix = self.GetOverlapMatrix()
-        return np.trace(np.matmul(overlap_matrix, (np.eye(self.Ne)-overlap_matrix)))
-
     def InitialSlater(self, coords, slater):
         for i in range(self.Ne):
             slater[i, :] = sph_harm(

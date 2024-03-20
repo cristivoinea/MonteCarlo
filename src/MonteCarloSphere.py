@@ -2,8 +2,6 @@ import numpy as np
 from os.path import exists
 
 from .MonteCarloBase import MonteCarloBase
-from .utilities import Stats
-from .fast_math import JackknifeMean, JackknifeVariance
 
 
 class MonteCarloSphere (MonteCarloBase):
@@ -76,7 +74,7 @@ class MonteCarloSphere (MonteCarloBase):
         self.moved_particles = np.random.randint(0, self.Ne, 1)
         p = self.moved_particles[0]
         self.coords_tmp[p, :] = self.BoundaryConditions(
-            self.coords_tmp[p, :] + np.array([1, np.sin(self.coords_tmp[p, :][0])]) *
+            self.coords_tmp[p, :] + np.array([1, np.sin(self.coords_tmp[p, 0])]) *
             self.step_size*np.random.default_rng().choice(self.step_pattern, 1))
 
     def StepOneParticleTwoCopies(self):

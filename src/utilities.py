@@ -140,36 +140,6 @@ def GetFermiSea(kF: np.float64):
     return np.array(kx_list), np.array(ky_list)
 
 
-def GetEntropyFreeFermionsED(kF, m, region_geometry, linear_sizes):
-    Kxs, Kys = GetFermiSea(kF)
-    Ne = len(Kxs)
-    Ns = m*Ne
-    t = 1j
-
-    Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
-    Ly = Lx*np.imag(t)
-
-    overlaps = np.zeros((Ne, Ne), dtype=np.float64)
-    S = np.zeros(linear_sizes.size)
-    for k in range(linear_sizes.size):
-        for i in range(Ne):
-            overlaps[i, i] = np.pi*linear_sizes[k]*linear_sizes[k]
-            for j in range(i+1, Ne):
-                if region_geometry == 'square':
-                    overlaps[i, j] = np.sinc(
-                        linear_sizes[k]*(Kxs[i]-Kxs[j]))*np.sinc(linear_sizes[k]*(Kys[i]-Kys[j]))*linear_sizes[k]*linear_sizes[k]
-                elif region_geometry == 'circle':
-                    overlaps[i, j] = np.pi*linear_sizes[k]*linear_sizes[k]*hyp0f1(
-                        2, -((Kxs[i]-Kxs[j])**2 + (Kys[i]-Kys[j])**2)*(linear_sizes[k]*np.pi)**2)/gamma(2)
-                overlaps[j, i] = overlaps[i, j]
-        e = np.linalg.eigvalsh(overlaps)
-        S[k] = -np.sum(np.log(e**2 + (1-e)**2))
-
-    x = linear_sizes*np.sqrt(2*np.pi/Ns)*kF*Lx
-
-    return x, S
-
-
 def GetEntropyLaughlin(Ne, Ns, M, M0, t, step, region_geometry):
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
     data = np.loadtxt(

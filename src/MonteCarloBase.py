@@ -32,6 +32,19 @@ class MonteCarloBase:
     save_config: np.bool_
     save_result: np.bool_
 
+    def ComputeEntropyED(self, entropy="r2"):
+        overlap_matrix = self.GetOverlapMatrix()
+        eigs = np.linalg.eigvalsh(overlap_matrix)
+
+        if entropy == 'r2':
+            return -np.sum(np.log(eigs**2 + (1-eigs)**2))
+        elif entropy == 'vN':
+            return -np.sum(np.log(eigs**2 + (1-eigs)**2))
+
+    def ComputeParticleFluctuationsED(self):
+        overlap_matrix = self.GetOverlapMatrix()
+        return np.trace(np.matmul(overlap_matrix, (np.eye(self.Ne)-overlap_matrix)))
+
     def RandomPoint(self):
         """Returns random coordinates for one particle."""
         pass

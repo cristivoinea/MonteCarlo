@@ -11,7 +11,7 @@ def njit_UpdateSlater(coords, moved_particle, slater, Ks):
                                              np.imag(Ks) * np.imag(coords[moved_particle])))
 
 
-@njit  # (parallel=True)
+@njit(parallel=True)
 def njit_UpdateJastrows(t: np.complex128, Lx: np.float64,
                         coords_tmp: np.array, Ks: np.array,
                         jastrows: np.array, jastrows_tmp: np.array,
