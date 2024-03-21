@@ -85,6 +85,24 @@ def BootstrapVariance(results: np.array, nbr_blocks: np.int64 = 100,
 
 
 @njit
+def BootstrapMean(results: np.array, nbr_blocks: np.int64 = 100,
+                  nbr_bootstrap: np.int64 = 100):
+    block_len = results.size//nbr_blocks
+    fn_bootstrap = np.zeros(nbr_bootstrap)
+    for i in range(nbr_bootstrap):
+        blocks = np.random.randint(0, nbr_blocks, nbr_blocks)
+        curr_bootstrap = results[blocks[0]*block_len:(blocks[0]+1)*block_len]
+        for j in range(1, nbr_blocks):
+            curr_bootstrap = np.hstack(
+                (curr_bootstrap, results[blocks[j]*block_len:(blocks[j]+1)*block_len]))
+        fn_bootstrap[i] = np.sum(curr_bootstrap)/curr_bootstrap.size
+
+    mean = np.sum(fn_bootstrap)/nbr_bootstrap
+
+    return mean, np.sqrt(np.sum((fn_bootstrap-mean)**2)/(nbr_bootstrap-1))
+
+
+@njit
 def JackknifeMean(results: np.array, nbr_blocks: np.int64 = 250):
     mean = np.sum(results)/results.size
     block_len = results.size//nbr_blocks

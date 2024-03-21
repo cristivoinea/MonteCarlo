@@ -41,6 +41,8 @@ parser.add_argument("--state", action="store", required=True,
                     help="type of state")
 parser.add_argument("--JK-coeffs", action="store", default='0',
                     help="JK translation coefficients for enforcing PBC")
+parser.add_argument("--CF", action="store_true",
+                    help="composite fermions")
 
 args = vars(parser.parse_args())
 
@@ -67,6 +69,7 @@ acceptance_ratio = np.float64(args["acc_ratio"])
 state = str(args["state"])
 if state == 'cfl':
     JK_coeffs = str(args["JK_coeffs"])
+CF = bool(args["CF"])
 
 for region_size in A_sizes:
     start_time = datetime.now()
@@ -86,7 +89,7 @@ for region_size in A_sizes:
                                        nbr_copies=1,
                                        acceptance_ratio=acceptance_ratio)
 
-    fqh.RunParticleFluctuations()
+    fqh.RunParticleFluctuations(cf=CF)
 
     end_time = datetime.now()
     print(f"Total time = {str(end_time - start_time)[:10]} s")

@@ -411,14 +411,19 @@ class MonteCarloBase:
 
         self.SaveResults('disorder')
 
-    def RunParticleFluctuations(self, theta: np.float64 = 0):
+    def DensityCF(self):
+        return 1
+
+    def RunParticleFluctuations(self, theta: np.float64 = 0, cf=False):
         """
         Computes the particle number fluctuations.
         """
         self.LoadRun('fluct')
         self.InitialWavefn()
-        inside_region = self.InsideRegion(self.coords)
-        update = np.count_nonzero(inside_region)
+        if cf:
+            update = self.DensityCF()
+        else:
+            update = np.count_nonzero(self.InsideRegion(self.coords))
 
         for i in range(self.load_iter, self.load_iter+self.nbr_iter):
             self.StepOneParticle()
@@ -427,8 +432,10 @@ class MonteCarloBase:
 
             if self.Jacobian()*np.abs(step_amplitude)**2 > np.random.random():
                 self.AcceptTmp('fluct')
-                inside_region = self.InsideRegion(self.coords)
-                update = np.count_nonzero(inside_region)
+                if cf:
+                    update = self.DensityCF()
+                else:
+                    update = np.count_nonzero(self.InsideRegion(self.coords))
 
             else:
                 self.RejectTmp('fluct')

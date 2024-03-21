@@ -257,12 +257,12 @@ class MonteCarloSphereCFL (MonteCarloSphere):
 
         return step_amplitude
 
-    def CF(self):
+    def DensityCF(self):
         cf_density = 0
         for i in range(self.Ne):
             if self.InsideRegion(self.coords[i]):
                 cf_density += (np.prod(np.sqrt(self.Ne)*np.power(np.abs(self.jastrows[i, :, 0, 0]),
-                                                                 2*self.Ns/(self.Ne-1))))
+                                                                 2*self.vortices)))
 
         return cf_density
 

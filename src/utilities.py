@@ -166,9 +166,9 @@ def LoadEntropy(Ne, Ns, M, M0, geometry, region_geometry, state, boundaries, t=1
     if geometry == "torus":
         kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20}
         Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
-        file = f"../data/{state}_entropy_{geometry}_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}s.dat"
+        file = f"../data/{state}_{geometry}_entropy_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}s.dat"
     elif geometry == "sphere":
-        file = f"../data/{state}_entropy_{geometry}_Ne_{Ne}_Ns_{Ns}_{region_geometry}s.dat"
+        file = f"../data/{state}_{geometry}_entropy_Ne_{Ne}_Ns_{Ns}_{region_geometry}s.dat"
 
     if not exists(file):
         data = np.zeros((boundaries.size, 7), dtype=np.float64)
@@ -181,11 +181,11 @@ def LoadEntropy(Ne, Ns, M, M0, geometry, region_geometry, state, boundaries, t=1
                         f"../../results/entropy/{state}/n_{Ne}/{terms[j]}/{terms[j]}_{state}_Ne_{Ne}_Ns_{Ns}_t_1.00_circle_{boundaries[i]:.4f}.dat")
                 elif geometry == "sphere":
                     result = np.loadtxt(
-                        f"../../results/{geometry}/{state}/n_{Ne}/{terms[j]}/{state}_{terms[j]}_{geometry}_Ne_{Ne}_Ns_{Ns}_circle_{boundaries[i]:.4f}.dat")
-                if j == 2:
-                    data[i, 1+2*j:3+2*j] = result[0, :]
-                else:
-                    data[i, 1+2*j:3+2*j] = result
+                        f"../../results/{geometry}/entropy/{state}/n_{Ne}/{terms[j]}/{state}_{geometry}_{terms[j]}_Ne_{Ne}_Ns_{Ns}_circle_{boundaries[i]:.4f}.dat")
+                # if j == 2:
+                #    data[i, 1+2*j:3+2*j] = result[0, :]
+                # else:
+                data[i, 1+2*j:3+2*j] = result
 
         np.savetxt(file, data)
 
@@ -198,11 +198,14 @@ def LoadEntropy(Ne, Ns, M, M0, geometry, region_geometry, state, boundaries, t=1
         x = boundaries*np.sqrt(Ne-1)
 
     entropy[:, 0] = -np.log(data[:, 1])
-    entropy[:, 1] = np.sqrt((data[:, 2])/(data[:, 1])**2)/np.sqrt(M-M0)
+    # np.sqrt((data[:, 2])/(data[:, 1])**2)/np.sqrt(M-M0)
+    entropy[:, 1] = data[:, 2]/data[:, 1]
     entropy[:, 2] = -np.log(data[:, 3])
-    entropy[:, 3] = np.sqrt((data[:, 4])/(data[:, 3])**2)/np.sqrt(M-M0)
+    # np.sqrt((data[:, 4])/(data[:, 3])**2)#/np.sqrt(M-M0)
+    entropy[:, 3] = data[:, 4]/data[:, 3]
     entropy[:, 4] = -np.log(data[:, 5])
-    entropy[:, 5] = np.sqrt((data[:, 6])/(data[:, 5])**2)/np.sqrt(M-M0)
+    # np.sqrt((data[:, 6])/(data[:, 5])**2)#/np.sqrt(M-M0)
+    entropy[:, 5] = data[:, 4]/data[:, 3]
 
     entropy[:, 6] = entropy[:, 0] + entropy[:, 2] + entropy[:, 4]
     entropy[:, 7] = np.sqrt(
