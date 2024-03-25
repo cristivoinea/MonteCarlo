@@ -177,17 +177,8 @@ class MonteCarloBase:
     def StepOneSwap(self) -> np.array:
         """Provides a new Monte Carlo configuration by updating
         the coordinates of one particle in each copy, ensuring that
-        the copies are swappable with respect to region A.
-
-        Parameters:
-
-        coords_tmp : initial position of all particles
-
-        Output:
-
-        coords_final : final position of all particles
-        p : indices of particles that move in each copy
-        delta : contains information about which step is taken
+        the copies are swappable with respect to region A. If self.N_reg is
+        defined, the new configuration will preserve this quantity.
         """
 
         valid = False

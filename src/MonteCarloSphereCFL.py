@@ -3,6 +3,7 @@ from numba import njit
 from scipy.special import sph_harm
 from .MonteCarloSphere import MonteCarloSphere
 from .fast_math import MonopoleHarmonics
+from math import comb
 
 
 # @njit
@@ -70,6 +71,27 @@ def njit_UpdateJastrowsSwap(coords_tmp: np.array, spinors_tmp: np.array,
                 spinors_tmp[moved_particles[0], 0]*spinors_tmp[i+Ne, 1])
             jastrows_tmp[moved_particles[0], i+Ne, 0, 0] = - \
                 jastrows_tmp[i+Ne, moved_particles[0], 0, 0]
+
+
+@njit
+def njit_StepAmplitudeTwoCopiesSwap(Ne: np.int64, vortices: np.int64, jastrows: np.array,
+                                    jastrows_tmp: np.array, slogdet: np.array, slogdet_tmp: np.array,
+                                    from_swap: np.array, from_swap_tmp: np.array) -> np.complex128:
+    """
+    Returns the ratio of wavefunctions for coordinates R_i
+    to coordinates R_f, given that the particle with index p has moved."""
+    step_amplitude = 1
+    for copy in range(2):
+        step_amplitude *= (slogdet_tmp[0, 2+copy] /
+                           slogdet[0, 2+copy])
+
+        for n in range(copy*Ne, (copy+1)*Ne):
+            step_amplitude *= np.prod(np.exp((slogdet_tmp[1, 2+copy]-slogdet[1, 2+copy]) / (Ne*(Ne-1)/2)) *
+                                      np.power(jastrows_tmp[from_swap_tmp[n], from_swap_tmp[n+1: (copy+1)*Ne], 0, 0] /
+                                               jastrows[from_swap[n], from_swap[n+1: (copy+1)*Ne], 0, 0],  # nopep8
+                                               vortices))
+
+    return step_amplitude
 
 
 class MonteCarloSphereCFL (MonteCarloSphere):
@@ -217,7 +239,7 @@ class MonteCarloSphereCFL (MonteCarloSphere):
     def StepAmplitudeTwoCopiesSwap(self) -> np.complex128:
         """
         Returns the ratio of wavefunctions for coordinates R_i
-        to coordinates R_f, given that the particle with index p has moved."""
+        to coordinates R_f, given that the particle with index p has moved.
         step_amplitude = 1
         for copy in range(2):
             step_amplitude *= (self.slogdet_tmp[0, 2+copy] /
@@ -229,7 +251,9 @@ class MonteCarloSphereCFL (MonteCarloSphere):
                                                    self.jastrows[self.from_swap[n], self.from_swap[n+1: (copy+1)*self.Ne], 0, 0],  # nopep8
                                                    self.vortices))
 
-        return step_amplitude
+        return step_amplitude"""
+        return njit_StepAmplitudeTwoCopiesSwap(self.Ne, self.vortices, self.jastrows, self.jastrows_tmp,
+                                               self.slogdet, self.slogdet_tmp, self.from_swap, self.from_swap_tmp)
 
     def InitialMod(self):
         step_amplitude = 1

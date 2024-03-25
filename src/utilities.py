@@ -241,17 +241,22 @@ def LoadDisorderOperator(Ne, Ns, M, M0, t, region_geometry, state, boundaries):
 
 
 def LoadParticleFluctuations(Ne, Ns, geometry, state, boundaries, region_geometry='circle',
-                             linear_size=True, t=1j):
+                             linear_size=True, t=1j, cf=False):
     kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20}
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
     file = f"{state}_fluct_{geometry}_Ne_{Ne}_Ns_{Ns}_{region_geometry}s.dat"
+
+    if cf:
+        cf_str = "cf_"
+    else:
+        cf_str = ""
 
     if not exists(file):
         data = np.zeros((boundaries.size, 3), dtype=np.float64)
         data[:, 0] = boundaries
         for i in range(boundaries.size):
             result = np.loadtxt(
-                f"../../results/{geometry}/fluctuations/{state}/n_{Ne}/{state}_{geometry}_fluct_Ne_{Ne}_Ns_{Ns}_{region_geometry}_{boundaries[i]:.4f}.dat")
+                f"../../results/{geometry}/{cf_str}fluctuations/{state}/n_{Ne}/{state}_{geometry}_fluct_Ne_{Ne}_Ns_{Ns}_{region_geometry}_{boundaries[i]:.4f}.dat")
             data[i, 1:3] = result
 
         np.savetxt(file, data)
