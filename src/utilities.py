@@ -205,7 +205,7 @@ def LoadEntropy(Ne, Ns, M, M0, geometry, region_geometry, state, boundaries, t=1
     entropy[:, 3] = data[:, 4]/data[:, 3]
     entropy[:, 4] = -np.log(data[:, 5])
     # np.sqrt((data[:, 6])/(data[:, 5])**2)#/np.sqrt(M-M0)
-    entropy[:, 5] = data[:, 4]/data[:, 3]
+    entropy[:, 5] = data[:, 6]/data[:, 5]
 
     entropy[:, 6] = entropy[:, 0] + entropy[:, 2] + entropy[:, 4]
     entropy[:, 7] = np.sqrt(
@@ -244,7 +244,7 @@ def LoadParticleFluctuations(Ne, Ns, geometry, state, boundaries, region_geometr
                              linear_size=True, t=1j, cf=False):
     kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20}
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
-    file = f"{state}_fluct_{geometry}_Ne_{Ne}_Ns_{Ns}_{region_geometry}s.dat"
+    file = f"{state}_{geometry}_fluct_Ne_{Ne}_Ns_{Ns}_{region_geometry}s.dat"
 
     if cf:
         cf_str = "cf_"

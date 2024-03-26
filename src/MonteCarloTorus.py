@@ -57,7 +57,7 @@ class MonteCarloTorus (MonteCarloBase):
         if self.region_geometry == 'strip':
             y = np.imag(coords)
             inside_A = (y < self.boundary)
-        elif self.region_geometry == 'circle':
+        else:
             r = coords - (self.Lx + 1j*self.Ly)/2
             inside_A = (np.abs(r) < self.boundary)
 
@@ -243,8 +243,10 @@ class MonteCarloTorus (MonteCarloBase):
             self.boundary = self.Lx * np.sqrt(area_size/np.pi)
             region_size = area_size
 
-        super().__init__(Ne, Ns, nbr_iter, nbr_nonthermal, region_geometry,
-                         region_size, save_results, save_config, acceptance_ratio)
+        region_details = "_" + region_geometry + f"_{region_size:.4f}"
+
+        super().__init__(Ne, Ns, nbr_iter, nbr_nonthermal, region_details,
+                         save_results, save_config, acceptance_ratio)
 
         self.step_size = step_size*self.Lx
         print(f"Step size = {step_size:.4f}*Lx = {self.step_size}")

@@ -6,15 +6,15 @@ if module_path not in sys.path:
     sys.path.append(module_path)
 
 from src.MonteCarloSphereCFL import MonteCarloSphereCFL  # nopep8
+from src.MonteCarloSphereLaughlin import MonteCarloSphereLaughlin  # nopep8
 from src.MonteCarloSphereFreeFermions import MonteCarloSphereFreeFermions  # nopep8
 import numpy as np
 import argparse
 from datetime import datetime
 
 parser = argparse.ArgumentParser(
-    description="""Calculates the P,Mod,Sign terms in the SWAP representation of
-    2nd Renyi entanglement entropy, using
-    a region A of circular geometry.""")
+    description="""Calculates the P,Mod,Sign terms in the SWAP decomposition 
+    of the 2nd Renyi entanglement entropy.""")
 parser.add_argument("-Ne", action="store", required=True,
                     help="number of particles")
 parser.add_argument("-Ns", action="store", required=True,
@@ -25,18 +25,10 @@ parser.add_argument("--nbr-nonthermal", action="store", default=-1,
                     help="number of non-thermal iterations")
 parser.add_argument("--step", action="store", required=True,
                     help="step size value at square aspect ratio")
-parser.add_argument("--A-start", action="store", required=True,
-                    help="initial coverage of subregion A (percentage of total area)")
-parser.add_argument("--A-end", action="store", default=-1,
-                    help="final coverage of subregion A (percentage of total area)")
-parser.add_argument("--nbr-A", action="store", default=1,
-                    help="number of points")
-parser.add_argument("--region-geometry", action="store", default='circle',
-                    help="geometry of one of the bipartition regions")
-parser.add_argument("--theta", action="store_true",
-                    help="enforce that the region size is the polar angle of the subregion")
-parser.add_argument("--pf", action="store_true",
-                    help="add a Pfaffian to the wavefunction")
+parser.add_argument("--theta", action="store", nargs='+', default=np.pi, type=np.float64,
+                    help="theta limits of the region")
+parser.add_argument("--phi", action="store", nargs='+', default=2*np.pi, type=np.float64,
+                    help="phi limits of the region")
 parser.add_argument("--acc-ratio", action="store", default=0,
                     help="loads a previous run with given acceptance")
 parser.add_argument("--run", action="store", required=True,
@@ -59,43 +51,45 @@ if nbr_nonthermal == -1:
         nbr_nonthermal = nbr_iter//10
 
 step = np.float64(args["step"])
-A_start = np.float64(args["A_start"])
-A_end = np.float64(args["A_end"])
-if A_end == -1:
-    A_end = A_start
-nbr_A = np.uint8(args["nbr_A"])
-A_sizes = np.linspace(A_start, A_end, nbr_A, endpoint=True)
-region_geometry = str(args["region_geometry"])
-theta = bool(args["theta"])
+
+theta = list(args["theta"])
+if len(theta) == 1:
+    theta = np.float64(theta)
+else:
+    theta = np.array(theta, dtype=np.float64)
+phi = list(args["phi"])
+if len(phi) == 1:
+    phi = np.float64(phi)
+else:
+    phi = np.array(phi, dtype=np.float64)
+
 acceptance_ratio = np.float64(args["acc_ratio"])
 run_type = str(args["run"])
 state = str(args["state"])
 if state == 'cfl':
     JK_coeffs = str(args["JK_coeffs"])
 
-for region_size in A_sizes:
-    start_time = datetime.now()
-    if state == "free_fermions":
-        fqh = MonteCarloSphereFreeFermions(Ne=Ne, Ns=Ns, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
-                                           region_geometry=region_geometry, step_size=step, linear_size=region_size,
-                                           nbr_copies=(
-                                               2-(run_type == 'disorder')),
-                                           acceptance_ratio=acceptance_ratio)
-    elif state == 'cfl':
-        fqh = MonteCarloSphereCFL(Ne=Ne, Ns=Ns, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
-                                  region_geometry=region_geometry, step_size=step, linear_size=region_size,
-                                  nbr_copies=(2-(run_type == 'disorder')),
-                                  acceptance_ratio=acceptance_ratio)
+start_time = datetime.now()
+if state == "free_fermions":
+    fqh = MonteCarloSphereFreeFermions(Ne=Ne, Ns=Ns, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+                                       step_size=step, region_theta=theta, region_phi=phi,
+                                       nbr_copies=2, acceptance_ratio=acceptance_ratio)
+elif state == 'cfl':
+    fqh = MonteCarloSphereCFL(Ne=Ne, Ns=Ns, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+                              step_size=step, region_theta=theta, region_phi=phi,
+                              nbr_copies=2, acceptance_ratio=acceptance_ratio)
+elif state == 'laughlin':
+    fqh = MonteCarloSphereLaughlin(Ne=Ne, Ns=Ns, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+                                   step_size=step, region_theta=theta, region_phi=phi,
+                                   nbr_copies=2, acceptance_ratio=acceptance_ratio)
 
-    if run_type == 'p':
-        fqh.RunSwapP()
-    elif run_type == 'mod':
-        fqh.RunSwapMod()
-    elif run_type == 'sign':
-        fqh.RunSwapSign()
-    elif run_type == 'disorder':
-        fqh.RunDisorderOperator()
+if run_type == 'p':
+    fqh.RunSwapP()
+elif run_type == 'mod':
+    fqh.RunSwapMod()
+elif run_type == 'sign':
+    fqh.RunSwapSign()
 
-    end_time = datetime.now()
-    print(f"Total time = {str(end_time - start_time)[:10]} s")
-    print(f"Time / 5% = {str((end_time - start_time)/20)[:10]} s")
+end_time = datetime.now()
+print(f"Total time = {str(end_time - start_time)[:10]} s")
+print(f"Time / 5% = {str((end_time - start_time)/20)[:10]} s")

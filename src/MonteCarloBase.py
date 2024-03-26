@@ -12,8 +12,7 @@ class MonteCarloBase:
     vortices: np.uint8
     Ns_eff: np.int64
     geometry: str
-    region_geometry: str
-    region_size: np.float64
+    region_details: str
     step_size: np.float64
     step_pattern: np.array
     boundary: np.float64
@@ -261,7 +260,7 @@ class MonteCarloBase:
         #            np.imag(self.results))
 
         # else:
-        np.save(f"{self.state}_{self.geometry}_{run_type}_results_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy",
+        np.save(f"{self.state}_{self.geometry}_{run_type}_results_Ne_{self.Ne}_Ns_{self.Ns}{self.region_details}.npy",
                 self.results)
 
         save_coords = np.copy(self.coords)
@@ -274,7 +273,7 @@ class MonteCarloBase:
             # np.save(f"{self.state}_{run_type}_order_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy",
             #        self.to_swap)
 
-        np.save(f"{self.state}_{self.geometry}_{run_type}_coords_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy",
+        np.save(f"{self.state}_{self.geometry}_{run_type}_coords_Ne_{self.Ne}_Ns_{self.Ns}{self.region_details}.npy",
                 save_coords)
 
     def SaveResults(self, run_type: str, extra_param=0):
@@ -289,7 +288,7 @@ class MonteCarloBase:
                     np.imag(self.results[np.int64(self.nbr_nonthermal):]))
 
         if self.save_result:
-            file_name = f"{self.state}_{self.geometry}_{run_type}_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.dat"
+            file_name = f"{self.state}_{self.geometry}_{run_type}_Ne_{self.Ne}_Ns_{self.Ns}{self.region_details}.dat"
             np.savetxt(file_name, final_value)
 
         else:
@@ -308,7 +307,7 @@ class MonteCarloBase:
     def LoadRun(self, run_type: str):
 
         if self.acceptance_ratio > 0:
-            file_coords = f"./{self.state}_{self.geometry}_{run_type}_coords_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy"
+            file_coords = f"./{self.state}_{self.geometry}_{run_type}_coords_Ne_{self.Ne}_Ns_{self.Ns}{self.region_details}.npy"
             if exists(file_coords):
                 coords = np.load(file_coords)
                 if run_type == "mod" or run_type == "sign":
@@ -331,7 +330,7 @@ class MonteCarloBase:
             else:
                 print(f"{file_coords} missing!\n")
 
-            file_results = f"./{self.state}_{self.geometry}_{run_type}_results_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy"
+            file_results = f"./{self.state}_{self.geometry}_{run_type}_results_Ne_{self.Ne}_Ns_{self.Ns}{self.region_details}.npy"
             if exists(file_results):
                 start_results = np.load(file_results)
                 self.load_iter = start_results.size
@@ -532,15 +531,15 @@ class MonteCarloBase:
 
         self.SaveResults('sign')
 
-    def __init__(self, Ne, Ns, nbr_iter, nbr_nonthermal, region_geometry,
-                 region_size, save_results=True, save_config=True,
+    def __init__(self, Ne, Ns, nbr_iter, nbr_nonthermal,
+                 region_details, save_results=True, save_config=True,
                  acceptance_ratio=0):
         self.Ne = Ne
         self.Ns = Ns
         self.nbr_iter = nbr_iter
         self.nbr_nonthermal = nbr_nonthermal
-        self.region_geometry = region_geometry
-        self.region_size = region_size
+        self.region_geometry = ""
+        self.region_details = region_details
         self.save_config = save_config
         self.save_result = save_results
         self.acceptance_ratio = acceptance_ratio

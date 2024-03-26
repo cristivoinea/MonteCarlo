@@ -182,12 +182,12 @@ class MonteCarloSphereLaughlin (MonteCarloSphere):
 
         return step_amplitude
 
-    def __init__(self, Ne, Ns, nbr_iter, nbr_nonthermal, region_geometry,
-                 step_size, theta_size=0, linear_size=0, nbr_copies=1,
+    def __init__(self, Ne, Ns, nbr_iter, nbr_nonthermal,
+                 step_size, region_theta=np.pi, region_phi=2*np.pi, nbr_copies=1,
                  save_results=True, save_config=True, acceptance_ratio=0):
 
-        super().__init__(Ne, Ns, nbr_iter, nbr_nonthermal, region_geometry,
-                         step_size, theta_size, linear_size,
+        super().__init__(Ne, Ns, nbr_iter, nbr_nonthermal,
+                         step_size, region_theta, region_phi,
                          save_results, save_config, acceptance_ratio)
 
         if self.Ns/(self.Ne-1) == np.floor(self.Ns/(self.Ne-1)):

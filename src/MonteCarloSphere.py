@@ -6,6 +6,8 @@ from .MonteCarloBase import MonteCarloBase
 
 class MonteCarloSphere (MonteCarloBase):
     Ls: np.array
+    region_theta: np.array
+    region_phi: np.array
 
     def FillLambdaLevels(self):
         self.Ls = np.zeros((self.Ne, 2), dtype=np.float64)
@@ -62,11 +64,13 @@ class MonteCarloSphere (MonteCarloBase):
         which particles are inside the subregion. Coordinates do not have
         to belong to all particles in the system.
         """
-        if self.region_geometry == 'strip':
-            y = np.imag(coords)
-            inside_A = (y < self.boundary)
-        elif self.region_geometry == 'circle':
+        if self.region_geometry == 'circle':
             inside_A = (coords[..., 0] < self.boundary)
+        else:
+            inside_A = ((coords[..., 0] > self.region_theta[0]) &
+                        (coords[..., 0] < self.region_theta[1]) &
+                        (coords[..., 1] > self.region_phi[0]) &
+                        (coords[..., 1] < self.region_phi[1]))
 
         return inside_A
 
@@ -127,27 +131,29 @@ class MonteCarloSphere (MonteCarloBase):
 
         return nbr_A_changes
 
-    def __init__(self, Ne, Ns, nbr_iter, nbr_nonthermal, region_geometry,
-                 step_size, theta_size, linear_size,
+    def __init__(self, Ne, Ns, nbr_iter, nbr_nonthermal,
+                 step_size, region_theta=np.pi, region_phi=2*np.pi,
                  save_results=True, save_config=True, acceptance_ratio=0):
 
         self.step_size = np.arcsin(step_size)
-        if linear_size == 0 and theta_size == 0:
-            print("Region undefined, redefining as the whole system.")
-            self.boundary = np.pi
-            region_size = self.boundary
-        elif linear_size != 0 and theta_size != 0:
-            print(
-                "Region defined in two different ways, a single definition must be chosen.")
-        elif linear_size != 0:
-            self.boundary = np.arcsin(linear_size)
-            region_size = linear_size
-        else:
-            self.boundary = theta_size
-            region_size = self.boundary
 
-        super().__init__(Ne, Ns, nbr_iter, nbr_nonthermal, region_geometry,
-                         region_size, save_results, save_config, acceptance_ratio)
+        region_details = ""
+        if isinstance(region_theta, np.ndarray):
+            self.region_theta = region_theta
+        else:
+            self.region_theta = np.array([0, region_theta], dtype=np.float64)
+        if self.region_theta[1] != np.pi or self.region_theta[0] != 0:
+            region_details += f"_theta_{self.region_theta[0]*180/np.pi:.2f}_{self.region_theta[1]*180/np.pi:.2f}"
+
+        if isinstance(region_phi, np.ndarray):
+            self.region_phi = region_phi
+        else:
+            self.region_phi = np.array([0, region_phi], dtype=np.float64)
+        if self.region_phi[1] != 2*np.pi or self.region_phi[0] != 0:
+            region_details += f"_phi_{self.region_phi[0]*180/np.pi:.2f}_{self.region_phi[1]*180/np.pi:.2f}"
+
+        super().__init__(Ne, Ns, nbr_iter, nbr_nonthermal, region_details,
+                         save_results, save_config, acceptance_ratio)
 
         self.geometry = "sphere"
 
