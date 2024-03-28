@@ -7,10 +7,10 @@ from .fast_math import JackknifeMean, JackknifeVariance, ThetaFunction
 
 
 class MonteCarloBase:
-    Ne: np.uint8
-    Ns: np.uint16
+    N: np.uint8
+    S: np.uint16
     vortices: np.uint8
-    Ns_eff: np.int64
+    S_eff: np.int64
     geometry: str
     region_details: str
     step_size: np.float64
@@ -31,18 +31,18 @@ class MonteCarloBase:
     save_config: np.bool_
     save_result: np.bool_
 
-    def ComputeEntropyED(self, entropy="r2"):
+    def ComputeEntropyED(self, entropy="s2"):
         overlap_matrix = self.GetOverlapMatrix()
         eigs = np.linalg.eigvalsh(overlap_matrix)
 
-        if entropy == 'r2':
+        if entropy == 's2':
             return -np.sum(np.log(eigs**2 + (1-eigs)**2))
-        elif entropy == 'vN':
-            return -np.sum(np.log(eigs**2 + (1-eigs)**2))
+        elif entropy == 's1':
+            return -np.sum(eigs*np.log(eigs) + (1-eigs)*np.log(1-eigs))
 
     def ComputeParticleFluctuationsED(self):
         overlap_matrix = self.GetOverlapMatrix()
-        return np.trace(np.matmul(overlap_matrix, (np.eye(self.Ne)-overlap_matrix)))
+        return np.trace(np.matmul(overlap_matrix, (np.eye(self.N)-overlap_matrix)))
 
     def RandomPoint(self):
         """Returns random coordinates for one particle."""
@@ -69,10 +69,10 @@ class MonteCarloBase:
         Updates the order of particles in the swapped copies after one step.
 
         Parameters:
-        to_swap : order of original particles in the swapped copies. [0,Ne) go into coords_swap[:Ne]
-                    and [Ne, 2*Ne) go into coords_swap[Ne:]
-        from_swap : order of swapped particles in the original copies. [0,Ne) go into coords[:Ne]
-                    and [Ne, 2*Ne) go into coords[Ne:]
+        to_swap : order of original particles in the swapped copies. [0,N) go into coords_swap[:N]
+                    and [N, 2*N) go into coords_swap[N:]
+        from_swap : order of swapped particles in the original copies. [0,N) go into coords[:N]
+                    and [N, 2*N) go into coords[N:]
         p : array containing indices of moved particles in the two initial copies
         nbr_A_changes : indicates whether the number of particles in the subregion changed
         """
@@ -95,15 +95,15 @@ class MonteCarloBase:
         one containing the conversion from original -> swap indices and its
         inverse.
         Output:
-        to_swap : order of original particles in the swapped copies. [0,Ne) go into coords_swap[:,0]
-                            and [Ne, 2*Ne) go into coords_swap[:,1]
+        to_swap : order of original particles in the swapped copies. [0,N) go into coords_swap[:,0]
+                            and [N, 2*N) go into coords_swap[:,1]
         """
-        self.to_swap = np.zeros((2*self.Ne), dtype=np.uint8)
+        self.to_swap = np.zeros((2*self.N), dtype=np.uint8)
         inside_region = self.InsideRegion(self.coords)
         i_swap = 0
         j = 0
 
-        for i in range(self.Ne, 2*self.Ne):
+        for i in range(self.N, 2*self.N):
             if not inside_region[i]:
                 self.to_swap[i] = i_swap
             else:
@@ -113,9 +113,9 @@ class MonteCarloBase:
                 j += 1
             i_swap += 1
 
-        i_swap = self.Ne
-        j = self.Ne
-        for i in range(self.Ne):
+        i_swap = self.N
+        j = self.N
+        for i in range(self.N):
             if not inside_region[i]:
                 self.to_swap[i] = i_swap
             else:
@@ -134,16 +134,16 @@ class MonteCarloBase:
         returns the inverse mapping.
 
         Parameters:
-        to_swap : order of original particles in the swapped copies. [0,Ne) go into coords_swap[:,0]
-                            and [Ne, 2*Ne) go into coords_swap[:,1]
+        to_swap : order of original particles in the swapped copies. [0,N) go into coords_swap[:,0]
+                            and [N, 2*N) go into coords_swap[:,1]
 
         Output:
-        from_swap : order of swapped particles in the original copies. [0,Ne) go into coords[:,0]
-                            and [Ne, 2*Ne) go into coords[:,1]
+        from_swap : order of swapped particles in the original copies. [0,N) go into coords[:,0]
+                            and [N, 2*N) go into coords[:,1]
         """
-        from_swap = np.zeros((2*self.Ne), dtype=np.uint8)
+        from_swap = np.zeros((2*self.N), dtype=np.uint8)
 
-        for i in range(2*self.Ne):
+        for i in range(2*self.N):
             from_swap[to_swap[i]] = i
 
         return from_swap
@@ -157,7 +157,7 @@ class MonteCarloBase:
         pass
 
     def StepOneParticle(self):
-        self.moved_particles = np.random.randint(0, self.Ne, 1)
+        self.moved_particles = np.random.randint(0, self.N, 1)
         self.coords_tmp[self.moved_particles] = self.BoundaryConditions(
             self.coords_tmp[self.moved_particles] +
             self.step_size*np.random.default_rng().choice(self.step_pattern, 1))
@@ -167,8 +167,8 @@ class MonteCarloBase:
         the coordinates of one particle in each copy, ensuring that
         the copies are swappable with respect to region A.
         """
-        self.moved_particles[0] = np.random.randint(0, self.Ne)
-        self.moved_particles[1] = np.random.randint(self.Ne, 2*self.Ne)
+        self.moved_particles[0] = np.random.randint(0, self.N)
+        self.moved_particles[1] = np.random.randint(self.N, 2*self.N)
         self.coords_tmp[self.moved_particles] = \
             self.BoundaryConditions(self.coords_tmp[self.moved_particles] +
                                     self.step_size*np.random.default_rng().choice(self.step_pattern, 2))
@@ -182,8 +182,8 @@ class MonteCarloBase:
 
         valid = False
         while not valid:
-            self.moved_particles[0] = np.random.randint(0, self.Ne)
-            self.moved_particles[1] = np.random.randint(self.Ne, 2*self.Ne)
+            self.moved_particles[0] = np.random.randint(0, self.N)
+            self.moved_particles[1] = np.random.randint(self.N, 2*self.N)
             inside_region = self.InsideRegion(
                 self.coords_tmp[self.moved_particles])
             coords_step = self.BoundaryConditions(self.coords_tmp[self.moved_particles] +
@@ -254,13 +254,13 @@ class MonteCarloBase:
 
     def SaveConfig(self, run_type: str):
         # if run_type == 'sign':
-        #    np.save(f"{self.state}_{run_type}_results_real_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy",
+        #    np.save(f"{self.state}_{run_type}_results_real_{self.geometry}_N_{self.N}_S_{self.S}_{self.region_geometry}_{self.region_size:.4f}.npy",
         #            np.real(self.results))
-        #    np.save(f"{self.state}_{run_type}_results_imag_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy",
+        #    np.save(f"{self.state}_{run_type}_results_imag_{self.geometry}_N_{self.N}_S_{self.S}_{self.region_geometry}_{self.region_size:.4f}.npy",
         #            np.imag(self.results))
 
         # else:
-        np.save(f"{self.state}_{self.geometry}_{run_type}_results_Ne_{self.Ne}_Ns_{self.Ns}{self.region_details}.npy",
+        np.save(f"{self.state}_{self.geometry}_{run_type}_results_N_{self.N}_S_{self.S}{self.region_details}.npy",
                 self.results)
 
         save_coords = np.copy(self.coords)
@@ -270,10 +270,10 @@ class MonteCarloBase:
                 save_coords = np.vstack((save_coords, self.to_swap)).T
             else:
                 save_coords = np.hstack((save_coords, self.to_swap[:, None]))
-            # np.save(f"{self.state}_{run_type}_order_{self.geometry}_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy",
+            # np.save(f"{self.state}_{run_type}_order_{self.geometry}_N_{self.N}_S_{self.S}_{self.region_geometry}_{self.region_size:.4f}.npy",
             #        self.to_swap)
 
-        np.save(f"{self.state}_{self.geometry}_{run_type}_coords_Ne_{self.Ne}_Ns_{self.Ns}{self.region_details}.npy",
+        np.save(f"{self.state}_{self.geometry}_{run_type}_coords_N_{self.N}_S_{self.S}{self.region_details}.npy",
                 save_coords)
 
     def SaveResults(self, run_type: str, extra_param=0):
@@ -288,7 +288,7 @@ class MonteCarloBase:
                     np.imag(self.results[np.int64(self.nbr_nonthermal):]))
 
         if self.save_result:
-            file_name = f"{self.state}_{self.geometry}_{run_type}_Ne_{self.Ne}_Ns_{self.Ns}{self.region_details}.dat"
+            file_name = f"{self.state}_{self.geometry}_{run_type}_N_{self.N}_S_{self.S}{self.region_details}.dat"
             np.savetxt(file_name, final_value)
 
         else:
@@ -307,7 +307,7 @@ class MonteCarloBase:
     def LoadRun(self, run_type: str):
 
         if self.acceptance_ratio > 0:
-            file_coords = f"./{self.state}_{self.geometry}_{run_type}_coords_Ne_{self.Ne}_Ns_{self.Ns}{self.region_details}.npy"
+            file_coords = f"./{self.state}_{self.geometry}_{run_type}_coords_N_{self.N}_S_{self.S}{self.region_details}.npy"
             if exists(file_coords):
                 coords = np.load(file_coords)
                 if run_type == "mod" or run_type == "sign":
@@ -319,7 +319,7 @@ class MonteCarloBase:
                 else:
                     self.coords = coords
                 """
-                file_order = f"./{run_type}_{self.state}_order_Ne_{self.Ne}_Ns_{self.Ns}_{self.region_geometry}_{self.region_size:.4f}.npy"
+                file_order = f"./{run_type}_{self.state}_order_N_{self.N}_S_{self.S}_{self.region_geometry}_{self.region_size:.4f}.npy"
                 if exists(file_order):
                     self.to_swap = np.load(file_order)
                     self.coords = coords
@@ -330,7 +330,7 @@ class MonteCarloBase:
             else:
                 print(f"{file_coords} missing!\n")
 
-            file_results = f"./{self.state}_{self.geometry}_{run_type}_results_Ne_{self.Ne}_Ns_{self.Ns}{self.region_details}.npy"
+            file_results = f"./{self.state}_{self.geometry}_{run_type}_results_N_{self.N}_S_{self.S}{self.region_details}.npy"
             if exists(file_results):
                 start_results = np.load(file_results)
                 self.load_iter = start_results.size
@@ -447,8 +447,8 @@ class MonteCarloBase:
         self.LoadRun('p')
         self.InitialWavefn()
         inside_region = self.InsideRegion(self.coords)
-        update = (np.count_nonzero(inside_region[:self.Ne]) ==
-                  np.count_nonzero(inside_region[self.Ne:]))
+        update = (np.count_nonzero(inside_region[:self.N]) ==
+                  np.count_nonzero(inside_region[self.N:]))
 
         for i in range(self.load_iter, self.load_iter+self.nbr_iter):
             self.StepOneParticleTwoCopies()
@@ -458,8 +458,8 @@ class MonteCarloBase:
             if self.Jacobian()*np.abs(step_amplitude)**2 > np.random.random():
                 self.AcceptTmp('p')
                 inside_region = self.InsideRegion(self.coords)
-                update = (np.count_nonzero(inside_region[:self.Ne]) ==
-                          np.count_nonzero(inside_region[self.Ne:]))
+                update = (np.count_nonzero(inside_region[:self.N]) ==
+                          np.count_nonzero(inside_region[self.N:]))
             else:
                 self.RejectTmp('p')
 
@@ -531,11 +531,11 @@ class MonteCarloBase:
 
         self.SaveResults('sign')
 
-    def __init__(self, Ne, Ns, nbr_iter, nbr_nonthermal,
+    def __init__(self, N, S, nbr_iter, nbr_nonthermal,
                  region_details, save_results=True, save_config=True,
                  acceptance_ratio=0):
-        self.Ne = Ne
-        self.Ns = Ns
+        self.N = N
+        self.S = S
         self.nbr_iter = nbr_iter
         self.nbr_nonthermal = nbr_nonthermal
         self.region_geometry = ""

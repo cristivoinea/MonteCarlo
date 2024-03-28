@@ -17,11 +17,11 @@ def njit_UpdateJastrows(t: np.complex128, Lx: np.float64,
                         jastrows: np.array, jastrows_tmp: np.array,
                         JK_coeffs: np.array, slater_tmp: np.array,
                         moved_particle: np.uint16):
-    Ne = coords_tmp.size
+    N = coords_tmp.size
     slater_tmp[:, moved_particle] = np.exp(
         1j*np.real(Ks)*coords_tmp[moved_particle])
-    for k in prange(Ne):
-        for i in range(Ne):
+    for k in prange(N):
+        for i in range(N):
             if i != moved_particle:
                 for l in range(JK_coeffs.shape[1]):
                     jastrows_tmp[i, moved_particle, k, l] = ThetaFunction(
@@ -47,8 +47,8 @@ def njit_UpdatePfJastrows(t: np.complex128, Lx: np.float64,
                           pf_jastrows_tmp: np.array,
                           pf_matrix_tmp: np.array,
                           moved_particle: np.uint16):
-    Ne = coords_tmp.size
-    for i in range(Ne):
+    N = coords_tmp.size
+    for i in range(N):
         if i != moved_particle:
             pf_jastrows_tmp[i, moved_particle] = ThetaFunction(
                 (coords_tmp[i] - coords_tmp[moved_particle])/Lx, t, 0, 0)
@@ -64,13 +64,13 @@ def njit_UpdatePfJastrows(t: np.complex128, Lx: np.float64,
 def njit_UpdateJastrowsSwap(t: np.complex128, Lx: np.float64, coords: np.array, Ks: np.array,
                             jastrows: np.array, JK_coeffs: np.array, moved_particles: np.array,
                             to_swap: np.array, flag_proj: np.bool_):
-    Ne = coords.size//2
+    N = coords.size//2
     if flag_proj:
-        for k in prange(Ne):
-            for i in range(Ne):
+        for k in prange(N):
+            for i in range(N):
                 for l in range(JK_coeffs.shape[1]):
                     # update cross copy jastrows for particle in copy 2
-                    if (to_swap[moved_particles[1]] // Ne) == (to_swap[i] // Ne):
+                    if (to_swap[moved_particles[1]] // N) == (to_swap[i] // N):
                         jastrows[i, moved_particles[1], k, l] = ThetaFunction(
                             (coords[i] - coords[moved_particles[1]] + JK_coeffs[0, l]*1j*Ks[k])/Lx, t, 1/2, 1/2)
 
@@ -82,78 +82,78 @@ def njit_UpdateJastrowsSwap(t: np.complex128, Lx: np.float64, coords: np.array, 
                                 jastrows[i, moved_particles[1], k, l]
 
                     # update cross copy jastrows for particle in copy 1
-                    if (to_swap[moved_particles[0]] // Ne) == (to_swap[i+Ne] // Ne):
-                        jastrows[i+Ne, moved_particles[0], k, l] = ThetaFunction(
-                            (coords[i+Ne] - coords[moved_particles[0]] + JK_coeffs[0, l]*1j*Ks[k])/Lx, t, 1/2, 1/2)
+                    if (to_swap[moved_particles[0]] // N) == (to_swap[i+N] // N):
+                        jastrows[i+N, moved_particles[0], k, l] = ThetaFunction(
+                            (coords[i+N] - coords[moved_particles[0]] + JK_coeffs[0, l]*1j*Ks[k])/Lx, t, 1/2, 1/2)
 
                         if JK_coeffs[0, l] != 0:
-                            jastrows[moved_particles[0], i+Ne, k, l] = ThetaFunction(
-                                (coords[moved_particles[0]] - coords[i+Ne] + JK_coeffs[0, l]*1j*Ks[k])/Lx, t, 1/2, 1/2)
+                            jastrows[moved_particles[0], i+N, k, l] = ThetaFunction(
+                                (coords[moved_particles[0]] - coords[i+N] + JK_coeffs[0, l]*1j*Ks[k])/Lx, t, 1/2, 1/2)
                         else:
-                            jastrows[moved_particles[0], i+Ne, k, l] = - \
-                                jastrows[i+Ne, moved_particles[0], k, l]
+                            jastrows[moved_particles[0], i+N, k, l] = - \
+                                jastrows[i+N, moved_particles[0], k, l]
     else:
-        for i in range(Ne):
-            if (to_swap[moved_particles[1]] // Ne) == (to_swap[i] // Ne):
+        for i in range(N):
+            if (to_swap[moved_particles[1]] // N) == (to_swap[i] // N):
                 jastrows[i, moved_particles[1], 0, 0] = ThetaFunction(
                     (coords[i] - coords[moved_particles[1]])/Lx, t, 1/2, 1/2)
                 jastrows[moved_particles[1], i, 0, 0] = - \
                     jastrows[i, moved_particles[1], 0, 0]
 
             # update cross copy jastrows for particle in copy 1
-            if (to_swap[moved_particles[0]] // Ne) == (to_swap[i+Ne] // Ne):
-                jastrows[i+Ne, moved_particles[0], 0, 0] = ThetaFunction(
-                    (coords[i+Ne] - coords[moved_particles[0]])/Lx, t, 1/2, 1/2)
-                jastrows[moved_particles[0], i+Ne, 0, 0] = - \
-                    jastrows[i+Ne, moved_particles[0], 0, 0]
+            if (to_swap[moved_particles[0]] // N) == (to_swap[i+N] // N):
+                jastrows[i+N, moved_particles[0], 0, 0] = ThetaFunction(
+                    (coords[i+N] - coords[moved_particles[0]])/Lx, t, 1/2, 1/2)
+                jastrows[moved_particles[0], i+N, 0, 0] = - \
+                    jastrows[i+N, moved_particles[0], 0, 0]
 
 
 @njit  # (parallel=True)
 def njit_UpdatePfJastrowsSwap(t: np.complex128, Lx: np.float64, coords: np.array,
                               pf_jastrows: np.array, moved_particles: np.array,
                               to_swap: np.array):
-    Ne = coords.size//2
-    for i in range(Ne):
-        if (to_swap[moved_particles[1]] // Ne) == (to_swap[i] // Ne):
+    N = coords.size//2
+    for i in range(N):
+        if (to_swap[moved_particles[1]] // N) == (to_swap[i] // N):
             pf_jastrows[i, moved_particles[1]] = ThetaFunction(
                 (coords[i] - coords[moved_particles[1]])/Lx, t, 1/2, 1/2)
             pf_jastrows[moved_particles[1], i] = \
                 pf_jastrows[i, moved_particles[1]]
 
-        if (to_swap[moved_particles[0]] // Ne) == (to_swap[i+Ne] // Ne):
-            pf_jastrows[i+Ne, moved_particles[0]] = ThetaFunction(
-                (coords[i+Ne] - coords[moved_particles[0]])/Lx, t, 1/2, 1/2)
-            pf_jastrows[moved_particles[0], i+Ne] = \
-                pf_jastrows[i+Ne, moved_particles[0]]
+        if (to_swap[moved_particles[0]] // N) == (to_swap[i+N] // N):
+            pf_jastrows[i+N, moved_particles[0]] = ThetaFunction(
+                (coords[i+N] - coords[moved_particles[0]])/Lx, t, 1/2, 1/2)
+            pf_jastrows[moved_particles[0], i+N] = \
+                pf_jastrows[i+N, moved_particles[0]]
 
 
 @njit  # (parallel=True)
-def njit_GetJKMatrixSwap(Ne, coords, Ks, from_swap, jastrows, slater, JK_coeffs, flag_proj):
+def njit_GetJKMatrixSwap(N, coords, Ks, from_swap, jastrows, slater, JK_coeffs, flag_proj):
     if flag_proj:
-        for n in range(Ne):
-            for m in range(2*Ne):
-                slater[n, m % Ne, 2+m//Ne] = np.exp(
+        for n in range(N):
+            for m in range(2*N):
+                slater[n, m % N, 2+m//N] = np.exp(
                     2j*np.real(Ks[n]) * coords[from_swap[m]]/2)
-                for j in range(Ne):
+                for j in range(N):
                     for l in range(JK_coeffs.shape[1]):
-                        slater[n, m % Ne, 2+m//Ne] *= np.power(
+                        slater[n, m % N, 2+m//N] *= np.power(
                             jastrows[from_swap[m],
-                                     from_swap[j+(m//Ne)*Ne], n, l],
+                                     from_swap[j+(m//N)*N], n, l],
                             JK_coeffs[1, l])
     else:
-        for m in range(2*Ne):
-            slater[:, m % Ne, 2+m//Ne] = np.exp(
+        for m in range(2*N):
+            slater[:, m % N, 2+m//N] = np.exp(
                 1j * (np.real(Ks) * np.real(coords[from_swap[m]]) +
                       np.imag(Ks) * np.imag(coords[from_swap[m]])))
 
 
 @njit  # (parallel=True)
-def njit_GetPfMatrixSwap(Ne, from_swap, jastrows, pf_jastrows, pf_matrix):
+def njit_GetPfMatrixSwap(N, from_swap, jastrows, pf_jastrows, pf_matrix):
     for copy in range(2):
-        for i in range(Ne):
-            for j in range(i+1, Ne):
-                pf_matrix[i, j, 2+copy] = (pf_jastrows[from_swap[i+copy*Ne], from_swap[j+copy*Ne]] /
-                                           jastrows[from_swap[i+copy*Ne], from_swap[j+copy*Ne], 0, 0])
+        for i in range(N):
+            for j in range(i+1, N):
+                pf_matrix[i, j, 2+copy] = (pf_jastrows[from_swap[i+copy*N], from_swap[j+copy*N]] /
+                                           jastrows[from_swap[i+copy*N], from_swap[j+copy*N], 0, 0])
                 pf_matrix[j, i, 2+copy] = - pf_matrix[i, j, 2+copy]
 
 
@@ -182,9 +182,9 @@ class MonteCarloTorusCFL (MonteCarloTorus):
 
     def InitialJastrows(self):
         for copy in range(self.moved_particles.size):
-            for i in range(copy*self.Ne, (copy+1)*self.Ne):
-                for j in range(i+1, (copy+1)*self.Ne):
-                    for k in range(self.Ne**self.flag_proj):
+            for i in range(copy*self.N, (copy+1)*self.N):
+                for j in range(i+1, (copy+1)*self.N):
+                    for k in range(self.N**self.flag_proj):
                         for l in range(self.JK_coeffs.shape[1]):
                             self.jastrows[i, j, k, l] = ThetaFunction(
                                 (self.coords[i] - self.coords[j] +
@@ -204,16 +204,16 @@ class MonteCarloTorusCFL (MonteCarloTorus):
                             (self.coords[i] - self.coords[j])/self.Lx, self.t, 0, 0)
                         self.pf_jastrows[j, i] = self.pf_jastrows[i, j]
 
-                        self.pf_matrix[i-copy*self.Ne, j-copy*self.Ne, copy] = (self.pf_jastrows[i, j] /
-                                                                                self.jastrows[i, j, 0, 0])
-                        self.pf_matrix[j-copy*self.Ne, i-copy*self.Ne, copy] = - \
-                            self.pf_matrix[i-copy*self.Ne,
-                                           j-copy*self.Ne, copy]
+                        self.pf_matrix[i-copy*self.N, j-copy*self.N, copy] = (self.pf_jastrows[i, j] /
+                                                                              self.jastrows[i, j, 0, 0])
+                        self.pf_matrix[j-copy*self.N, i-copy*self.N, copy] = - \
+                            self.pf_matrix[i-copy*self.N,
+                                           j-copy*self.N, copy]
 
     def InitialJKMatrix(self, coords, jastrows, slater):
         if self.flag_proj:
-            for n in range(self.Ne):
-                for m in range(self.Ne):
+            for n in range(self.N):
+                for m in range(self.N):
                     slater[n, m] = np.exp(
                         1j*(self.Ks[n] + np.conj(self.Ks[n]))*coords[m]/2)
                     for l in range(self.JK_coeffs.shape[1]):
@@ -225,12 +225,12 @@ class MonteCarloTorusCFL (MonteCarloTorus):
 
     def InitialWavefn(self):
         self.moved_particles = np.zeros(
-            self.coords.size//self.Ne, dtype=np.uint16)
+            self.coords.size//self.N, dtype=np.uint16)
         self.InitialJastrows()
         for copy in range(self.moved_particles.size):
-            self.InitialJKMatrix(self.coords[copy*self.Ne:(copy+1)*self.Ne],
-                                 self.jastrows[copy*self.Ne:(copy+1)*self.Ne,
-                                               copy*self.Ne:(copy+1)*self.Ne,
+            self.InitialJKMatrix(self.coords[copy*self.N:(copy+1)*self.N],
+                                 self.jastrows[copy*self.N:(copy+1)*self.N,
+                                               copy*self.N:(copy+1)*self.N,
                                                ...], self.slater[..., copy])
             self.slogdet[:, copy] = np.linalg.slogdet(
                 self.slater[..., copy])
@@ -250,9 +250,9 @@ class MonteCarloTorusCFL (MonteCarloTorus):
         # print(self.pf_matrix, self.pf)
 
     def InitialJastrowsSwap(self):
-        for i in range(self.Ne):
-            for j in range(self.Ne, 2*self.Ne):
-                for k in range(self.Ne**self.flag_proj):
+        for i in range(self.N):
+            for j in range(self.N, 2*self.N):
+                for k in range(self.N**self.flag_proj):
                     for l in range(self.JK_coeffs.shape[1]):
                         self.jastrows[i, j, k, l] = ThetaFunction(
                             (self.coords[i] - self.coords[j] +
@@ -272,7 +272,7 @@ class MonteCarloTorusCFL (MonteCarloTorus):
 
     def InitialWavefnSwap(self):
         self.InitialJastrowsSwap()
-        njit_GetJKMatrixSwap(self.Ne, self.coords, self.Ks, self.from_swap,
+        njit_GetJKMatrixSwap(self.N, self.coords, self.Ks, self.from_swap,
                              self.jastrows, self.slater, self.JK_coeffs, self.flag_proj)
         self.slogdet[:, 2] = np.linalg.slogdet(self.slater[:, :, 2])
         self.slogdet[:, 3] = np.linalg.slogdet(self.slater[:, :, 3])
@@ -282,7 +282,7 @@ class MonteCarloTorusCFL (MonteCarloTorus):
         np.copyto(self.slogdet_tmp, self.slogdet)
 
         if self.flag_pf:
-            njit_GetPfMatrixSwap(self.Ne, self.from_swap, self.jastrows,
+            njit_GetPfMatrixSwap(self.N, self.from_swap, self.jastrows,
                                  self.pf_jastrows, self.pf_matrix)
             self.pf[2] = pf.pfaffian(self.pf_matrix[..., 2])
             self.pf[3] = pf.pfaffian(self.pf_matrix[..., 3])
@@ -293,35 +293,35 @@ class MonteCarloTorusCFL (MonteCarloTorus):
         for c in range(self.moved_particles.size):
             p = self.moved_particles[c]
             if not self.flag_proj:
-                self.jastrows_tmp[c*self.Ne:(c+1)*self.Ne,
+                self.jastrows_tmp[c*self.N:(c+1)*self.N,
                                   p, 0, 0] = ThetaFunctionVectorized(
-                    (self.coords_tmp[c*self.Ne:(c+1)*self.Ne] -
+                    (self.coords_tmp[c*self.N:(c+1)*self.N] -
                      self.coords_tmp[p])/self.Lx, self.t, 1/2, 1/2, 100)
                 self.jastrows_tmp[p, p, 0, 0] = 1
-                self.jastrows_tmp[p, c*self.Ne:(c+1)*self.Ne, 0, 0] = - \
-                    self.jastrows_tmp[c*self.Ne:(c+1)*self.Ne, p, 0, 0]
-                self.slater_tmp[:, p-c*self.Ne, c] = np.exp(1j * (
+                self.jastrows_tmp[p, c*self.N:(c+1)*self.N, 0, 0] = - \
+                    self.jastrows_tmp[c*self.N:(c+1)*self.N, p, 0, 0]
+                self.slater_tmp[:, p-c*self.N, c] = np.exp(1j * (
                     np.real(self.Ks) * np.real(self.coords_tmp[p]) +
                     np.imag(self.Ks) * np.imag(self.coords_tmp[p])))
             else:
-                njit_UpdateJastrows(self.t, self.Lx, self.coords_tmp[c*self.Ne:(c+1)*self.Ne],
-                                    self.Ks, self.jastrows[c*self.Ne:(c+1)*self.Ne,
-                                                           c*self.Ne:(c+1)*self.Ne, ...],
-                                    self.jastrows_tmp[c*self.Ne:(c+1)*self.Ne,
-                                                      c*self.Ne:(c+1)*self.Ne, ...],
+                njit_UpdateJastrows(self.t, self.Lx, self.coords_tmp[c*self.N:(c+1)*self.N],
+                                    self.Ks, self.jastrows[c*self.N:(c+1)*self.N,
+                                                           c*self.N:(c+1)*self.N, ...],
+                                    self.jastrows_tmp[c*self.N:(c+1)*self.N,
+                                                      c*self.N:(c+1)*self.N, ...],
                                     self.JK_coeffs, self.slater_tmp[..., c],
-                                    p-c*self.Ne)
+                                    p-c*self.N)
 
             self.slogdet_tmp[:, c] = np.linalg.slogdet(
                 self.slater_tmp[..., c])
 
             if self.flag_pf:
-                njit_UpdatePfJastrows(self.t, self.Lx, self.coords_tmp[c*self.Ne:(c+1)*self.Ne],
-                                      self.jastrows_tmp[c*self.Ne:(c+1)*self.Ne,
-                                                        c*self.Ne:(c+1)*self.Ne, ...],
-                                      self.pf_jastrows_tmp[c*self.Ne:(c+1)*self.Ne,
-                                                           c*self.Ne:(c+1)*self.Ne, ...],
-                                      self.pf_matrix_tmp[..., c], p-c*self.Ne)
+                njit_UpdatePfJastrows(self.t, self.Lx, self.coords_tmp[c*self.N:(c+1)*self.N],
+                                      self.jastrows_tmp[c*self.N:(c+1)*self.N,
+                                                        c*self.N:(c+1)*self.N, ...],
+                                      self.pf_jastrows_tmp[c*self.N:(c+1)*self.N,
+                                                           c*self.N:(c+1)*self.N, ...],
+                                      self.pf_matrix_tmp[..., c], p-c*self.N)
                 self.pf_tmp[c] = pf.pfaffian(
                     self.pf_matrix_tmp[..., c])
 
@@ -372,7 +372,7 @@ class MonteCarloTorusCFL (MonteCarloTorus):
         njit_UpdateJastrowsSwap(self.t, self.Lx, self.coords_tmp, self.Ks, self.jastrows_tmp,
                                 self.JK_coeffs, self.moved_particles,
                                 self.to_swap_tmp, self.flag_proj)
-        njit_GetJKMatrixSwap(self.Ne, self.coords_tmp, self.Ks, self.from_swap_tmp,
+        njit_GetJKMatrixSwap(self.N, self.coords_tmp, self.Ks, self.from_swap_tmp,
                              self.jastrows_tmp, self.slater_tmp, self.JK_coeffs, self.flag_proj)
 
         self.slogdet_tmp[:, 2] = np.linalg.slogdet(
@@ -383,7 +383,7 @@ class MonteCarloTorusCFL (MonteCarloTorus):
         if self.flag_pf:
             njit_UpdatePfJastrowsSwap(self.t, self.Lx, self.coords_tmp, self.pf_jastrows_tmp,
                                       self.moved_particles, self.to_swap)
-            njit_GetPfMatrixSwap(self.Ne, self.from_swap_tmp, self.jastrows_tmp,
+            njit_GetPfMatrixSwap(self.N, self.from_swap_tmp, self.jastrows_tmp,
                                  self.pf_jastrows_tmp, self.pf_matrix_tmp)
             self.pf_tmp[2] = pf.pfaffian(self.pf_matrix_tmp[..., 2])
             self.pf_tmp[3] = pf.pfaffian(self.pf_matrix_tmp[..., 3])
@@ -394,9 +394,9 @@ class MonteCarloTorusCFL (MonteCarloTorus):
 
         for copy in range(self.moved_particles.size):
             (reduced_CM, expo_CM) = self.ReduceThetaFunctionCM(np.sum(
-                self.coords[copy*self.Ne:(copy+1)*self.Ne] + 1j*self.Ks*self.flag_proj))
+                self.coords[copy*self.N:(copy+1)*self.N] + 1j*self.Ks*self.flag_proj))
             (reduced_CM_tmp, expo_CM_tmp) = self.ReduceThetaFunctionCM(np.sum(
-                self.coords_tmp[copy*self.Ne:(copy+1)*self.Ne] + 1j*self.Ks*self.flag_proj))
+                self.coords_tmp[copy*self.N:(copy+1)*self.N] + 1j*self.Ks*self.flag_proj))
 
             moved_coord = self.coords[self.moved_particles[copy]]
             moved_coord_tmp = self.coords_tmp[self.moved_particles[copy]]
@@ -409,26 +409,26 @@ class MonteCarloTorusCFL (MonteCarloTorus):
                 self.slogdet_tmp[1, copy] - self.slogdet[1, copy]
 
             if self.flag_proj:
-                if self.Ns//self.Ne % 2 == 0:
+                if self.S//self.N % 2 == 0:
                     step_amplitude *= np.exp(step_exponent)
-                elif self.Ns//self.Ne == 1:
-                    step_amplitude *= (np.prod(np.exp(step_exponent/self.Ne) *
+                elif self.S//self.N == 1:
+                    step_amplitude *= (np.prod(np.exp(step_exponent/self.N) *
                                                self.jastrows[self.moved_particles[copy],
-                                                             copy*self.Ne:(copy+1)*self.Ne, 0, 0] /
+                                                             copy*self.N:(copy+1)*self.N, 0, 0] /
                                                self.jastrows_tmp[self.moved_particles[copy],
-                                                                 copy*self.Ne:(copy+1)*self.Ne, 0, 0]))
-                elif self.Ns//self.Ne == 3:
-                    step_amplitude *= (np.prod(np.exp(step_exponent/self.Ne) *
+                                                                 copy*self.N:(copy+1)*self.N, 0, 0]))
+                elif self.S//self.N == 3:
+                    step_amplitude *= (np.prod(np.exp(step_exponent/self.N) *
                                                self.jastrows_tmp[self.moved_particles[copy],
-                                                                 copy*self.Ne:(copy+1)*self.Ne, 0, 0] /
+                                                                 copy*self.N:(copy+1)*self.N, 0, 0] /
                                                self.jastrows[self.moved_particles[copy],
-                                                             copy*self.Ne:(copy+1)*self.Ne, 0, 0]))
+                                                             copy*self.N:(copy+1)*self.N, 0, 0]))
             else:
-                step_amplitude *= (np.prod(np.exp(step_exponent/self.Ne) *
+                step_amplitude *= (np.prod(np.exp(step_exponent/self.N) *
                                            np.power(self.jastrows_tmp[self.moved_particles[copy],
-                                                                      copy*self.Ne:(copy+1)*self.Ne, 0, 0] /
+                                                                      copy*self.N:(copy+1)*self.N, 0, 0] /
                                            self.jastrows[self.moved_particles[copy],
-                                                         copy*self.Ne:(copy+1)*self.Ne, 0, 0], self.Ns/self.Ne)))
+                                                         copy*self.N:(copy+1)*self.N, 0, 0], self.S/self.N)))
 
             if self.flag_pf:
                 step_amplitude *= self.pf_tmp[copy]/self.pf[copy]
@@ -449,9 +449,9 @@ class MonteCarloTorusCFL (MonteCarloTorus):
         step_exponent = 0
         for swap_copy in range(2):
             (reduced_CM, expo_CM) = self.ReduceThetaFunctionCM(np.sum(
-                coords_swap[swap_copy*self.Ne:(swap_copy+1)*self.Ne] + 1j*self.Ks*self.flag_proj))
+                coords_swap[swap_copy*self.N:(swap_copy+1)*self.N] + 1j*self.Ks*self.flag_proj))
             (reduced_CM_tmp, expo_CM_tmp) = self.ReduceThetaFunctionCM(np.sum(
-                coords_swap_tmp[swap_copy*self.Ne:(swap_copy+1)*self.Ne] + 1j*self.Ks*self.flag_proj))
+                coords_swap_tmp[swap_copy*self.N:(swap_copy+1)*self.N] + 1j*self.Ks*self.flag_proj))
 
             step_amplitude *= ((reduced_CM_tmp / reduced_CM) *
                                (self.slogdet_tmp[0, 2+swap_copy] / self.slogdet[0, 2+swap_copy]))
@@ -465,24 +465,24 @@ class MonteCarloTorusCFL (MonteCarloTorus):
                                    self.coords[self.moved_particles]*np.imag(self.coords[self.moved_particles]))/2
 
         if self.flag_proj:
-            if self.Ns//self.Ne % 2 == 0:
+            if self.S//self.N % 2 == 0:
                 step_amplitude *= np.exp(step_exponent)
             else:
                 for copy in range(2):
-                    for n in range(copy*self.Ne, (copy+1)*self.Ne):
-                        jastrows_factor = np.prod(np.exp(step_exponent / (self.Ne*(self.Ne-1))) *
-                                                  np.power(self.jastrows_tmp[self.from_swap_tmp[n], self.from_swap_tmp[n+1: (copy+1)*self.Ne], 0, 0] /
-                                                           self.jastrows[self.from_swap[n], self.from_swap[n+1: (copy+1)*self.Ne], 0, 0], self.Ns/self.Ne))
-                        if self.Ns//self.Ne == 3:
+                    for n in range(copy*self.N, (copy+1)*self.N):
+                        jastrows_factor = np.prod(np.exp(step_exponent / (self.N*(self.N-1))) *
+                                                  np.power(self.jastrows_tmp[self.from_swap_tmp[n], self.from_swap_tmp[n+1: (copy+1)*self.N], 0, 0] /
+                                                           self.jastrows[self.from_swap[n], self.from_swap[n+1: (copy+1)*self.N], 0, 0], self.S/self.N))
+                        if self.S//self.N == 3:
                             step_amplitude *= jastrows_factor
-                        elif self.Ns//self.Ne == 1:
+                        elif self.S//self.N == 1:
                             step_amplitude /= jastrows_factor
         else:
             for copy in range(2):
-                for n in range(copy*self.Ne, (copy+1)*self.Ne):
-                    step_amplitude *= np.prod(np.exp(step_exponent / (self.Ne*(self.Ne-1))) *
-                                              np.power(self.jastrows_tmp[self.from_swap_tmp[n], self.from_swap_tmp[n+1: (copy+1)*self.Ne], 0, 0] /
-                                                       self.jastrows[self.from_swap[n], self.from_swap[n+1: (copy+1)*self.Ne], 0, 0], self.Ns/self.Ne))
+                for n in range(copy*self.N, (copy+1)*self.N):
+                    step_amplitude *= np.prod(np.exp(step_exponent / (self.N*(self.N-1))) *
+                                              np.power(self.jastrows_tmp[self.from_swap_tmp[n], self.from_swap_tmp[n+1: (copy+1)*self.N], 0, 0] /
+                                                       self.jastrows[self.from_swap[n], self.from_swap[n+1: (copy+1)*self.N], 0, 0], self.S/self.N))
 
         return step_amplitude
 
@@ -490,13 +490,13 @@ class MonteCarloTorusCFL (MonteCarloTorus):
         step_amplitude = 1
         step_exponent = 0
         coords_swap = np.zeros(self.coords.size, dtype=np.complex128)
-        for i in range(2*self.Ne):
+        for i in range(2*self.N):
             coords_swap[i] = self.coords[self.from_swap[i]]
         for copy in range(2):
             (reduced_CM, expo_CM) = self.ReduceThetaFunctionCM(np.sum(
-                self.coords[copy*self.Ne:(copy+1)*self.Ne] + 1j*self.Ks*self.flag_proj))
+                self.coords[copy*self.N:(copy+1)*self.N] + 1j*self.Ks*self.flag_proj))
             (reduced_CM_swap, expo_CM_swap) = self.ReduceThetaFunctionCM(np.sum(
-                coords_swap[copy*self.Ne:(copy+1)*self.Ne] + 1j*self.Ks*self.flag_proj))
+                coords_swap[copy*self.N:(copy+1)*self.N] + 1j*self.Ks*self.flag_proj))
 
             step_amplitude *= (reduced_CM_swap*self.slogdet[0, copy+2] /
                                (reduced_CM * self.slogdet[0, copy]))
@@ -507,27 +507,27 @@ class MonteCarloTorusCFL (MonteCarloTorus):
                 step_amplitude *= self.pf[copy+2]/(self.pf[copy])
 
         if self.flag_proj:
-            if self.Ns//self.Ne % 2 == 0:
+            if self.S//self.N % 2 == 0:
                 step_amplitude *= np.exp(step_exponent)
             else:
                 for copy in range(2):
-                    for n in range(copy*self.Ne, (copy+1)*self.Ne):
-                        for m in range(n+1, (copy+1)*self.Ne):
+                    for n in range(copy*self.N, (copy+1)*self.N):
+                        for m in range(n+1, (copy+1)*self.N):
                             jastrows_factor = (self.jastrows[self.from_swap[n], self.from_swap[m], 0, 0] /
                                                self.jastrows[n, m, 0, 0])
-                            if self.Ns//self.Ne == 3:
+                            if self.S//self.N == 3:
                                 step_amplitude *= jastrows_factor
-                            elif self.Ns//self.Ne == 1:
+                            elif self.S//self.N == 1:
                                 step_amplitude /= jastrows_factor
                             step_amplitude *= np.exp(step_exponent /
-                                                     (self.Ne*(self.Ne-1)))
+                                                     (self.N*(self.N-1)))
         else:
             for copy in range(2):
-                for n in range(copy*self.Ne, (copy+1)*self.Ne):
-                    for m in range(n+1, (copy+1)*self.Ne):
-                        step_amplitude *= (np.exp(step_exponent / (self.Ne*(self.Ne-1))) *
+                for n in range(copy*self.N, (copy+1)*self.N):
+                    for m in range(n+1, (copy+1)*self.N):
+                        step_amplitude *= (np.exp(step_exponent / (self.N*(self.N-1))) *
                                            np.power((self.jastrows[self.from_swap[n], self.from_swap[m], 0, 0] /
-                                                     self.jastrows[n, m, 0, 0]), self.Ns/self.Ne))
+                                                     self.jastrows[n, m, 0, 0]), self.S/self.N))
 
         return np.abs(step_amplitude)
 
@@ -535,13 +535,13 @@ class MonteCarloTorusCFL (MonteCarloTorus):
         step_amplitude = 1
         step_exponent = 0
         coords_swap = np.zeros(self.coords.size, dtype=np.complex128)
-        for i in range(2*self.Ne):
+        for i in range(2*self.N):
             coords_swap[i] = self.coords[self.from_swap[i]]
         for copy in range(2):
             (reduced_CM, expo_CM) = self.ReduceThetaFunctionCM(np.sum(
-                self.coords[copy*self.Ne:(copy+1)*self.Ne] + 1j*self.Ks*self.flag_proj))
+                self.coords[copy*self.N:(copy+1)*self.N] + 1j*self.Ks*self.flag_proj))
             (reduced_CM_swap, expo_CM_swap) = self.ReduceThetaFunctionCM(np.sum(
-                coords_swap[copy*self.Ne:(copy+1)*self.Ne] + 1j*self.Ks*self.flag_proj))
+                coords_swap[copy*self.N:(copy+1)*self.N] + 1j*self.Ks*self.flag_proj))
 
             step_amplitude *= (np.conj(reduced_CM_swap*self.slogdet[0, copy+2]) *
                                reduced_CM * self.slogdet[0, copy])
@@ -553,33 +553,33 @@ class MonteCarloTorusCFL (MonteCarloTorus):
                 step_amplitude /= np.abs(step_amplitude)
 
         if self.flag_proj:
-            if self.Ns//self.Ne % 2 == 0:
+            if self.S//self.N % 2 == 0:
                 step_amplitude *= np.exp(step_exponent)
             else:
                 for copy in range(2):
-                    for n in prange(copy*self.Ne, (copy+1)*self.Ne):
-                        for m in range(n+1, (copy+1)*self.Ne):
+                    for n in prange(copy*self.N, (copy+1)*self.N):
+                        for m in range(n+1, (copy+1)*self.N):
                             jastrows_factor = (np.conj(self.jastrows[self.from_swap[n], self.from_swap[m], 0, 0]) *
                                                self.jastrows[n, m, 0, 0])
-                            if self.Ns//self.Ne == 3:
+                            if self.S//self.N == 3:
                                 step_amplitude *= jastrows_factor
-                            elif self.Ns//self.Ne == 1:
+                            elif self.S//self.N == 1:
                                 step_amplitude /= jastrows_factor
                             step_amplitude *= np.exp(step_exponent /
-                                                     (self.Ne*(self.Ne-1)))
+                                                     (self.N*(self.N-1)))
                             step_amplitude /= np.abs(step_amplitude)
         else:
             for copy in range(2):
-                for n in range(copy*self.Ne, (copy+1)*self.Ne):
-                    for m in range(n+1, (copy+1)*self.Ne):
-                        step_amplitude *= (np.exp(step_exponent / (self.Ne*(self.Ne-1))) *
+                for n in range(copy*self.N, (copy+1)*self.N):
+                    for m in range(n+1, (copy+1)*self.N):
+                        step_amplitude *= (np.exp(step_exponent / (self.N*(self.N-1))) *
                                            np.power((np.conj(self.jastrows[self.from_swap[n], self.from_swap[m], 0, 0]) *
-                                                     self.jastrows[n, m, 0, 0]), self.Ns/self.Ne))
+                                                     self.jastrows[n, m, 0, 0]), self.S/self.N))
                         step_amplitude /= np.abs(step_amplitude)
 
         return step_amplitude
 
-    def __init__(self, Ne, Ns, t, nbr_iter, nbr_nonthermal, region_geometry,
+    def __init__(self, N, S, t, nbr_iter, nbr_nonthermal, region_geometry,
                  step_size=0.1, area_size=0, linear_size=0, JK_coeffs='2', flag_pf=False,
                  nbr_copies=2, kCM=0, phi_1=0, phi_t=0,
                  save_results=True, save_config=True, acceptance_ratio=0):
@@ -587,8 +587,8 @@ class MonteCarloTorusCFL (MonteCarloTorus):
         self.kCM = kCM
         self.phi_1 = phi_1
         self.phi_t = phi_t
-        self.aCM = phi_1/(2*np.pi*Ns/Ne) + kCM/(Ns/Ne) + (Ne-1)/2
-        self.bCM = -phi_t/(2*np.pi) + (Ns/Ne)*(Ne-1)/2
+        self.aCM = phi_1/(2*np.pi*S/N) + kCM/(S/N) + (N-1)/2
+        self.bCM = -phi_t/(2*np.pi) + (S/N)*(N-1)/2
 
         self.JK_coeffs = np.vstack((np.unique(
             np.array(list(JK_coeffs), dtype=int), return_counts=True)))
@@ -597,7 +597,7 @@ class MonteCarloTorusCFL (MonteCarloTorus):
             self.flag_proj = False
         else:
             self.flag_proj = True
-            if np.sum(np.sum(self.JK_coeffs[0, :])) != Ns/Ne:
+            if np.sum(np.sum(self.JK_coeffs[0, :])) != S/N:
                 print("JK coefficients are incorrect for the given filling!")
 
         self.state = 'cfl'+JK_coeffs
@@ -606,26 +606,26 @@ class MonteCarloTorusCFL (MonteCarloTorus):
         if self.flag_pf:
             self.state += 'pf'
 
-        super().__init__(Ne, Ns, t, nbr_iter, nbr_nonthermal, region_geometry,
+        super().__init__(N, S, t, nbr_iter, nbr_nonthermal, region_geometry,
                          step_size, area_size, linear_size,
                          save_results, save_config, acceptance_ratio)
 
-        self.Ks = (fermi_sea_kx[self.Ne]*2*np.pi/self.Lx +
-                   1j*fermi_sea_ky[self.Ne]*2*np.pi/self.Ly)
+        self.Ks = (fermi_sea_kx[self.N]*2*np.pi/self.Lx +
+                   1j*fermi_sea_ky[self.N]*2*np.pi/self.Ly)
 
         self.jastrows = np.ones(
-            (nbr_copies*Ne, nbr_copies*Ne, Ne**self.flag_proj,
+            (nbr_copies*N, nbr_copies*N, N**self.flag_proj,
              self.JK_coeffs.shape[1]), dtype=np.complex128)
 
         self.slater = np.zeros(
-            (Ne, Ne, 4**(nbr_copies-1)), dtype=np.complex128)
+            (N, N, 4**(nbr_copies-1)), dtype=np.complex128)
         self.slogdet = np.zeros((2, 4**(nbr_copies-1)), dtype=np.complex128)
 
         if self.flag_pf:
             self.pf_jastrows = np.ones(
-                (nbr_copies*Ne, nbr_copies*Ne), dtype=np.complex128)
+                (nbr_copies*N, nbr_copies*N), dtype=np.complex128)
             self.pf_matrix = np.zeros(
-                (Ne, Ne, 4**(nbr_copies-1)), dtype=np.complex128)
+                (N, N, 4**(nbr_copies-1)), dtype=np.complex128)
             self.pf = np.zeros(
                 (4**(nbr_copies-1)), dtype=np.complex128)
 

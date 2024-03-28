@@ -6,14 +6,14 @@ from .MonteCarloBase import MonteCarloBase
 
 class MonteCarloSphere (MonteCarloBase):
     Ls: np.array
-    region_theta: np.array
-    region_phi: np.array
+    region_theta: np.ndarray
+    region_phi: np.ndarray
 
     def FillLambdaLevels(self):
-        self.Ls = np.zeros((self.Ne, 2), dtype=np.float64)
-        l = self.Ns_eff/2
+        self.Ls = np.zeros((self.N, 2), dtype=np.float64)
+        l = self.S_eff/2
         m = -l
-        for i in range(self.Ne):
+        for i in range(self.N):
             self.Ls[i] = np.array([l, m])
             if m == l:
                 l += 1
@@ -27,7 +27,7 @@ class MonteCarloSphere (MonteCarloBase):
     def RandomConfig(self) -> np.array:
         """Returns a random configuration of particles."""
         R = np.vstack((self.RandomPoint(), self.RandomPoint()))
-        for _ in range(2, self.Ne):
+        for _ in range(2, self.N):
             R = np.vstack((R, self.RandomPoint()))
 
         return R
@@ -39,9 +39,9 @@ class MonteCarloSphere (MonteCarloBase):
         self.coords = np.vstack((self.RandomConfig(), self.RandomConfig()))
         inside_region = self.InsideRegion(self.coords)
 
-        while (np.count_nonzero(inside_region[:self.Ne]) !=
-               np.count_nonzero(inside_region[self.Ne:])):
-            self.coords[self.Ne:] = self.RandomConfig()
+        while (np.count_nonzero(inside_region[:self.N]) !=
+               np.count_nonzero(inside_region[self.N:])):
+            self.coords[self.N:] = self.RandomConfig()
             inside_region = self.InsideRegion(self.coords)
 
     def Jacobian(self):
@@ -75,7 +75,7 @@ class MonteCarloSphere (MonteCarloBase):
         return inside_A
 
     def StepOneParticle(self):
-        self.moved_particles = np.random.randint(0, self.Ne, 1)
+        self.moved_particles = np.random.randint(0, self.N, 1)
         p = self.moved_particles[0]
         self.coords_tmp[p, :] = self.BoundaryConditions(
             self.coords_tmp[p, :] + np.array([1, np.sin(self.coords_tmp[p, 0])]) *
@@ -86,8 +86,8 @@ class MonteCarloSphere (MonteCarloBase):
         the coordinates of one particle in each copy, ensuring that
         the copies are swappable with respect to region A.
         """
-        self.moved_particles[0] = np.random.randint(0, self.Ne)
-        self.moved_particles[1] = np.random.randint(self.Ne, 2*self.Ne)
+        self.moved_particles[0] = np.random.randint(0, self.N)
+        self.moved_particles[1] = np.random.randint(self.N, 2*self.N)
         measure = np.sin(self.coords_tmp[self.moved_particles][:, 0])
         meas_array = np.array([[1, measure[0]], [1, measure[1]]])
         self.coords_tmp[self.moved_particles] = \
@@ -112,8 +112,8 @@ class MonteCarloSphere (MonteCarloBase):
 
         valid = False
         while not valid:
-            self.moved_particles[0] = np.random.randint(0, self.Ne)
-            self.moved_particles[1] = np.random.randint(self.Ne, 2*self.Ne)
+            self.moved_particles[0] = np.random.randint(0, self.N)
+            self.moved_particles[1] = np.random.randint(self.N, 2*self.N)
             inside_region = self.InsideRegion(
                 self.coords_tmp[self.moved_particles])
 
@@ -131,8 +131,8 @@ class MonteCarloSphere (MonteCarloBase):
 
         return nbr_A_changes
 
-    def __init__(self, Ne, Ns, nbr_iter, nbr_nonthermal,
-                 step_size, region_theta=np.pi, region_phi=2*np.pi,
+    def __init__(self, N, S, nbr_iter, nbr_nonthermal,
+                 step_size, region_theta=180, region_phi=360,
                  save_results=True, save_config=True, acceptance_ratio=0):
 
         self.step_size = np.arcsin(step_size)
@@ -142,20 +142,24 @@ class MonteCarloSphere (MonteCarloBase):
             self.region_theta = region_theta
         else:
             self.region_theta = np.array([0, region_theta], dtype=np.float64)
-        if self.region_theta[1] != np.pi or self.region_theta[0] != 0:
-            region_details += f"_theta_{self.region_theta[0]*180/np.pi:.2f}_{self.region_theta[1]*180/np.pi:.2f}"
+        if self.region_theta[1] != 180 or self.region_theta[0] != 0:
+            region_details += f"_theta_{self.region_theta[0]:.6f}_{self.region_theta[1]:.6f}"
 
         if isinstance(region_phi, np.ndarray):
             self.region_phi = region_phi
         else:
             self.region_phi = np.array([0, region_phi], dtype=np.float64)
-        if self.region_phi[1] != 2*np.pi or self.region_phi[0] != 0:
-            region_details += f"_phi_{self.region_phi[0]*180/np.pi:.2f}_{self.region_phi[1]*180/np.pi:.2f}"
+        if self.region_phi[1] != 360 or self.region_phi[0] != 0:
+            region_details += f"_phi_{self.region_phi[0]:.6f}_{self.region_phi[1]:.6f}"
 
-        super().__init__(Ne, Ns, nbr_iter, nbr_nonthermal, region_details,
+        super().__init__(N, S, nbr_iter, nbr_nonthermal, region_details,
                          save_results, save_config, acceptance_ratio)
 
         self.geometry = "sphere"
+
+        # Convert degrees to radians for internal calculations
+        region_theta = region_theta*np.pi/180
+        region_phi = region_phi*np.pi/180
 
         self.step_pattern = np.array([[0, 1], [0, -1], [1, 0], [-1, 0],
                                       [1, 1], [1, -1], [-1, 1], [-1, -1]])

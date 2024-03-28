@@ -13,13 +13,13 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
     Ks: np.array
 
     def GetOverlapMatrix(self):
-        overlap_matrix = np.zeros((self.Ne, self.Ne), dtype=np.complex128)
+        overlap_matrix = np.zeros((self.N, self.N), dtype=np.complex128)
         Kxs = np.real(self.Ks)*self.Lx/(2*np.pi)
         Kys = np.imag(self.Ks)*self.Lx/(2*np.pi)
         R = self.boundary/self.Lx
-        for i in range(self.Ne):
+        for i in range(self.N):
             overlap_matrix[i, i] = np.pi*R*R
-            for j in range(i+1, self.Ne):
+            for j in range(i+1, self.N):
                 if self.region_geometry == 'square':
                     overlap_matrix[i, j] = np.sinc(
                         R*(Kxs[i]-Kxs[j]))*np.sinc(R*(Kys[i]-Kys[j]))*(R)**2
@@ -35,10 +35,10 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
                                        np.reshape(np.imag(self.Ks), (-1, 1)) * np.imag(coords))))
 
     def InitialWavefn(self):
-        nbr_copies = self.coords.size//self.Ne
+        nbr_copies = self.coords.size//self.N
         self.moved_particles = np.zeros(nbr_copies, dtype=np.uint16)
         for copy in range(nbr_copies):
-            self.InitialSlater(self.coords[copy*self.Ne:(copy+1)*self.Ne],
+            self.InitialSlater(self.coords[copy*self.N:(copy+1)*self.N],
                                self.slater[..., copy])
             self.slogdet[:, copy] = np.linalg.slogdet(
                 self.slater[..., copy])
@@ -49,7 +49,7 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
     def InitialWavefnSwap(self):
         coords_swap = self.coords[self.from_swap]
         for copy in range(2):
-            self.InitialSlater(coords_swap[copy*self.Ne:(copy+1)*self.Ne],
+            self.InitialSlater(coords_swap[copy*self.N:(copy+1)*self.N],
                                self.slater[..., 2+copy])
             self.slogdet[:, 2+copy] = np.linalg.slogdet(
                 self.slater[..., 2+copy])
@@ -58,9 +58,9 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
         np.copyto(self.slogdet_tmp, self.slogdet)
 
     def TmpWavefn(self):
-        nbr_copies = self.coords.size//self.Ne
+        nbr_copies = self.coords.size//self.N
         for copy in range(nbr_copies):
-            self.InitialSlater(self.coords_tmp[copy*self.Ne:(copy+1)*self.Ne],
+            self.InitialSlater(self.coords_tmp[copy*self.N:(copy+1)*self.N],
                                self.slater_tmp[..., copy])
             self.slogdet_tmp[:, copy] = np.linalg.slogdet(
                 self.slater_tmp[..., copy])
@@ -81,14 +81,14 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
 
         coords_swap_tmp = self.coords_tmp[self.from_swap_tmp]
         for copy in range(2):
-            self.InitialSlater(coords_swap_tmp[copy*self.Ne:(copy+1)*self.Ne],
+            self.InitialSlater(coords_swap_tmp[copy*self.N:(copy+1)*self.N],
                                self.slater_tmp[..., 2+copy])
             self.slogdet_tmp[:, 2+copy] = np.linalg.slogdet(
                 self.slater_tmp[..., 2+copy])
 
     def StepAmplitude(self) -> np.complex128:
         step_amplitude = 1
-        nbr_copies = self.coords.size//self.Ne
+        nbr_copies = self.coords.size//self.N
         for copy in range(nbr_copies):
             step_amplitude *= (self.slogdet_tmp[0, copy]/self.slogdet[0, copy])*np.exp(
                 self.slogdet_tmp[1, copy]-self.slogdet[1, copy])
@@ -127,21 +127,21 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
 
         return step_amplitude
 
-    def __init__(self, Ne, Ns, t, nbr_iter, nbr_nonthermal, region_geometry,
+    def __init__(self, N, S, t, nbr_iter, nbr_nonthermal, region_geometry,
                  step_size, area_size=0, linear_size=0, nbr_copies=1,
                  save_results=True, save_config=True, acceptance_ratio=0):
 
         self.state = 'free_fermions'
 
-        super().__init__(Ne, Ns, t, nbr_iter, nbr_nonthermal, region_geometry,
+        super().__init__(N, S, t, nbr_iter, nbr_nonthermal, region_geometry,
                          step_size, area_size, linear_size,
                          save_results, save_config, acceptance_ratio)
 
-        self.Ks = (fermi_sea_kx[self.Ne]*2*np.pi/self.Lx +
-                   1j*fermi_sea_ky[self.Ne]*2*np.pi/self.Ly)
+        self.Ks = (fermi_sea_kx[self.N]*2*np.pi/self.Lx +
+                   1j*fermi_sea_ky[self.N]*2*np.pi/self.Ly)
 
         self.slater = np.zeros(
-            (Ne, Ne, 4**(nbr_copies-1)), dtype=np.complex128)
+            (N, N, 4**(nbr_copies-1)), dtype=np.complex128)
         self.slogdet = np.zeros((2, 4**(nbr_copies-1)), dtype=np.complex128)
 
         self.slater_tmp = np.copy(self.slater)
