@@ -14,9 +14,9 @@ from datetime import datetime
 parser = argparse.ArgumentParser(
     description="""Calculates the subregion particle fluctuations, using
     a region A of circular geometry.""")
-parser.add_argument("-Ne", action="store", required=True,
+parser.add_argument("-N", action="store", required=True,
                     help="number of particles")
-parser.add_argument("-Ns", action="store", required=True,
+parser.add_argument("-S", action="store", required=True,
                     help="number of flux quanta")
 parser.add_argument("--nbr-iter", action="store", required=True,
                     help="number of Monte Carlo iterations")
@@ -43,8 +43,8 @@ parser.add_argument("--JK-coeffs", action="store", default='0',
 
 args = vars(parser.parse_args())
 
-Ne = np.int64(args["Ne"])
-Ns = np.int64(args["Ns"])
+N = np.int64(args["N"])
+S = np.int64(args["S"])
 nbr_iter = np.int64(args["nbr_iter"])
 nbr_nonthermal = np.int64(args["nbr_nonthermal"])
 if nbr_nonthermal == -1:
@@ -70,12 +70,12 @@ if state == 'cfl':
 for region_size in A_sizes:
     start_time = datetime.now()
     if state == "free_fermions":
-        fqh = MonteCarloTorusFreeFermions(Ne=Ne, Ns=Ns, t=1j, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+        fqh = MonteCarloTorusFreeFermions(N=N, S=S, t=1j, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                                           region_geometry=region_geometry, step_size=step, linear_size=region_size,
                                           nbr_copies=1, JK_coeffs=JK_coeffs,
                                           acceptance_ratio=acceptance_ratio)
     elif state == 'cfl':
-        fqh = MonteCarloTorusCFL(Ne=Ne, Ns=Ns, t=1j, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+        fqh = MonteCarloTorusCFL(N=N, S=S, t=1j, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                                  region_geometry=region_geometry, step_size=step, linear_size=region_size,
                                  nbr_copies=1, JK_coeffs=JK_coeffs,
                                  acceptance_ratio=acceptance_ratio)

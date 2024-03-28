@@ -15,9 +15,9 @@ from datetime import datetime
 parser = argparse.ArgumentParser(
     description="""Calculates the P,Mod,Sign terms in the SWAP decomposition 
     of the 2nd Renyi entanglement entropy.""")
-parser.add_argument("-Ne", action="store", required=True,
+parser.add_argument("-N", action="store", required=True,
                     help="number of particles")
-parser.add_argument("-Ns", action="store", required=True,
+parser.add_argument("-S", action="store", required=True,
                     help="number of flux quanta")
 parser.add_argument("--nbr-iter", action="store", required=True,
                     help="number of Monte Carlo iterations")
@@ -25,10 +25,10 @@ parser.add_argument("--nbr-nonthermal", action="store", default=-1,
                     help="number of non-thermal iterations")
 parser.add_argument("--step", action="store", required=True,
                     help="step size value at square aspect ratio")
-parser.add_argument("--theta", action="store", nargs='+', default=np.pi, type=np.float64,
-                    help="theta limits of the region")
-parser.add_argument("--phi", action="store", nargs='+', default=2*np.pi, type=np.float64,
-                    help="phi limits of the region")
+parser.add_argument("--theta", action="store", nargs='+', default=[180],
+                    help="theta limits of the region (degrees)")
+parser.add_argument("--phi", action="store", nargs='+', default=[360],
+                    help="phi limits of the region (degrees)")
 parser.add_argument("--acc-ratio", action="store", default=0,
                     help="loads a previous run with given acceptance")
 parser.add_argument("--run", action="store", required=True,
@@ -40,8 +40,8 @@ parser.add_argument("--JK-coeffs", action="store", default='0',
 
 args = vars(parser.parse_args())
 
-Ne = np.uint8(args["Ne"])
-Ns = np.uint8(args["Ns"])
+N = np.uint8(args["N"])
+S = np.uint8(args["S"])
 nbr_iter = np.uint32(args["nbr_iter"])
 nbr_nonthermal = np.int32(args["nbr_nonthermal"])
 if nbr_nonthermal == -1:
@@ -52,16 +52,20 @@ if nbr_nonthermal == -1:
 
 step = np.float64(args["step"])
 
-theta = list(args["theta"])
+theta = args["theta"]
 if len(theta) == 1:
-    theta = np.float64(theta)
+    theta = np.float64(theta[0])
 else:
     theta = np.array(theta, dtype=np.float64)
-phi = list(args["phi"])
+phi = args["phi"]
 if len(phi) == 1:
-    phi = np.float64(phi)
+    phi = np.float64(phi[0])
 else:
     phi = np.array(phi, dtype=np.float64)
+
+# transform to radians
+phi *= np.pi/180
+theta *= np.pi/180
 
 acceptance_ratio = np.float64(args["acc_ratio"])
 run_type = str(args["run"])
@@ -71,15 +75,15 @@ if state == 'cfl':
 
 start_time = datetime.now()
 if state == "free_fermions":
-    fqh = MonteCarloSphereFreeFermions(Ne=Ne, Ns=Ns, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+    fqh = MonteCarloSphereFreeFermions(N=N, S=S, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                                        step_size=step, region_theta=theta, region_phi=phi,
                                        nbr_copies=2, acceptance_ratio=acceptance_ratio)
 elif state == 'cfl':
-    fqh = MonteCarloSphereCFL(Ne=Ne, Ns=Ns, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+    fqh = MonteCarloSphereCFL(N=N, S=S, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                               step_size=step, region_theta=theta, region_phi=phi,
                               nbr_copies=2, acceptance_ratio=acceptance_ratio)
 elif state == 'laughlin':
-    fqh = MonteCarloSphereLaughlin(Ne=Ne, Ns=Ns, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+    fqh = MonteCarloSphereLaughlin(N=N, S=S, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                                    step_size=step, region_theta=theta, region_phi=phi,
                                    nbr_copies=2, acceptance_ratio=acceptance_ratio)
 

@@ -15,9 +15,9 @@ from datetime import datetime
 parser = argparse.ArgumentParser(
     description="""Calculates the subregion particle fluctuations, using
     a region A of circular geometry.""")
-parser.add_argument("-Ne", action="store", required=True,
+parser.add_argument("-N", action="store", required=True,
                     help="number of particles")
-parser.add_argument("-Ns", action="store", required=True,
+parser.add_argument("-S", action="store", required=True,
                     help="number of flux quanta")
 parser.add_argument("--nbr-iter", action="store", required=True,
                     help="number of Monte Carlo iterations")
@@ -46,8 +46,8 @@ parser.add_argument("--CF", action="store_true",
 
 args = vars(parser.parse_args())
 
-Ne = np.uint8(args["Ne"])
-Ns = np.uint8(args["Ns"])
+N = np.uint8(args["N"])
+S = np.uint8(args["S"])
 nbr_iter = np.uint32(args["nbr_iter"])
 nbr_nonthermal = np.int32(args["nbr_nonthermal"])
 if nbr_nonthermal == -1:
@@ -74,17 +74,17 @@ CF = bool(args["CF"])
 for region_size in A_sizes:
     start_time = datetime.now()
     if state == "free_fermions":
-        fqh = MonteCarloSphereFreeFermions(Ne=Ne, Ns=Ns, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+        fqh = MonteCarloSphereFreeFermions(N=N, S=S, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                                            region_geometry=region_geometry, step_size=step, linear_size=region_size,
                                            nbr_copies=1,
                                            acceptance_ratio=acceptance_ratio)
     elif state == 'cfl':
-        fqh = MonteCarloSphereCFL(Ne=Ne, Ns=Ns, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+        fqh = MonteCarloSphereCFL(N=N, S=S, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                                   region_geometry=region_geometry, step_size=step, linear_size=region_size,
                                   nbr_copies=1,
                                   acceptance_ratio=acceptance_ratio)
     elif state == 'laughlin':
-        fqh = MonteCarloSphereLaughlin(Ne=Ne, Ns=Ns, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
+        fqh = MonteCarloSphereLaughlin(N=N, S=S, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                                        region_geometry=region_geometry, step_size=step, linear_size=region_size,
                                        nbr_copies=1,
                                        acceptance_ratio=acceptance_ratio)
