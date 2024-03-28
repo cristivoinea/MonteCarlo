@@ -36,6 +36,23 @@ def njit_UpdateJastrowsSwap(coords_tmp: np.array, spinors_tmp: np.array,
                 jastrows_tmp[i+N, moved_particles[0], 0, 0]
 
 
+@njit
+def njit_StepAmplitudeTwoCopiesSwap(N: np.int64, vortices: np.int64, jastrows: np.array,
+                                    jastrows_tmp: np.array, from_swap: np.array,
+                                    from_swap_tmp: np.array) -> np.complex128:
+    """
+    Returns the ratio of wavefunctions for coordinates R_i
+    to coordinates R_f, given that the particle with index p has moved."""
+    step_amplitude = 1
+    for copy in range(2):
+        for n in range(copy*N, (copy+1)*N):
+            step_amplitude *= np.prod(np.power(jastrows_tmp[from_swap_tmp[n], from_swap_tmp[n+1: (copy+1)*N], 0, 0] /
+                                               jastrows[from_swap[n], from_swap[n+1: (copy+1)*N], 0, 0],  # nopep8
+                                               vortices))
+
+    return step_amplitude
+
+
 class MonteCarloSphereLaughlin (MonteCarloSphere):
     spinors: np.array
     spinors_tmp: np.array
@@ -148,7 +165,7 @@ class MonteCarloSphereLaughlin (MonteCarloSphere):
     def StepAmplitudeTwoCopiesSwap(self) -> np.complex128:
         """
         Returns the ratio of wavefunctions for coordinates R_i
-        to coordinates R_f, given that the particle with index p has moved."""
+        to coordinates R_f, given that the particle with index p has moved.
         step_amplitude = 1
         for copy in range(2):
 
@@ -157,7 +174,10 @@ class MonteCarloSphereLaughlin (MonteCarloSphere):
                                                    self.jastrows[self.from_swap[n], self.from_swap[n+1: (copy+1)*self.N], 0, 0],  # nopep8
                                                    self.vortices))
 
-        return step_amplitude
+        return step_amplitude"""
+
+        return njit_StepAmplitudeTwoCopiesSwap(self.N, self.vortices, self.jastrows, self.jastrows_tmp,
+                                               self.from_swap, self.from_swap_tmp)
 
     def InitialMod(self):
         step_amplitude = 1
