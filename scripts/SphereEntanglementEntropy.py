@@ -63,10 +63,6 @@ if len(phi) == 1:
 else:
     phi = np.array(phi, dtype=np.float64)
 
-# transform to radians
-phi *= np.pi/180
-theta *= np.pi/180
-
 acceptance_ratio = np.float64(args["acc_ratio"])
 run_type = str(args["run"])
 state = str(args["state"])
