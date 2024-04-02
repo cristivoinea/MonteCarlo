@@ -32,8 +32,6 @@ parser.add_argument("--nbr-A", action="store", default=1,
                     help="number of points")
 parser.add_argument("--region-geometry", action="store", default='circle',
                     help="geometry of one of the bipartition regions")
-parser.add_argument("--theta", action="store_true",
-                    help="enforce that the region size is the polar angle of the subregion")
 parser.add_argument("--acc-ratio", action="store", default=0,
                     help="loads a previous run with given acceptance")
 parser.add_argument("--state", action="store", required=True,
@@ -61,7 +59,6 @@ if A_end == -1:
 nbr_A = np.uint8(args["nbr_A"])
 A_sizes = np.linspace(A_start, A_end, nbr_A, endpoint=True)
 region_geometry = str(args["region_geometry"])
-theta = bool(args["theta"])
 acceptance_ratio = np.float64(args["acc_ratio"])
 state = str(args["state"])
 if state == 'cfl':

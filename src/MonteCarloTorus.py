@@ -243,7 +243,7 @@ class MonteCarloTorus (MonteCarloBase):
             self.boundary = self.Lx * np.sqrt(area_size/np.pi)
             region_size = area_size
 
-        region_details = "_" + region_geometry + f"_{region_size:.4f}"
+        region_details = "_" + region_geometry + f"_{region_size:.6f}"
 
         super().__init__(N, S, nbr_iter, nbr_nonthermal, region_details,
                          save_results, save_config, acceptance_ratio)
