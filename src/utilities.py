@@ -162,13 +162,13 @@ def GetEntropyLaughlin(Ne, Ns, M, M0, t, step, region_geometry):
     return boundaries, np.vstack((S2, err)).T, np.vstack((S2_p, err_p)).T, np.vstack((S2_mod, err_mod)).T, np.vstack((S2_sign, err_sign)).T
 
 
-def LoadEntropy(Ne, Ns, M, M0, geometry, region_geometry, state, boundaries, t=1j):
+def LoadEntropy(Ne, Ns, geometry, region_geometry, state, boundaries, t=1j):
     if geometry == "torus":
         kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20}
         Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
         file = f"../data/{state}_{geometry}_entropy_Ne_{Ne}_Ns_{Ns}_t_{np.imag(t):.2f}_{region_geometry}s.dat"
     elif geometry == "sphere":
-        file = f"../data/{state}_{geometry}_entropy_Ne_{Ne}_Ns_{Ns}_{region_geometry}s.dat"
+        file = f"../data/{state}_{geometry}_entropy_n_{Ne}_s_{Ns}.dat"
 
     if not exists(file):
         data = np.zeros((boundaries.size, 7), dtype=np.float64)
@@ -181,7 +181,7 @@ def LoadEntropy(Ne, Ns, M, M0, geometry, region_geometry, state, boundaries, t=1
                         f"../../results/entropy/{state}/n_{Ne}/{terms[j]}/{terms[j]}_{state}_Ne_{Ne}_Ns_{Ns}_t_1.00_circle_{boundaries[i]:.4f}.dat")
                 elif geometry == "sphere":
                     result = np.loadtxt(
-                        f"../../results/{geometry}/entropy/{state}/n_{Ne}/{terms[j]}/{state}_{geometry}_{terms[j]}_Ne_{Ne}_Ns_{Ns}_circle_{boundaries[i]:.4f}.dat")
+                        f"../../results/{geometry}/entropy/{state}/n_{Ne}/{terms[j]}/{state}_{geometry}_{terms[j]}_n_{Ne}_s_{Ns}_theta_0.000000_{boundaries[i]:.6f}.dat")
                 # if j == 2:
                 #    data[i, 1+2*j:3+2*j] = result[0, :]
                 # else:
@@ -195,7 +195,7 @@ def LoadEntropy(Ne, Ns, M, M0, geometry, region_geometry, state, boundaries, t=1
     if geometry == "torus":
         x = np.sqrt(data[:, 0]/np.pi)*np.sqrt(2*kf[Ne]*np.pi/(Ns))*Lx
     elif geometry == "sphere":
-        x = boundaries*np.sqrt(Ne-1)
+        x = np.sin(boundaries*np.pi/180)*np.sqrt(Ne-1)
 
     entropy[:, 0] = -np.log(data[:, 1])
     # np.sqrt((data[:, 2])/(data[:, 1])**2)/np.sqrt(M-M0)
@@ -244,7 +244,7 @@ def LoadParticleFluctuations(Ne, Ns, geometry, state, boundaries, region_geometr
                              linear_size=True, t=1j, cf=False):
     kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20}
     Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
-    file = f"{state}_{geometry}_fluct_Ne_{Ne}_Ns_{Ns}_{region_geometry}s.dat"
+    file = f"{state}_{geometry}_fluct_n_{Ne}_s_{Ns}.dat"
 
     if cf:
         cf_str = "cf_"
@@ -256,9 +256,8 @@ def LoadParticleFluctuations(Ne, Ns, geometry, state, boundaries, region_geometr
         data[:, 0] = boundaries
         for i in range(boundaries.size):
             result = np.loadtxt(
-                f"../../results/{geometry}/{cf_str}fluctuations/{state}/n_{Ne}/{state}_{geometry}_fluct_Ne_{Ne}_Ns_{Ns}_{region_geometry}_{boundaries[i]:.4f}.dat")
+                f"../../results/{geometry}/{cf_str}fluctuations/{state}/n_{Ne}/{state}_{geometry}_fluct_n_{Ne}_s_{Ns}_theta_0.000000_{boundaries[i]:.6f}.dat")
             data[i, 1:3] = result
-
         np.savetxt(file, data)
 
     data = np.loadtxt(file)
@@ -266,7 +265,7 @@ def LoadParticleFluctuations(Ne, Ns, geometry, state, boundaries, region_geometr
     fluctuations = np.zeros((data.shape[0], 2))
     if geometry == "sphere":
         if linear_size:
-            x = data[:, 0]*np.sqrt(Ne)
+            x = np.sin(data[:, 0]*np.pi/180)*np.sqrt(Ne-1)
     elif geometry == "torus":
         if linear_size:
             x = data[:, 0] * np.sqrt(2*kf[Ne]*np.pi/(Ns))*Lx

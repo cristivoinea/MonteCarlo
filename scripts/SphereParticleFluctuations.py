@@ -64,7 +64,6 @@ else:
     phi = np.array(phi, dtype=np.float64)
 
 acceptance_ratio = np.float64(args["acc_ratio"])
-run_type = str(args["run"])
 state = str(args["state"])
 if state == 'cfl':
     JK_coeffs = str(args["JK_coeffs"])

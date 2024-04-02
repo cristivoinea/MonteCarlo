@@ -158,8 +158,8 @@ class MonteCarloSphere (MonteCarloBase):
         self.geometry = "sphere"
 
         # Convert degrees to radians for internal calculations
-        region_theta = region_theta*np.pi/180
-        region_phi = region_phi*np.pi/180
+        self.region_theta = self.region_theta*np.pi/180
+        self.region_phi = self.region_phi*np.pi/180
 
         self.step_pattern = np.array([[0, 1], [0, -1], [1, 0], [-1, 0],
                                       [1, 1], [1, -1], [-1, 1], [-1, -1]])
