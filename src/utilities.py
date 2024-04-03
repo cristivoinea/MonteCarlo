@@ -26,6 +26,20 @@ fermi_sea_ky[69] = np.array([0, 0, 1, 0, -1, 1, 1, -1, -1, 0, 2, 0, -2,
                              2, 3, 3, 2, -2, -3, -3, -2, 0, 4, 0, -4,
                              1, 4, 4, 1, -1, -4, -4, -1, 3, 3, -3, -3,
                              2, 4, 4, 2, -2, -4, -4, -2])
+fermi_sea_kx[97] = np.array([0, 1, -1, 0, 0, 2, -2, 0, 0, 3, -3, 0, 0, 4,
+                             -4, 0, 0, 5, -5, 0, 0, 1, 1, -1, -1, 1, 1, -1,
+                             -1, 1, 1, -1, -1, 1, 1, -1, -1, 1, 1, -1, -1,
+                             2, 2, -2, -2, 2, 2, -2, -2, 2, 2, -2, -2, 2, 2,
+                             -2, -2, 2, 2, -2, -2, 3, 3, -3, -3, 3, 3, -3, -3,
+                             3, 3, -3, -3, 3, 3, -3, -3, 4, 4, -4, -4, 4, 4,
+                             -4, -4, 4, 4, -4, -4, 5, 5, -5, -5, 5, 5, -5, -5])
+fermi_sea_ky[97] = np.array([0, 0, 0, 1, -1, 0, 0, 2, -2, 0, 0, 3, -3, 0, 0, 4,
+                             -4, 0, 0, 5, -5, 1, -1, 1, -1, 2, -2, 2, -2, 3, -3,
+                             3, -3, 4, -4, 4, -4, 5, -5, 5, -5, 1, -1, 1, -1, 2,
+                             -2, 2, -2, 3, -3, 3, -3, 4, -4, 4, -4, 5, -5, 5, -5,
+                             1, -1, 1, -1, 2, -2, 2, -2, 3, -3, 3, -3, 4, -4, 4,
+                             -4, 1, -1, 1, -1, 2, -2, 2, -2, 3, -3, 3, -3, 1,
+                             -1, 1, -1, 2, -2, 2, -2])
 fermi_sea_kx[37] = fermi_sea_kx[69][:37]
 fermi_sea_ky[37] = fermi_sea_ky[69][:37]
 fermi_sea_kx[21] = fermi_sea_kx[69][:21]
@@ -255,8 +269,12 @@ def LoadParticleFluctuations(Ne, Ns, geometry, state, boundaries, region_geometr
         data = np.zeros((boundaries.size, 3), dtype=np.float64)
         data[:, 0] = boundaries
         for i in range(boundaries.size):
-            result = np.loadtxt(
-                f"../../results/{geometry}/{cf_str}fluctuations/{state}/n_{Ne}/{state}_{geometry}_fluct_n_{Ne}_s_{Ns}_theta_0.000000_{boundaries[i]:.6f}.dat")
+            if geometry == "sphere":
+                result = np.loadtxt(
+                    f"../../results/{geometry}/{cf_str}fluctuations/{state}/n_{Ne}/{state}_{geometry}_fluct_n_{Ne}_s_{Ns}_theta_0.000000_{boundaries[i]:.6f}.dat")
+            elif geometry == "torus":
+                result = np.loadtxt(
+                    f"../../results/{geometry}/{cf_str}fluctuations/{state}/n_{Ne}/{state}_{geometry}_fluct_N_{Ne}_S_{Ns}_circle_{boundaries[i]:.6f}.dat")
             data[i, 1:3] = result
         np.savetxt(file, data)
 
