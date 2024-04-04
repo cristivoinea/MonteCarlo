@@ -4,7 +4,7 @@ import numpy as np
 
 @njit  # (parallel=True)
 def ThetaFunction(z: np.complex128, t: np.complex128, a: np.float64,
-                  b: np.float64, n_max: np.int64 = 100
+                  b: np.float64, n_max: np.int64 = 150
                   ) -> np.complex128:
     index_a = np.arange(-n_max+a, n_max+a, 1)
     # terms = np.exp(1j*np.pi*index_a*(t*(index_a) + 2*(z + b)))

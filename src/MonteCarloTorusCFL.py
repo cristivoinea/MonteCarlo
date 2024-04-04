@@ -11,7 +11,7 @@ def njit_UpdateSlater(coords, moved_particle, slater, Ks):
                                              np.imag(Ks) * np.imag(coords[moved_particle])))
 
 
-@njit(parallel=True)
+@njit  # (parallel=True)
 def njit_UpdateJastrows(t: np.complex128, Lx: np.float64,
                         coords_tmp: np.array, Ks: np.array,
                         jastrows: np.array, jastrows_tmp: np.array,
@@ -20,7 +20,8 @@ def njit_UpdateJastrows(t: np.complex128, Lx: np.float64,
     N = coords_tmp.size
     slater_tmp[:, moved_particle] = np.exp(
         1j*np.real(Ks)*coords_tmp[moved_particle])
-    for k in prange(N):
+    """
+    for k in range(N):
         for i in range(N):
             if i != moved_particle:
                 for l in range(JK_coeffs.shape[1]):
@@ -38,7 +39,25 @@ def njit_UpdateJastrows(t: np.complex128, Lx: np.float64,
                                                   jastrows[i, moved_particle, k, l]), JK_coeffs[1, l])
 
                     slater_tmp[k, moved_particle] *= np.power(jastrows_tmp[moved_particle, i, k, l],
-                                                              JK_coeffs[1, l])
+                                                              JK_coeffs[1, l])"""
+    for i in range(N):
+        if i != moved_particle:
+            for l in range(JK_coeffs.shape[1]):
+                jastrows_tmp[i, moved_particle, :, l] = ThetaFunctionVectorized(
+                    (coords_tmp[i] - coords_tmp[moved_particle] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2, 75)
+
+                if JK_coeffs[0, l] != 0:
+                    jastrows_tmp[moved_particle, i, :, l] = ThetaFunctionVectorized(
+                        (coords_tmp[moved_particle] - coords_tmp[i] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2, 75)
+                else:
+                    jastrows_tmp[moved_particle, i, :, l] = - \
+                        jastrows_tmp[i, moved_particle, :, l]
+
+                slater_tmp[:, i] *= np.power((jastrows_tmp[i, moved_particle, :, l] /
+                                              jastrows[i, moved_particle, :, l]), JK_coeffs[1, l])
+
+                slater_tmp[:, moved_particle] *= np.power(jastrows_tmp[moved_particle, i, :, l],
+                                                          JK_coeffs[1, l])
 
 
 @njit(parallel=True)
