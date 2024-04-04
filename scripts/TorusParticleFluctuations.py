@@ -69,8 +69,7 @@ for region_size in A_sizes:
     if state == "free_fermions":
         fqh = MonteCarloTorusFreeFermions(N=N, S=S, t=1j, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                                           region_geometry=region_geometry, step_size=step, linear_size=region_size,
-                                          nbr_copies=1, JK_coeffs=JK_coeffs,
-                                          acceptance_ratio=acceptance_ratio)
+                                          nbr_copies=1, acceptance_ratio=acceptance_ratio)
     elif state == 'cfl':
         fqh = MonteCarloTorusCFL(N=N, S=S, t=1j, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                                  region_geometry=region_geometry, step_size=step, linear_size=region_size,
