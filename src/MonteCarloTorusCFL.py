@@ -617,9 +617,9 @@ class MonteCarloTorusCFL (MonteCarloTorus):
 
         return step_amplitude
 
-    def __init__(self, N, S, t, nbr_iter, nbr_nonthermal, region_geometry,
+    def __init__(self, N, S, nbr_iter, nbr_nonthermal, region_geometry,
                  step_size=0.1, area_size=0, linear_size=0, JK_coeffs='2', flag_pf=False,
-                 nbr_copies=2, kCM=0, phi_1=0, phi_t=0,
+                 nbr_copies=2, t=1j, kCM=0, phi_1=0, phi_t=0,
                  save_results=True, save_config=True, acceptance_ratio=0):
 
         self.kCM = kCM
