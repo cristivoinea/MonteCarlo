@@ -9,6 +9,8 @@ from .utilities import LegendreDiagIntegral, LegendreOffDiagIntegral
 class MonteCarloSphereFreeFermions (MonteCarloSphere):
     slater: np.array
     slater_tmp: np.array
+    slater_inverse: np.array
+    slater_inverse_tmp: np.array
     slogdet: np.array
     slogdet_tmp: np.array
 
@@ -43,17 +45,18 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
 
         return overlap_matrix
 
-    def InitialSlater(self, coords, slater):
+    def InitialSlater(self, coords, slater):  # , slater_inverse):
         for i in range(self.N):
             slater[i, :] = sph_harm(
                 self.Ls[i, 1], self.Ls[i, 0], coords[:, 1], coords[:, 0])
+        # np.copyto(slater_inverse, np.linalg.inv(slater))
 
     def InitialWavefn(self):
         nbr_copies = self.coords.shape[0]//self.N
         self.moved_particles = np.zeros(nbr_copies, dtype=np.uint16)
         for copy in range(nbr_copies):
             self.InitialSlater(self.coords[copy*self.N:(copy+1)*self.N],
-                               self.slater[..., copy])
+                               self.slater[..., copy])  # , self.slater_inverse[..., copy])
             self.slogdet[:, copy] = np.linalg.slogdet(
                 self.slater[..., copy])
 
@@ -64,7 +67,7 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
         coords_swap = self.coords[self.from_swap]
         for copy in range(2):
             self.InitialSlater(coords_swap[copy*self.N:(copy+1)*self.N],
-                               self.slater[..., 2+copy])
+                               self.slater[..., 2+copy])  # , self.slater_inverse[..., 2+copy])
             self.slogdet[:, 2+copy] = np.linalg.slogdet(
                 self.slater[..., 2+copy])
 
@@ -77,6 +80,13 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
             self.slater_tmp[:, p - copy*self.N, copy] = sph_harm(
                 self.Ls[:, 1], self.Ls[:, 0],
                 self.coords_tmp[p, 1], self.coords_tmp[p, 0])
+            # d_det = (1+np.vdot(self.slater_inverse[p - copy*self.N, :, copy],
+            #                   (self.slater_tmp[:, p - copy*self.N, copy] -
+            #                   self.slater[:, p - copy*self.N, copy])))
+            # self.slogdet_tmp[0, copy] = self.slogdet[0,
+            #                                         copy]*d_det/np.abs(d_det)
+            # self.slogdet_tmp[1, copy] = self.slogdet[1,
+            #                                         copy]+np.log(np.abs(d_det))
             self.slogdet_tmp[:, copy] = np.linalg.slogdet(
                 self.slater_tmp[..., copy])
 
@@ -91,6 +101,14 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
 
         np.copyto(self.slater, self.slater_tmp)
         np.copyto(self.slogdet, self.slogdet_tmp)
+        # for copy in range(self.moved_particles.size):
+        #    p = self.moved_particles[copy] - copy*self.N
+        #    d_det = self.slogdet[0, copy]/self.slogdet_tmp[0, copy] * np.exp(
+        #        self.slogdet[1, copy]-self.slogdet_tmp[1, copy])
+        #    self.slater_inverse[..., copy] -= d_det*np.matmul(
+        #        self.slater_inverse[..., copy], np.outer((self.slater_tmp[:, p, copy] -
+        #                                                 self.slater[:, p, copy]), np.conj(self.slater_inverse[:, p, copy])))
+        # print(self.slater_inverse[..., copy])
 
     def TmpWavefnSwap(self):
 
@@ -162,6 +180,8 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
         self.FillLambdaLevels()
 
         self.slater = np.zeros(
+            (N, N, 4**(nbr_copies-1)), dtype=np.complex128)
+        self.slater_inverse = np.zeros(
             (N, N, 4**(nbr_copies-1)), dtype=np.complex128)
         self.slogdet = np.zeros((2, 4**(nbr_copies-1)), dtype=np.complex128)
 

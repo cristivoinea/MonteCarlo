@@ -2,7 +2,7 @@ import numpy as np
 # from numba import njit, prange
 from .MonteCarloTorus import MonteCarloTorus
 from .utilities import fermi_sea_kx, fermi_sea_ky
-from scipy.special import gamma, hyp0f1
+from scipy.special import gamma, hyp0f1, j1
 
 
 class MonteCarloTorusFreeFermions (MonteCarloTorus):
@@ -12,20 +12,63 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
     slogdet_tmp: np.array
     Ks: np.array
 
+    def GetFermiSea(self):
+        kF = {97: 30, 109: 35, 137: 41, 145: 45, 177: 53, 221: 68, 241: 75,
+              277: 85, 341: 106, 421: 130, 481: 150, 553: 173, 657: 205,
+              749: 238, 989: 315}
+        cutoff = int(np.floor(np.sqrt(kF[self.N])))+1
+        kx = ky = 0
+        kxs = [0]
+        kys = [0]
+        for kx in range(1, cutoff):
+            kxs.append(kx)
+            kxs.append(-kx)
+            kys.append(0)
+            kys.append(0)
+
+            kxs.append(0)
+            kxs.append(0)
+            kys.append(kx)
+            kys.append(-kx)
+
+        for kx in range(1, cutoff):
+            for ky in range(1, cutoff):
+                if kx**2 + ky**2 <= kF[self.N]:
+                    kxs.append(kx)
+                    kys.append(ky)
+
+                    kxs.append(kx)
+                    kys.append(-ky)
+
+                    kxs.append(-kx)
+                    kys.append(ky)
+
+                    kxs.append(-kx)
+                    kys.append(-ky)
+        if (len(kxs) != self.N):
+            print("error")
+        return np.array(kxs), np.array(kys)
+
     def GetOverlapMatrix(self):
+        if "square" in self.region_details:
+            region_geometry = "square"
+        elif "circle" in self.region_details:
+            region_geometry = "circle"
         overlap_matrix = np.zeros((self.N, self.N), dtype=np.complex128)
-        Kxs = np.real(self.Ks)*self.Lx/(2*np.pi)
-        Kys = np.imag(self.Ks)*self.Lx/(2*np.pi)
+        Kxs = np.real(self.Ks) * self.Lx/(2*np.pi)
+        Kys = np.imag(self.Ks) * self.Lx/(2*np.pi)
         R = self.boundary/self.Lx
         for i in range(self.N):
             overlap_matrix[i, i] = np.pi*R*R
             for j in range(i+1, self.N):
-                if self.region_geometry == 'square':
+                k_rel = np.sqrt((Kxs[i]-Kxs[j])**2 + (Kys[i]-Kys[j])**2)
+                if region_geometry == "square":
                     overlap_matrix[i, j] = np.sinc(
                         R*(Kxs[i]-Kxs[j]))*np.sinc(R*(Kys[i]-Kys[j]))*(R)**2
-                elif self.region_geometry == 'circle':
-                    overlap_matrix[i, j] = np.pi*R*R*hyp0f1(
-                        2, -((Kxs[i]-Kxs[j])**2 + (Kys[i]-Kys[j])**2)*(R*np.pi)**2)/gamma(2)
+                elif region_geometry == "circle":
+                    overlap_matrix[i, j] = R/k_rel * j1(2*np.pi*k_rel*R)
+                    # overlap_matrix[i, j] = np.pi*R*R*hyp0f1(
+                    #    2, -((Kxs[i]-Kxs[j])**2 + (Kys[i]-Kys[j])**2)*(R*np.pi)**2)/gamma(2)
                 overlap_matrix[j, i] = overlap_matrix[i, j]
 
         return overlap_matrix
@@ -137,8 +180,13 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
                          step_size, area_size, linear_size,
                          save_results, save_config, acceptance_ratio)
 
-        self.Ks = (fermi_sea_kx[self.N]*2*np.pi/self.Lx +
-                   1j*fermi_sea_ky[self.N]*2*np.pi/self.Ly)
+        if self.N in fermi_sea_kx:
+            self.Ks = (fermi_sea_kx[self.N]*2*np.pi/self.Lx +
+                       1j*fermi_sea_ky[self.N]*2*np.pi/self.Ly)
+        else:
+            kxs, kys = self.GetFermiSea()
+            self.Ks = (kxs*2*np.pi/self.Lx +
+                       1j*kys*2*np.pi/self.Ly)
 
         self.slater = np.zeros(
             (N, N, 4**(nbr_copies-1)), dtype=np.complex128)

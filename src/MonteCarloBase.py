@@ -1,6 +1,7 @@
 from os.path import exists
 from numba import njit
 import numpy as np
+from itertools import combinations
 
 # from .utilities import Stats, ThetaFunction
 from .fast_math import JackknifeMean, JackknifeVariance, ThetaFunction
@@ -43,6 +44,24 @@ class MonteCarloBase:
     def ComputeParticleFluctuationsED(self):
         overlap_matrix = self.GetOverlapMatrix()
         return np.trace(np.matmul(overlap_matrix, (np.eye(self.N)-overlap_matrix)))
+
+    def ComputeSwapProbability(self):
+        overlap_matrix = self.GetOverlapMatrix()
+        eigs = np.linalg.eigvalsh(overlap_matrix)
+        p = 0
+        for i in range(self.N+1):
+            p_i = 0
+            for c in combinations(range(self.N), i):
+                t_c = 1
+                for j in range(self.N):
+                    if j in c:
+                        t_c *= eigs[j]
+                    else:
+                        t_c *= (1-eigs[j])
+                p_i += t_c
+            p += p_i**2
+
+        return p
 
     def RandomPoint(self):
         """Returns random coordinates for one particle."""

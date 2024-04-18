@@ -7,7 +7,7 @@ from math import comb
 
 
 # @njit
-def njit_UpdateSlater(S_eff, coords, moved_particle, slater, Ls):
+def njit_UpdateSlaterUnproj(S_eff, coords, moved_particle, slater, Ls):
     if S_eff == 0:
         slater[:, moved_particle] = sph_harm(
             Ls[:, 1], Ls[:, 0], coords[moved_particle, 1], coords[moved_particle, 0])
@@ -27,7 +27,7 @@ def njit_UpdateJastrows(S_eff: np.uint64, coords_tmp: np.array, spinors_tmp: np.
         jastrows_tmp[:, p, 0, 0]
     jastrows_tmp[p, p] = 1
 
-    njit_UpdateSlater(S_eff, coords_tmp, p, slater_tmp, Ls)
+    njit_UpdateSlaterUnproj(S_eff, coords_tmp, p, slater_tmp, Ls)
 
 
 # @njit
@@ -211,10 +211,10 @@ class MonteCarloSphereCFL (MonteCarloSphere):
 
         for copy in range(2):
             swap_copy = self.to_swap_tmp[self.moved_particles[copy]] // self.N
-            njit_UpdateSlater(self.S_eff, coords_swap_tmp[swap_copy*self.N:(swap_copy+1)*self.N],
-                              self.to_swap_tmp[self.moved_particles[copy]
-                                               ] % self.N,
-                              self.slater_tmp[..., 2+swap_copy], self.Ls)
+            njit_UpdateSlaterUnproj(self.S_eff, coords_swap_tmp[swap_copy*self.N:(swap_copy+1)*self.N],
+                                    self.to_swap_tmp[self.moved_particles[copy]
+                                                     ] % self.N,
+                                    self.slater_tmp[..., 2+swap_copy], self.Ls)
 
         self.slogdet_tmp[:, 2] = np.linalg.slogdet(self.slater_tmp[..., 2])
         self.slogdet_tmp[:, 3] = np.linalg.slogdet(self.slater_tmp[..., 3])

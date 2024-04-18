@@ -4,7 +4,7 @@ import numpy as np
 
 @njit  # (parallel=True)
 def ThetaFunction(z: np.complex128, t: np.complex128, a: np.float64,
-                  b: np.float64, n_max: np.int64 = 150
+                  b: np.float64, n_max: np.int64 = 100
                   ) -> np.complex128:
     index_a = np.arange(-n_max+a, n_max+a, 1)
     # terms = np.exp(1j*np.pi*index_a*(t*(index_a) + 2*(z + b)))
@@ -16,6 +16,25 @@ def ThetaFunctionVectorized(z: np.complex128, t: np.complex128, a: np.float64,
                             b: np.float64, n_max: np.int64 = 100
                             ) -> np.complex128:
     return ThetaFunction(z, t, a, b, n_max)
+
+
+@njit
+def ReduceThetaFunctionCM(N: np.int64, S: np.int64, t: np.complex128,
+                          aCM: np.float64, bCM: np.float64, zCM: np.complex128
+                          ) -> np.array:
+    """Using the properties of the theta function, splits the CM contribution
+    to the wavefunction into a theta function and exponential contribution."""
+    m = S/N
+
+    zCM *= m/(np.sqrt(2*np.pi*S/np.imag(t)))
+    c = np.imag(zCM)//np.imag(m*t)
+
+    expo_CM = -1j*np.pi*c*(2*zCM - c*m*t + 2*bCM)
+
+    reduced_CM = ThetaFunction(
+        zCM - c*m*t, m*t, aCM + c, bCM, 150)
+
+    return reduced_CM, expo_CM
 
 
 @njit
