@@ -22,13 +22,17 @@ class MonteCarloSphere (MonteCarloBase):
                 m += 1
 
     def RandomPoint(self):
-        return np.array([np.random.random()*np.pi, np.random.random()*2*np.pi])
+        return np.array([np.arccos(1-2*np.random.random()), 2*np.random.random()*np.pi])
 
     def RandomConfig(self) -> np.array:
         """Returns a random configuration of particles."""
         R = np.vstack((self.RandomPoint(), self.RandomPoint()))
         for _ in range(2, self.N):
             R = np.vstack((R, self.RandomPoint()))
+        # i = np.arange(self.N)+0.5
+        # R = np.zeros((self.N, 2), dtype=np.float64)
+        # R[:, 0] = np.arccos(1 - 2*i/self.N)
+        # R[:, 1] = np.pi * (1 + 5**0.5) * i
 
         return R
 

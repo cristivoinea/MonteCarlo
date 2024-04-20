@@ -8,9 +8,9 @@ from .fast_math import JackknifeMean, JackknifeVariance, ThetaFunction
 
 
 class MonteCarloBase:
-    N: np.uint8
-    S: np.uint16
-    vortices: np.uint8
+    N: np.int64
+    S: np.int64
+    vortices: np.int64
     S_eff: np.int64
     geometry: str
     region_details: str
@@ -20,9 +20,9 @@ class MonteCarloBase:
     state: str
     geometry: str
 
-    nbr_iter: np.uint64
-    load_iter: np.uint64 = 0
-    nbr_nonthermal: np.uint64
+    nbr_iter: np.int64
+    load_iter: np.int64 = 0
+    nbr_nonthermal: np.int64
     acceptance_ratio: np.float64 = 0
     results: np.array
     coords: np.array
@@ -117,7 +117,7 @@ class MonteCarloBase:
         to_swap : order of original particles in the swapped copies. [0,N) go into coords_swap[:,0]
                             and [N, 2*N) go into coords_swap[:,1]
         """
-        self.to_swap = np.zeros((2*self.N), dtype=np.uint8)
+        self.to_swap = np.zeros((2*self.N), dtype=np.int64)
         inside_region = self.InsideRegion(self.coords)
         i_swap = 0
         j = 0
@@ -160,7 +160,7 @@ class MonteCarloBase:
         from_swap : order of swapped particles in the original copies. [0,N) go into coords[:,0]
                             and [N, 2*N) go into coords[:,1]
         """
-        from_swap = np.zeros((2*self.N), dtype=np.uint8)
+        from_swap = np.zeros((2*self.N), dtype=np.int64)
 
         for i in range(2*self.N):
             from_swap[to_swap[i]] = i
@@ -393,7 +393,7 @@ class MonteCarloBase:
         self.InitialWavefn()
         inside_region = self.InsideRegion(self.coords)
         if composite:
-            update = self.CF()
+            update = self.CF(inside_region)
         else:
             update = np.exp(1j*(np.count_nonzero(inside_region))*np.pi/2)
 
@@ -454,7 +454,7 @@ class MonteCarloBase:
                 self.Checkpoint(i, 'fluct')
 
         if theta != 0:
-            self.result = np.exp(1j*self.result*theta)
+            self.rersult = np.exp(1j*self.result*theta)
 
         self.SaveResults('fluct', theta)
 

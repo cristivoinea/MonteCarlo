@@ -53,7 +53,7 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
 
     def InitialWavefn(self):
         nbr_copies = self.coords.shape[0]//self.N
-        self.moved_particles = np.zeros(nbr_copies, dtype=np.uint16)
+        self.moved_particles = np.zeros(nbr_copies, dtype=np.int64)
         for copy in range(nbr_copies):
             self.InitialSlater(self.coords[copy*self.N:(copy+1)*self.N],
                                self.slater[..., copy])  # , self.slater_inverse[..., copy])
@@ -147,14 +147,19 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
         return step_amplitude
 
     def InitialMod(self):
+        """
         step_amplitude = 1
         step_exponent = 0
+
         for copy in range(2):
 
             step_amplitude *= (self.slogdet[0, copy+2] / self.slogdet[0, copy])
             step_exponent += (self.slogdet[1, copy+2] - self.slogdet[1, copy])
 
-        return np.abs(step_amplitude*np.exp(step_exponent))
+        return np.abs(step_amplitude*np.exp(step_exponent))"""
+
+        return np.exp(self.slogdet[1, 2]+self.slogdet[1, 3] -
+                      self.slogdet[1, 0] - self.slogdet[1, 1])
 
     def InitialSign(self):
         step_amplitude = 1
