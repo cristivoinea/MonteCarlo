@@ -451,12 +451,18 @@ class MonteCarloBase:
 
             self.results[i] = update
             if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
-                self.Checkpoint(i, 'fluct')
+                if cf:
+                    self.Checkpoint(i, 'fluct_cf')
+                else:
+                    self.Checkpoint(i, 'fluct')
 
         if theta != 0:
-            self.rersult = np.exp(1j*self.result*theta)
+            self.result = np.exp(1j*self.result*theta)
 
-        self.SaveResults('fluct', theta)
+        if cf:
+            self.SaveResults('fluct_cf', theta)
+        else:
+            self.SaveResults('fluct', theta)
 
     def RunSwapP(self):
         """

@@ -17,9 +17,9 @@ def njit_UpdateSlaterUnproj(S_eff, coords, moved_particle, slater, Ls):
                 Ls[:, 1] + Ls[:, 0], dtype=np.int64), coords[moved_particle, 0], coords[moved_particle, 1])
 
 
-def njit_UpdateJastrows(S_eff: np.uint64, coords_tmp: np.array, spinors_tmp: np.array,
+def njit_UpdateJastrows(S_eff: np.int64, coords_tmp: np.array, spinors_tmp: np.array,
                         jastrows_tmp: np.array, slater_tmp: np.array,
-                        Ls: np.array, p: np.uint16):
+                        Ls: np.array, p: np.int64):
     jastrows_tmp[:, p, 0, 0] = (
         spinors_tmp[:, 0]*spinors_tmp[p, 1] -
         spinors_tmp[p, 0]*spinors_tmp[:, 1])
@@ -94,6 +94,22 @@ def njit_StepAmplitudeTwoCopiesSwap(N: np.int64, vortices: np.int64, jastrows: n
     return step_amplitude
 
 
+@njit
+def njit_DensityCF(N: np.int64, inside_region: np.array, jastrows: np.array, vortices: np.int64):
+    cf_density = 0
+    for i in range(N):
+        if inside_region[i]:
+            trunc_cf_operator = 1
+            for j in range(N):
+                if inside_region[j]:
+                    trunc_cf_operator *= np.abs(jastrows[i, j])**(2*vortices)
+            cf_density += trunc_cf_operator
+            # cf_density += (np.prod(np.sqrt(self.N)*np.power(np.abs(self.jastrows[i, :, 0, 0]),
+            #                                                2*self.vortices)))
+
+    return cf_density
+
+
 class MonteCarloSphereCFL (MonteCarloSphere):
     spinors: np.array
     spinors_tmp: np.array
@@ -133,7 +149,7 @@ class MonteCarloSphereCFL (MonteCarloSphere):
 
     def InitialWavefn(self):
         nbr_copies = self.coords.shape[0]//self.N
-        self.moved_particles = np.zeros(nbr_copies, dtype=np.uint16)
+        self.moved_particles = np.zeros(nbr_copies, dtype=np.int64)
         self.spinors[:, 0] = (np.cos(self.coords[..., 0]/2) *
                               np.exp(1j*self.coords[..., 1]/2))
         self.spinors[:, 1] = (np.sin(self.coords[..., 0]/2) *
@@ -282,13 +298,7 @@ class MonteCarloSphereCFL (MonteCarloSphere):
         return step_amplitude
 
     def DensityCF(self):
-        cf_density = 0
-        for i in range(self.N):
-            if self.InsideRegion(self.coords[i]):
-                cf_density += (np.prod(np.sqrt(self.N)*np.power(np.abs(self.jastrows[i, :, 0, 0]),
-                                                                2*self.vortices)))
-
-        return cf_density
+        return njit_DensityCF(self.N, self.InsideRegion(self.coords), self.jastrows[:, :, 0, 0], self.vortices)
 
     def __init__(self, N, S, nbr_iter, nbr_nonthermal,
                  step_size, region_theta=180, region_phi=360, nbr_copies=1,
