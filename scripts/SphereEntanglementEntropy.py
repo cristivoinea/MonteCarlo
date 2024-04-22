@@ -40,10 +40,10 @@ parser.add_argument("--JK-coeffs", action="store", default='0',
 
 args = vars(parser.parse_args())
 
-N = np.uint8(args["N"])
-S = np.uint8(args["S"])
-nbr_iter = np.uint32(args["nbr_iter"])
-nbr_nonthermal = np.int32(args["nbr_nonthermal"])
+N = np.int64(args["N"])
+S = np.int64(args["S"])
+nbr_iter = np.int64(args["nbr_iter"])
+nbr_nonthermal = np.int64(args["nbr_nonthermal"])
 if nbr_nonthermal == -1:
     if nbr_iter > 1e6:
         nbr_nonthermal = 1e5
