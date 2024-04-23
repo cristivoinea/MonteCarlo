@@ -56,7 +56,7 @@ A_start = np.float64(args["A_start"])
 A_end = np.float64(args["A_end"])
 if A_end == -1:
     A_end = A_start
-nbr_A = np.uint8(args["nbr_A"])
+nbr_A = np.int64(args["nbr_A"])
 A_sizes = np.linspace(A_start, A_end, nbr_A, endpoint=True)
 region_geometry = str(args["region_geometry"])
 acceptance_ratio = np.float64(args["acc_ratio"])
