@@ -18,7 +18,7 @@ def njit_UpdateJastrowsProj(t: np.complex128, Lx: np.float64,
                             coords_tmp: np.array, Ks: np.array,
                             jastrows: np.array, jastrows_tmp: np.array,
                             JK_coeffs: np.array, slater_tmp: np.array,
-                            moved_particle: np.uint16):
+                            moved_particle: np.int64):
     N = coords_tmp.size
     slater_tmp[:, moved_particle] = np.exp(
         1j*np.real(Ks)*coords_tmp[moved_particle])
@@ -71,11 +71,11 @@ def njit_UpdateJastrowsSwapProj(t: np.complex128, Lx: np.float64, coords: np.arr
             # update cross copy jastrows for particle in copy 2
             if (to_swap[moved_particles[1]] // N) == (to_swap[i] // N):
                 jastrows[i, moved_particles[1], :, l] = ThetaFunctionVectorized(
-                    (coords[i] - coords[moved_particles[1]] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2)
+                    (coords[i] - coords[moved_particles[1]] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2, 100)
 
                 if JK_coeffs[0, l] != 0:
                     jastrows[moved_particles[1], i, :, l] = ThetaFunctionVectorized(
-                        (coords[moved_particles[1]] - coords[i] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2)
+                        (coords[moved_particles[1]] - coords[i] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2, 100)
                 else:
                     jastrows[moved_particles[1], i, :, l] = - \
                         jastrows[i, moved_particles[1], :, l]
@@ -83,11 +83,11 @@ def njit_UpdateJastrowsSwapProj(t: np.complex128, Lx: np.float64, coords: np.arr
                 # update cross copy jastrows for particle in copy 1
             if (to_swap[moved_particles[0]] // N) == (to_swap[i+N] // N):
                 jastrows[i+N, moved_particles[0], :, l] = ThetaFunctionVectorized(
-                    (coords[i+N] - coords[moved_particles[0]] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2)
+                    (coords[i+N] - coords[moved_particles[0]] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2, 100)
 
                 if JK_coeffs[0, l] != 0:
                     jastrows[moved_particles[0], i+N, :, l] = ThetaFunctionVectorized(
-                        (coords[moved_particles[0]] - coords[i+N] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2)
+                        (coords[moved_particles[0]] - coords[i+N] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2, 100)
                 else:
                     jastrows[moved_particles[0], i+N, :, l] = - \
                         jastrows[i+N, moved_particles[0], :, l]
@@ -324,7 +324,7 @@ def njit_ApplyStep(moved_particles, jastrows, jastrows_tmp, slater, slater_tmp,
 
 
 class MonteCarloTorusCFL (MonteCarloTorus):
-    kCM: np.uint8 = 0
+    kCM: np.int64 = 0
     phi_1: np.float64 = 0
     phi_t: np.float64 = 0
     aCM: np.float64
@@ -391,7 +391,7 @@ class MonteCarloTorusCFL (MonteCarloTorus):
 
     def InitialWavefn(self):
         self.moved_particles = np.zeros(
-            self.coords.size//self.N, dtype=np.uint16)
+            self.coords.size//self.N, dtype=np.int64)
         self.InitialJastrows()
         for copy in range(self.moved_particles.size):
             self.InitialJKMatrix(self.coords[copy*self.N:(copy+1)*self.N],
@@ -476,7 +476,7 @@ class MonteCarloTorusCFL (MonteCarloTorus):
         if self.flag_proj:
             njit_UpdateJastrowsSwapProj(self.t, self.Lx, self.coords_tmp, self.Ks, self.jastrows_tmp,
                                         self.JK_coeffs, self.moved_particles,
-                                        self.to_swap_tmp, self.flag_proj)
+                                        self.to_swap_tmp)
             njit_GetJKMatrixSwap(self.N, self.coords_tmp, self.Ks, self.from_swap_tmp,
                                  self.jastrows_tmp, self.slater_tmp, self.JK_coeffs, self.flag_proj)
         else:
@@ -616,6 +616,11 @@ class MonteCarloTorusCFL (MonteCarloTorus):
                         step_amplitude /= np.abs(step_amplitude)
 
         return step_amplitude
+
+    def CF(self, inside_region):
+        count = 0
+        # for i in range(self.N):
+        #    if inside_region
 
     def __init__(self, N, S, nbr_iter, nbr_nonthermal, region_geometry,
                  step_size=0.1, area_size=0, linear_size=0, JK_coeffs='2', flag_pf=False,

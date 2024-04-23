@@ -79,7 +79,7 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
 
     def InitialWavefn(self):
         nbr_copies = self.coords.size//self.N
-        self.moved_particles = np.zeros(nbr_copies, dtype=np.uint16)
+        self.moved_particles = np.zeros(nbr_copies, dtype=np.int64)
         for copy in range(nbr_copies):
             self.InitialSlater(self.coords[copy*self.N:(copy+1)*self.N],
                                self.slater[..., copy])
@@ -101,10 +101,11 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
         np.copyto(self.slogdet_tmp, self.slogdet)
 
     def TmpWavefn(self):
-        nbr_copies = self.coords.size//self.N
-        for copy in range(nbr_copies):
-            self.InitialSlater(self.coords_tmp[copy*self.N:(copy+1)*self.N],
-                               self.slater_tmp[..., copy])
+        for copy in range(self.moved_particles.size):
+            p = self.moved_particles[copy]
+            self.slater_tmp[:, p - copy*self.N, copy] = np.exp(
+                1j * (np.real(self.Ks) * np.real(self.coords_tmp[p]) +
+                      np.imag(self.Ks) * np.imag(self.coords_tmp[p])))
             self.slogdet_tmp[:, copy] = np.linalg.slogdet(
                 self.slater_tmp[..., copy])
 
@@ -121,13 +122,16 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
         np.copyto(self.slogdet, self.slogdet_tmp)
 
     def TmpWavefnSwap(self):
-
         coords_swap_tmp = self.coords_tmp[self.from_swap_tmp]
         for copy in range(2):
-            self.InitialSlater(coords_swap_tmp[copy*self.N:(copy+1)*self.N],
-                               self.slater_tmp[..., 2+copy])
-            self.slogdet_tmp[:, 2+copy] = np.linalg.slogdet(
-                self.slater_tmp[..., 2+copy])
+            swap_copy = self.to_swap_tmp[self.moved_particles[copy]] // self.N
+            moved_in_swap = self.to_swap_tmp[self.moved_particles[copy]]
+            self.slater_tmp[:, moved_in_swap % self.N, 2+swap_copy] = np.exp(
+                1j * (np.real(self.Ks) * np.real(coords_swap_tmp[moved_in_swap]) +
+                      np.imag(self.Ks) * np.imag(coords_swap_tmp[moved_in_swap])))
+
+        self.slogdet_tmp[:, 2] = np.linalg.slogdet(self.slater_tmp[..., 2])
+        self.slogdet_tmp[:, 3] = np.linalg.slogdet(self.slater_tmp[..., 3])
 
     def StepAmplitude(self) -> np.complex128:
         step_amplitude = 1
@@ -151,14 +155,8 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
         return step_amplitude
 
     def InitialMod(self):
-        step_amplitude = 1
-        step_exponent = 0
-        for copy in range(2):
-
-            step_amplitude *= (self.slogdet[0, copy+2] / self.slogdet[0, copy])
-            step_exponent += (self.slogdet[1, copy+2] - self.slogdet[1, copy])
-
-        return np.abs(step_amplitude*np.exp(step_exponent))
+        return np.exp(self.slogdet[1, 2]+self.slogdet[1, 3] -
+                      self.slogdet[1, 0] - self.slogdet[1, 1])
 
     def InitialSign(self):
         step_amplitude = 1
