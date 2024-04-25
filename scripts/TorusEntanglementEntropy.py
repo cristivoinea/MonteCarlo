@@ -28,7 +28,7 @@ parser.add_argument("--step", action="store", required=True,
                     help="step size value at square aspect ratio")
 parser.add_argument("--region-geometry", action="store", default='circle',
                     help="geometry of one of the bipartition regions")
-parser.add_argument("--region-size", action="store", default='circle',
+parser.add_argument("--region-size", action="store", required=True,
                     help="linear size of the bipartition")
 parser.add_argument("--acc-ratio", action="store", default=0,
                     help="loads a previous run with given acceptance")
@@ -65,7 +65,7 @@ start_time = datetime.now()
 if state == "free_fermions":
     fqh = MonteCarloTorusFreeFermions(N=N, S=S, t=t*1j, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                                       step_size=step, linear_size=region_size, region_geometry=region_geometry,
-                                      JK_coeffs=JK_coeffs, nbr_copies=2, acceptance_ratio=acceptance_ratio)
+                                      nbr_copies=2, acceptance_ratio=acceptance_ratio)
 elif state == 'cfl':
     fqh = MonteCarloTorusCFL(N=N, S=S, t=t*1j, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                              step_size=step, linear_size=region_size, region_geometry=region_geometry,
@@ -77,3 +77,7 @@ elif run_type == 'mod':
     fqh.RunSwapMod()
 elif run_type == 'sign':
     fqh.RunSwapSign()
+
+end_time = datetime.now()
+print(f"Total time = {str(end_time - start_time)[:10]} s")
+print(f"Time / 5% = {str((end_time - start_time)/20)[:10]} s")
