@@ -137,7 +137,8 @@ class MonteCarloSphere (MonteCarloBase):
 
     def __init__(self, N, S, nbr_iter, nbr_nonthermal,
                  step_size, region_theta=180, region_phi=360,
-                 save_results=True, save_config=True, acceptance_ratio=0):
+                 save_results=True, save_last_config=True,
+                 save_all_config=True, acceptance_ratio=0):
 
         self.step_size = np.arcsin(step_size)
 
@@ -157,7 +158,7 @@ class MonteCarloSphere (MonteCarloBase):
             region_details += f"_phi_{self.region_phi[0]:.6f}_{self.region_phi[1]:.6f}"
 
         super().__init__(N, S, nbr_iter, nbr_nonthermal, region_details,
-                         save_results, save_config, acceptance_ratio)
+                         save_results, save_last_config, save_all_config, acceptance_ratio)
 
         self.geometry = "sphere"
 

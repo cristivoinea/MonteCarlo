@@ -644,7 +644,8 @@ class MonteCarloTorusCFL (MonteCarloTorus):
     def __init__(self, N, S, nbr_iter, nbr_nonthermal, region_geometry,
                  step_size=0.1, area_size=0, linear_size=0, JK_coeffs='0', flag_pf=False,
                  nbr_copies=2, t=1j, kCM=0, phi_1=0, phi_t=0,
-                 save_results=True, save_config=True, acceptance_ratio=0):
+                 save_results=True, save_last_config=True,
+                 save_all_config=True, acceptance_ratio=0):
 
         self.kCM = kCM
         self.phi_1 = phi_1
@@ -670,7 +671,8 @@ class MonteCarloTorusCFL (MonteCarloTorus):
 
         super().__init__(N, S, t, nbr_iter, nbr_nonthermal, region_geometry,
                          step_size, area_size, linear_size,
-                         save_results, save_config, acceptance_ratio)
+                         save_results, save_last_config,
+                         save_all_config, acceptance_ratio)
 
         self.Ks = (fermi_sea_kx[self.N]*2*np.pi/self.Lx +
                    1j*fermi_sea_ky[self.N]*2*np.pi/self.Ly)

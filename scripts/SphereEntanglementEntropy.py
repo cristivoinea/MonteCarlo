@@ -37,6 +37,9 @@ parser.add_argument("--state", action="store", required=True,
                     help="type of state")
 parser.add_argument("--JK-coeffs", action="store", default='0',
                     help="JK translation coefficients for enforcing PBC")
+parser.add_argument("--save-all-config", action="store_true",
+                    help="save all sampled system configurations")
+
 
 args = vars(parser.parse_args())
 
@@ -69,19 +72,24 @@ state = str(args["state"])
 if state == 'cfl':
     JK_coeffs = str(args["JK_coeffs"])
 
+save_all_config = np.bool_(args["save_all_config"])
+
 start_time = datetime.now()
 if state == "free_fermions":
     fqh = MonteCarloSphereFreeFermions(N=N, S=S, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                                        step_size=step, region_theta=theta, region_phi=phi,
-                                       nbr_copies=2, acceptance_ratio=acceptance_ratio)
+                                       nbr_copies=2, acceptance_ratio=acceptance_ratio,
+                                       save_all_config=save_all_config)
 elif state == 'cfl':
     fqh = MonteCarloSphereCFL(N=N, S=S, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                               step_size=step, region_theta=theta, region_phi=phi,
-                              nbr_copies=2, acceptance_ratio=acceptance_ratio)
+                              nbr_copies=2, acceptance_ratio=acceptance_ratio,
+                              save_all_config=save_all_config)
 elif state == 'laughlin':
     fqh = MonteCarloSphereLaughlin(N=N, S=S, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                                    step_size=step, region_theta=theta, region_phi=phi,
-                                   nbr_copies=2, acceptance_ratio=acceptance_ratio)
+                                   nbr_copies=2, acceptance_ratio=acceptance_ratio,
+                                   save_all_config=save_all_config)
 
 if run_type == 'p':
     fqh.RunSwapP()

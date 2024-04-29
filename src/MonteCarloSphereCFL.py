@@ -302,13 +302,15 @@ class MonteCarloSphereCFL (MonteCarloSphere):
 
     def __init__(self, N, S, nbr_iter, nbr_nonthermal,
                  step_size, region_theta=180, region_phi=360, nbr_copies=1,
-                 save_results=True, save_config=True, acceptance_ratio=0):
+                 save_results=True, save_last_config=True,
+                 save_all_config=True, acceptance_ratio=0):
 
         self.state = 'cfl'
 
         super().__init__(N, S, nbr_iter, nbr_nonthermal,
                          step_size, region_theta, region_phi,
-                         save_results, save_config, acceptance_ratio)
+                         save_results, save_last_config,
+                         save_all_config, acceptance_ratio)
 
         if self.S/(self.N-1) == np.floor(self.S/(self.N-1)):
             print("Initialising HLR-CFL.")

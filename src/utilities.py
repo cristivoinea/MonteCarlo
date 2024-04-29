@@ -232,7 +232,7 @@ def LoadEntropyTerm(Ne, Ns, geometry, region_geometry, state, boundaries, term, 
     if geometry == "torus":
         kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20, 97: 30}
         Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
-        file = f"../data/{state}_{geometry}_entropy_{term}_N_{Ne}_S_{Ns}_t_{np.imag(t):.2f}_{region_geometry}s.dat"
+        file = f"../data/{state}_{geometry}_entropy_{term}_N_{Ne}_S_{Ns}_{region_geometry}s.dat"
     elif geometry == "sphere":
         file = f"../data/{state}_{geometry}_entropy_{term}_N_{Ne}_S_{Ns}.dat"
 
@@ -242,7 +242,7 @@ def LoadEntropyTerm(Ne, Ns, geometry, region_geometry, state, boundaries, term, 
         for i in range(boundaries.size):
             if geometry == "torus":
                 result = np.loadtxt(
-                    f"../../results/{geometry}/entropy/{state}/n_{Ne}/{term}/{state}_{geometry}_{term}_N_{Ne}_S_{Ns}_t_1.00_circle_{boundaries[i]:.6f}.dat")
+                    f"../../results/{geometry}/entropy/{state}/n_{Ne}/{term}/{state}_{geometry}_{term}_N_{Ne}_S_{Ns}_circle_{boundaries[i]:.6f}.dat")
             elif geometry == "sphere":
                 result = np.loadtxt(
                     f"../../results/{geometry}/entropy/{state}/n_{Ne}/{term}/{state}_{geometry}_{term}_N_{Ne}_S_{Ns}_theta_0.000000_{boundaries[i]:.6f}.dat")

@@ -100,7 +100,8 @@ class MonteCarloTorus (MonteCarloBase):
 
     def __init__(self, N, S, t, nbr_iter, nbr_nonthermal, region_geometry,
                  step_size, area_size, linear_size,
-                 save_results=True, save_config=True, acceptance_ratio=0):
+                 save_results=True, save_last_config=True,
+                 save_all_config=True, acceptance_ratio=0):
 
         self.geometry = 'torus'
         self.t = t
@@ -123,7 +124,8 @@ class MonteCarloTorus (MonteCarloBase):
         region_details = "_" + region_geometry + f"_{region_size:.6f}"
 
         super().__init__(N, S, nbr_iter, nbr_nonthermal, region_details,
-                         save_results, save_config, acceptance_ratio)
+                         save_results, save_last_config,
+                         save_all_config, acceptance_ratio)
 
         self.step_size = step_size*self.Lx
         print(f"Step size = {step_size:.4f}*Lx = {self.step_size}")

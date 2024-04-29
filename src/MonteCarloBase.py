@@ -29,8 +29,9 @@ class MonteCarloBase:
     coords_tmp: np.array
     moved_particles: np.array
 
-    save_config: np.bool_
+    save_last_config: np.bool_
     save_result: np.bool_
+    save_all_config: np.bool_
 
     def ComputeEntropyED(self, entropy="s2"):
         overlap_matrix = self.GetOverlapMatrix()
@@ -220,7 +221,7 @@ class MonteCarloBase:
     def Checkpoint(self, current_iter, run_type):
         print('Iteration', current_iter+1, 'done, current acceptance ratio:',
               np.round(self.acceptance_ratio*100/(current_iter+1), 2), '%')
-        if self.save_config:
+        if self.save_last_config:
             self.SaveConfig(run_type)
 
     def InitialWavefn(self):
@@ -292,7 +293,7 @@ class MonteCarloBase:
             # np.save(f"{self.state}_{run_type}_order_{self.geometry}_N_{self.N}_S_{self.S}_{self.region_geometry}_{self.region_size:.4f}.npy",
             #        self.to_swap)
 
-        np.save(f"{self.state}_{self.geometry}_{run_type}_coords_N_{self.N}_S_{self.S}{self.region_details}.npy",
+        np.save(f"{self.state}_{self.geometry}_{run_type}_coords_end_N_{self.N}_S_{self.S}{self.region_details}.npy",
                 save_coords)
 
     def SaveResults(self, run_type: str, extra_param=0):
@@ -323,12 +324,46 @@ class MonteCarloBase:
                 var = var_re*((mean_re/mean)**2) + var_im*((mean_im/mean)**2)
                 print("Check implementation", np.vstack((mean, var)))
 
+    def GetFinalCoords(self):
+        init_coords_file = f"{self.state}_{self.geometry}_p_coords_start_N_{self.N}_S_{self.S}{self.region_details}.npy"
+        moved_ind_file = f"{self.state}_{self.geometry}_p_moved_ind_N_{self.N}_S_{self.S}{self.region_details}.npy"
+        moved_coords_file = f"{self.state}_{self.geometry}_p_moved_coords_N_{self.N}_S_{self.S}{self.region_details}.npy"
+
+        if not exists(init_coords_file):
+            print("Initial coords. could not be retrieved.")
+            return -1
+        if not exists(moved_ind_file):
+            print("Moved indices could not be retrieved.")
+            return -1
+        if not exists(moved_coords_file):
+            print("Moved coords. could not be retrieved.")
+            return -1
+
+        init_coords = np.load(init_coords_file)
+        moved_ind = np.load(moved_ind_file)
+        moved_coords = np.load(moved_coords_file)
+
+        coords = np.copy(init_coords)
+        for i in range(moved_ind.shape[0]):
+            coords[moved_ind[i, 0]] = moved_coords[i, 0]
+            coords[moved_ind[i, 1]] = moved_coords[i, 1]
+
+        np.save(
+            f"{self.state}_{self.geometry}_p_coords_end_N_{self.N}_S_{self.S}{self.region_details}.npy", coords)
+
     def LoadRun(self, run_type: str):
 
         if self.acceptance_ratio > 0:
-            file_coords = f"./{self.state}_{self.geometry}_{run_type}_coords_N_{self.N}_S_{self.S}{self.region_details}.npy"
-            if exists(file_coords):
-                coords = np.load(file_coords)
+            file_coords_start = f"./{self.state}_{self.geometry}_{run_type}_coords_start_N_{self.N}_S_{self.S}{self.region_details}.npy"
+            file_coords_end = f"./{self.state}_{self.geometry}_{run_type}_coords_end_N_{self.N}_S_{self.S}{self.region_details}.npy"
+
+            if not exists(file_coords_start) and not exists(file_coords_end):
+                print(f"{file_coords_start} and {file_coords_end} both missing!\n")
+            else:
+                if exists(file_coords_start) and not exists(file_coords_end):
+                    self.GetFinalCoords()
+
+                coords = np.load(file_coords_end)
                 if run_type == "mod" or run_type == "sign":
                     if self.geometry == "sphere":
                         self.coords = coords[:, :-1]
@@ -337,17 +372,6 @@ class MonteCarloBase:
                     self.to_swap = np.int64(np.real(coords[:, -1]))
                 else:
                     self.coords = coords
-                """
-                file_order = f"./{run_type}_{self.state}_order_N_{self.N}_S_{self.S}_{self.region_geometry}_{self.region_size:.4f}.npy"
-                if exists(file_order):
-                    self.to_swap = np.load(file_order)
-                    self.coords = coords
-                else:
-
-                    print(f"{file_order} missing!\n")"""
-
-            else:
-                print(f"{file_coords} missing!\n")
 
             file_results = f"./{self.state}_{self.geometry}_{run_type}_results_N_{self.N}_S_{self.S}{self.region_details}.npy"
             if exists(file_results):
@@ -470,6 +494,30 @@ class MonteCarloBase:
         (the probability of two copies being swappable).
         """
         self.LoadRun('p')
+
+        if self.save_all_config:
+            if self.acceptance_ratio > 0:
+                prev_moved_particles = np.load(f"{self.state}_{self.geometry}_p_moved_ind_N_{self.N}_S_{self.S}{self.region_details}.npy",
+                                               all_moved_particles)
+                prev_moved_coords = np.save(f"{self.state}_{self.geometry}_p_moved_coords_N_{self.N}_S_{self.S}{self.region_details}.npy",
+                                            all_moved_coords)
+                load_iter = prev_moved_particles.shape[0]
+
+                all_moved_particles = np.zeros(
+                    (load_iter+self.nbr_iter, 2), dtype=np.uint8)
+                all_moved_particles[:load_iter, 2] = prev_moved_particles
+                all_moved_coords = np.zeros(
+                    (load_iter+self.nbr_iter, 2), dtype=np.complex128)
+                all_moved_coords[:load_iter, 2] = prev_moved_coords
+
+            else:
+                np.save(f"{self.state}_{self.geometry}_p_coords_start_N_{self.N}_S_{self.S}{self.region_details}.npy",
+                        self.coords)
+                all_moved_particles = np.zeros(
+                    (self.nbr_iter, 2), dtype=np.uint8)
+                all_moved_coords = np.zeros(
+                    (self.nbr_iter, 2), dtype=np.complex128)
+
         self.InitialWavefn()
         inside_region = self.InsideRegion(self.coords)
         update = (np.count_nonzero(inside_region[:self.N]) ==
@@ -491,6 +539,16 @@ class MonteCarloBase:
             self.results[i] = update
             if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
                 self.Checkpoint(i, 'p')
+
+            if self.save_all_config:
+                all_moved_particles[i] = self.moved_particles
+                all_moved_coords[i] = self.coords[self.moved_particles]
+
+        if self.save_all_config:
+            np.save(f"{self.state}_{self.geometry}_p_moved_ind_N_{self.N}_S_{self.S}{self.region_details}.npy",
+                    all_moved_particles)
+            np.save(f"{self.state}_{self.geometry}_p_moved_coords_N_{self.N}_S_{self.S}{self.region_details}.npy",
+                    all_moved_coords)
 
         self.SaveResults('p')
 
@@ -557,14 +615,15 @@ class MonteCarloBase:
         self.SaveResults('sign')
 
     def __init__(self, N, S, nbr_iter, nbr_nonthermal,
-                 region_details, save_results=True, save_config=True,
-                 acceptance_ratio=0):
+                 region_details, save_results=True, save_last_config=True,
+                 save_all_config=True, acceptance_ratio=0):
         self.N = N
         self.S = S
         self.nbr_iter = nbr_iter
         self.nbr_nonthermal = nbr_nonthermal
         self.region_geometry = ""
         self.region_details = region_details
-        self.save_config = save_config
+        self.save_last_config = save_last_config
+        self.save_all_config = save_all_config
         self.save_result = save_results
         self.acceptance_ratio = acceptance_ratio

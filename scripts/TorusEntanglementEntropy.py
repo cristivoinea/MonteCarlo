@@ -38,6 +38,8 @@ parser.add_argument("--state", action="store", required=True,
                     help="type of state")
 parser.add_argument("--JK-coeffs", action="store", default='0',
                     help="JK translation coefficients for enforcing PBC")
+parser.add_argument("--save-all-config", action="store_true",
+                    help="save all sampled system configurations")
 
 args = vars(parser.parse_args())
 
@@ -61,15 +63,19 @@ state = str(args["state"])
 if state == 'cfl':
     JK_coeffs = str(args["JK_coeffs"])
 
+save_all_config = np.bool_(args["save_all_config"])
+
 start_time = datetime.now()
 if state == "free_fermions":
     fqh = MonteCarloTorusFreeFermions(N=N, S=S, t=t*1j, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                                       step_size=step, linear_size=region_size, region_geometry=region_geometry,
-                                      nbr_copies=2, acceptance_ratio=acceptance_ratio)
+                                      nbr_copies=2, acceptance_ratio=acceptance_ratio,
+                                      save_all_config=save_all_config)
 elif state == 'cfl':
     fqh = MonteCarloTorusCFL(N=N, S=S, t=t*1j, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                              step_size=step, linear_size=region_size, region_geometry=region_geometry,
-                             JK_coeffs=JK_coeffs, nbr_copies=2, acceptance_ratio=acceptance_ratio)
+                             JK_coeffs=JK_coeffs, nbr_copies=2, acceptance_ratio=acceptance_ratio,
+                             save_all_config=save_all_config)
 
 if run_type == 'p':
     fqh.RunSwapP()

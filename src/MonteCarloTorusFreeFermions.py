@@ -170,13 +170,15 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
 
     def __init__(self, N, S, nbr_iter, nbr_nonthermal, region_geometry,
                  step_size, area_size=0, linear_size=0, nbr_copies=1, t=1j,
-                 save_results=True, save_config=True, acceptance_ratio=0):
+                 save_results=True, save_last_config=True,
+                 save_all_config=True, acceptance_ratio=0):
 
         self.state = 'free_fermions'
 
         super().__init__(N, S, t, nbr_iter, nbr_nonthermal, region_geometry,
                          step_size, area_size, linear_size,
-                         save_results, save_config, acceptance_ratio)
+                         save_results, save_last_config,
+                         save_all_config, acceptance_ratio)
 
         if self.N in fermi_sea_kx:
             self.Ks = (fermi_sea_kx[self.N]*2*np.pi/self.Lx +
