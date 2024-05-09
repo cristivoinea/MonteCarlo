@@ -2,7 +2,7 @@ from numba import njit, vectorize, int64, float64, complex128, optional
 import numpy as np
 
 
-@njit  # (parallel=True)
+@njit  # (cache=True)  # (parallel=True)
 def ThetaFunction(z: np.complex128, t: np.complex128, a: np.float64,
                   b: np.float64, n_max: np.int64 = 100
                   ) -> np.complex128:

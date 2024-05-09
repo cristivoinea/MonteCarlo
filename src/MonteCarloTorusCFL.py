@@ -9,11 +9,13 @@ from .fast_math import ThetaFunction, ThetaFunctionVectorized, ReduceThetaFuncti
 @njit
 def njit_UpdateSlaterUnproj(coords: np.array, moved_particle: np.array,
                             slater: np.array, Ks: np.array):
-    slater[:, moved_particle] = np.exp(1j * (np.real(Ks) * np.real(coords[moved_particle]) +
-                                             np.imag(Ks) * np.imag(coords[moved_particle])))
+    # slater[:, moved_particle] = np.exp(1j * (np.real(Ks) * np.real(coords[moved_particle]) +
+    #                                         np.imag(Ks) * np.imag(coords[moved_particle])))
+    slater[:, moved_particle] = np.exp(
+        1j * np.real(Ks*np.conj(coords[moved_particle])))
 
 
-@njit
+@njit  # (cache=True)
 def njit_UpdateSlaterProj(coords_tmp: np.array, Ks: np.array,
                           jastrows: np.array, jastrows_tmp: np.array,
                           JK_coeffs: np.array, slater_tmp: np.array,
@@ -21,14 +23,44 @@ def njit_UpdateSlaterProj(coords_tmp: np.array, Ks: np.array,
     N = coords_tmp.size
     slater_tmp[:, moved_particle] = np.exp(
         1j*np.real(Ks)*coords_tmp[moved_particle])
-    for i in range(N):
-        if i != moved_particle:
-            for l in range(JK_coeffs.shape[1]):
+    for l in range(JK_coeffs.shape[1]):
+        # jastrows_ratio = np.power((jastrows_tmp[:, moved_particle, :, l] /
+        #                           jastrows[:, moved_particle, :, l]), JK_coeffs[1, l])
+        # jastrows_power = np.power(jastrows_tmp[moved_particle, :, :, l],
+        #                          JK_coeffs[1, l])
+        for i in range(N):
+            if i != moved_particle:
                 slater_tmp[:, i] *= np.power((jastrows_tmp[i, moved_particle, :, l] /
                                               jastrows[i, moved_particle, :, l]), JK_coeffs[1, l])
 
                 slater_tmp[:, moved_particle] *= np.power(jastrows_tmp[moved_particle, i, :, l],
                                                           JK_coeffs[1, l])
+
+
+@njit
+def njit_UpdateSlaterSwapProj(coords_tmp: np.array, Ks: np.array,
+                              jastrows: np.array, jastrows_tmp: np.array,
+                              JK_coeffs: np.array, slater_tmp: np.array,
+                              moved_particles: np.int64, to_swap_tmp: np.array,
+                              from_swap: np.array, from_swap_tmp: np.array):
+    N = Ks.size
+    moved_particles_swap = to_swap_tmp[moved_particles]
+
+    for j in range(moved_particles_swap.size):
+        swap_copy = moved_particles_swap[j] // N
+        slater_tmp[:, moved_particles_swap[j] % N, swap_copy] = np.exp(
+            1j*np.real(Ks)*coords_tmp[moved_particles[j]])
+
+        moved_index_tmp = from_swap_tmp[moved_particles_swap[j]]
+        moved_index = from_swap[moved_particles_swap[j]]
+        for l in range(JK_coeffs.shape[1]):
+            for i in range(N):
+                if i != moved_particles_swap[j]:
+                    slater_tmp[:, i, swap_copy] *= np.power(jastrows_tmp[from_swap_tmp[swap_copy*N+i], moved_index_tmp, :, l] /
+                                                            jastrows[from_swap[swap_copy*N+i], moved_index, :, l], JK_coeffs[1, l])
+
+                    slater_tmp[:, moved_particles_swap[j] % N, swap_copy] *= np.power(jastrows_tmp[moved_index_tmp, from_swap_tmp[swap_copy*N+i], :, l],
+                                                                                      JK_coeffs[1, l])
 
 
 @njit(parallel=True)
@@ -112,6 +144,23 @@ def njit_UpdateJastrowsSwapUnproj(t: np.complex128, Lx: np.float64, coords: np.a
                                   jastrows: np.array, moved_particles: np.array,
                                   to_swap: np.array):
     N = coords.size//2
+    """
+    mask = ((to_swap[moved_particles[1]] // N) == (to_swap // N))
+    mask[N:] = np.full(N, False)
+    jastrows[mask, moved_particles[1], 0, 0] = ThetaFunctionVectorized(
+        (coords[mask] - coords[moved_particles[1]])/Lx, t, 1/2, 1/2, 100)
+    jastrows[moved_particles[1], mask, 0, 0] = - \
+        jastrows[mask, moved_particles[1], 0, 0]
+    jastrows[moved_particles[1], moved_particles[1], 0, 0] = 1
+
+    mask = ((to_swap[moved_particles[0]] // N) == (to_swap // N))
+    mask[:N] = np.full(N, False)
+    jastrows[mask, moved_particles[0], 0, 0] = ThetaFunctionVectorized(
+        (coords[mask] - coords[moved_particles[0]])/Lx, t, 1/2, 1/2, 100)
+    jastrows[moved_particles[0], mask, 0, 0] = - \
+        jastrows[mask, moved_particles[0], 0, 0]
+    jastrows[moved_particles[0], moved_particles[0], 0, 0] = 1
+    """
     for i in range(N):
         # update jastrows for moved_p in copy 1 and other in copy 0 if they
         # are in the same swapped copy
@@ -174,8 +223,8 @@ def njit_UpdateSlaterSwapUnproj(coords, to_swap, moved_particles, slater, Ks):
     for c in range(2):
         swap_copy = to_swap[moved_particles[c]] // N
         swap_particle = to_swap[moved_particles[c]]
-        slater[:, swap_particle % N, swap_copy] = np.exp(1j * (np.real(Ks) * np.real(coords[swap_particle]) +
-                                                               np.imag(Ks) * np.imag(coords[swap_particle])))
+        slater[:, swap_particle % N, swap_copy] = np.exp(
+            1j * np.real(Ks*np.conj(coords[swap_particle])))
 
 
 @njit  # (parallel=True)
@@ -226,15 +275,16 @@ def njit_StepAmplitude(N, S, t, aCM, bCM, coords, coords_tmp,
         else:
             if (S//N) % 2 == 0:
                 step_amplitude *= np.exp(step_exponent)
-            else:
-                jastrows_factor = np.prod(
+            elif S/N == 3:
+                step_amplitude *= np.prod(
                     np.exp(step_exponent/N) *
                     simple_jastrows_tmp[moved_particles[copy], swap_copy*N:(swap_copy+1)*N] /
                     simple_jastrows[moved_particles[copy], swap_copy*N:(swap_copy+1)*N])
-                if S/N == 3:
-                    step_amplitude *= jastrows_factor
-                elif S/N == 1:
-                    step_amplitude /= jastrows_factor
+            elif S/N == 1:
+                step_amplitude *= np.prod(
+                    np.exp(step_exponent/N) *
+                    simple_jastrows[moved_particles[copy], swap_copy*N:(swap_copy+1)*N] /
+                    simple_jastrows_tmp[moved_particles[copy], swap_copy*N:(swap_copy+1)*N])
 
         """
         if moved_particles[0]//N == moved_particles[1]//N:
@@ -290,13 +340,14 @@ def njit_StepAmplitudeTwoCopiesSwap(N, S, t, aCM, bCM, coords, coords_tmp, from_
                 step_amplitude *= np.exp(step_exponent)
             else:
                 for n in range(swap_copy*N, (swap_copy+1)*N):
-                    jastrows_factor = np.prod(np.exp(step_exponent / (N*(N-1))) *
-                                              np.power(jastrows_tmp[from_swap_tmp[n], from_swap_tmp[n+1: (swap_copy+1)*N], 0, 0] /
-                                                       jastrows[from_swap[n], from_swap[n+1: (swap_copy+1)*N], 0, 0], S/N))
                     if S/N == 3:
-                        step_amplitude *= jastrows_factor
+                        step_amplitude *= np.prod(np.exp(step_exponent / (N*(N-1)/2)) *
+                                                  np.power(jastrows_tmp[from_swap_tmp[n], from_swap_tmp[n+1: (swap_copy+1)*N], 0, 0] /
+                                                           jastrows[from_swap[n], from_swap[n+1: (swap_copy+1)*N], 0, 0], S/N))
                     elif S/N == 1:
-                        step_amplitude /= jastrows_factor
+                        step_amplitude *= np.prod(np.exp(step_exponent / (N*(N-1)/2)) *
+                                                  np.power(jastrows[from_swap[n], from_swap[n+1: (swap_copy+1)*N], 0, 0] /
+                                                           jastrows_tmp[from_swap_tmp[n], from_swap_tmp[n+1: (swap_copy+1)*N], 0, 0], S/N))
 
     return step_amplitude
 
@@ -498,8 +549,15 @@ class MonteCarloTorusCFL (MonteCarloTorus):
         if self.flag_proj:
             njit_UpdateJastrowsSwapProj(self.t, self.Lx, self.coords_tmp, self.Ks, self.jastrows_tmp,
                                         self.JK_coeffs, self.moved_particles, self.to_swap_tmp)
-            njit_GetJKMatrixSwap(self.N, self.coords_tmp, self.Ks, self.from_swap_tmp,
-                                 self.jastrows_tmp, self.slater_tmp, self.JK_coeffs, self.flag_proj)
+            if (self.to_swap_tmp[self.moved_particles[0]] // self.N) == (self.to_swap_tmp[self.moved_particles[1]] // self.N):
+                njit_GetJKMatrixSwap(self.N, self.coords_tmp, self.Ks, self.from_swap_tmp,
+                                     self.jastrows_tmp, self.slater_tmp, self.JK_coeffs, self.flag_proj)
+            else:
+                njit_UpdateSlaterSwapProj(self.coords_tmp, self.Ks, self.jastrows,
+                                          self.jastrows_tmp, self.JK_coeffs,
+                                          self.slater_tmp[...,
+                                                          2:], self.moved_particles,
+                                          self.to_swap_tmp, self.from_swap, self.from_swap_tmp)
         else:
             njit_UpdateJastrowsSwapUnproj(self.t, self.Lx, self.coords_tmp,
                                           self.jastrows_tmp, self.moved_particles, self.to_swap_tmp)

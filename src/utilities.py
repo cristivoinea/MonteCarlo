@@ -44,6 +44,8 @@ fermi_sea_kx[37] = fermi_sea_kx[69][:37]
 fermi_sea_ky[37] = fermi_sea_ky[69][:37]
 fermi_sea_kx[21] = fermi_sea_kx[69][:21]
 fermi_sea_ky[21] = fermi_sea_ky[69][:21]
+fermi_sea_kx[24] = fermi_sea_kx[32][:24]
+fermi_sea_ky[24] = fermi_sea_ky[32][:24]
 
 
 def Stats(data: np.array) -> tuple[np.float64, np.float64]:
@@ -178,7 +180,7 @@ def GetEntropyLaughlin(Ne, Ns, M, M0, t, step, region_geometry):
 
 def LoadEntropy(Ne, Ns, geometry, region_geometry, state, boundaries, t=1j):
     if geometry == "torus":
-        kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20, 97: 30}
+        kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20, 97: 29}
         Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
         file = f"../data/{state}_{geometry}_entropy_N_{Ne}_S_{Ns}_t_{np.imag(t):.2f}_{region_geometry}s.dat"
     elif geometry == "sphere":
@@ -257,7 +259,8 @@ def LoadEntropyTerm(Ne, Ns, geometry, region_geometry, state, boundaries, term, 
 
     entropy = np.zeros((data.shape[0], 2))
     if geometry == "torus":
-        x = data[:, 0]*np.sqrt(2*kf[Ne]*np.pi/(Ns))*Lx
+        # x = data[:, 0]*np.sqrt(2*kf[Ne]*np.pi/(Ns))*Lx
+        x = data[:, 0]*Lx * np.sqrt(2*Ne/(Ns))
     elif geometry == "sphere":
         x = np.sin(boundaries*np.pi/180)*np.sqrt(Ne)  # * np.sqrt(Ne/(Ne-1))
 
@@ -286,7 +289,7 @@ def LoadDisorderOperator(Ne, Ns, M, M0, t, region_geometry, state, boundaries):
     data = np.loadtxt(file)
 
     entropy = np.zeros((data.shape[0], 2))
-    x = data[:, 0]*np.sqrt(2*kf[Ne]*np.pi/(Ns))*Lx
+    x = data[:, 0]*np.sqrt*Lx  # *(2*kf[Ne]*np.pi/(Ns))
 
     entropy[:, 0] = -2*np.log(data[:, 1])
     entropy[:, 1] = np.sqrt((data[:, 2])/(data[:, 1])**2)/np.sqrt(M-M0)

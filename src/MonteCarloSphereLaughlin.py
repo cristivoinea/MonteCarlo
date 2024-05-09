@@ -68,11 +68,11 @@ class MonteCarloSphereLaughlin (MonteCarloSphere):
                 i+1, self.S-i+1, x**2)
         return overlap_matrix
 
-    def ComputeEntropyED(self, entropy="r2"):
+    def ComputeEntropyED(self, entropy="s2"):
         overlap_matrix = self.GetOverlapMatrix()
         eigs = np.linalg.eigvalsh(overlap_matrix)
 
-        if entropy == 'r2':
+        if entropy == 's2':
             return -np.sum(np.log(eigs**2 + (1-eigs)**2))
         elif entropy == 'vN':
             return -np.sum(np.log(eigs**2 + (1-eigs)**2))
