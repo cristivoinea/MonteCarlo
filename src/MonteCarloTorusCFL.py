@@ -342,12 +342,12 @@ def njit_StepAmplitudeTwoCopiesSwap(N, S, t, aCM, bCM, coords, coords_tmp, from_
                 for n in range(swap_copy*N, (swap_copy+1)*N):
                     if S/N == 3:
                         step_amplitude *= np.prod(np.exp(step_exponent / (N*(N-1)/2)) *
-                                                  np.power(jastrows_tmp[from_swap_tmp[n], from_swap_tmp[n+1: (swap_copy+1)*N], 0, 0] /
-                                                           jastrows[from_swap[n], from_swap[n+1: (swap_copy+1)*N], 0, 0], S/N))
+                                                  jastrows_tmp[from_swap_tmp[n], from_swap_tmp[n+1: (swap_copy+1)*N], 0, 0] /
+                                                  jastrows[from_swap[n], from_swap[n+1: (swap_copy+1)*N], 0, 0])
                     elif S/N == 1:
                         step_amplitude *= np.prod(np.exp(step_exponent / (N*(N-1)/2)) *
-                                                  np.power(jastrows[from_swap[n], from_swap[n+1: (swap_copy+1)*N], 0, 0] /
-                                                           jastrows_tmp[from_swap_tmp[n], from_swap_tmp[n+1: (swap_copy+1)*N], 0, 0], S/N))
+                                                  jastrows[from_swap[n], from_swap[n+1: (swap_copy+1)*N], 0, 0] /
+                                                  jastrows_tmp[from_swap_tmp[n], from_swap_tmp[n+1: (swap_copy+1)*N], 0, 0])
 
     return step_amplitude
 
@@ -677,7 +677,7 @@ class MonteCarloTorusCFL (MonteCarloTorus):
                 step_amplitude *= np.exp(step_exponent)
             else:
                 for copy in range(2):
-                    for n in prange(copy*self.N, (copy+1)*self.N):
+                    for n in range(copy*self.N, (copy+1)*self.N):
                         for m in range(n+1, (copy+1)*self.N):
                             jastrows_factor = (np.conj(self.jastrows[self.from_swap[n], self.from_swap[m], 0, 0]) *
                                                self.jastrows[n, m, 0, 0])
