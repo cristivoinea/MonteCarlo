@@ -199,7 +199,7 @@ def njit_UpdatePfJastrowsSwap(t: np.complex128, Lx: np.float64, coords: np.array
 
 
 @njit  # (parallel=True)
-def njit_GetJKMatrixSwap(N, coords, Ks, from_swap, jastrows, slater, JK_coeffs, flag_proj):
+def njit_GetJKMatrixSwapOld(N, coords, Ks, from_swap, jastrows, slater, JK_coeffs, flag_proj):
     if flag_proj:
         for m in range(2*N):
             slater[:, m % N, 2+m//N] = np.exp(
@@ -215,6 +215,26 @@ def njit_GetJKMatrixSwap(N, coords, Ks, from_swap, jastrows, slater, JK_coeffs, 
             slater[:, m % N, 2+m//N] = np.exp(
                 1j * (np.real(Ks) * np.real(coords[from_swap[m]]) +
                       np.imag(Ks) * np.imag(coords[from_swap[m]])))
+
+
+@njit  # (parallel=True)
+def njit_GetJKMatrixSwap(N, coords, Ks, from_swap, jastrows, slater,
+                         swap_copy, JK_coeffs, flag_proj):
+    if flag_proj:
+        for m in range(N):
+            slater[:, m, 2+swap_copy] = np.exp(
+                1j*np.real(Ks) * coords[from_swap[m+swap_copy*N]])
+            for j in range(N):
+                for l in range(JK_coeffs.shape[1]):
+                    slater[:, m, 2+swap_copy] *= np.power(
+                        jastrows[from_swap[m+swap_copy*N],
+                                 from_swap[j+swap_copy*N], :, l],
+                        JK_coeffs[1, l])
+    else:
+        for m in range(N):
+            slater[:, m, 2+swap_copy] = np.exp(
+                1j * (np.real(Ks) * np.real(coords[from_swap[m+swap_copy*N]]) +
+                      np.imag(Ks) * np.imag(coords[from_swap[m+swap_copy*N]])))
 
 
 @njit
@@ -312,8 +332,8 @@ def njit_StepAmplitudeTwoCopiesSwap(N, S, t, aCM, bCM, coords, coords_tmp, from_
     coords_swap_tmp = coords_tmp[from_swap_tmp]
 
     step_amplitude = 1
+    step_exponent = 0
     for swap_copy in range(2):
-        step_exponent = 0
         (reduced_CM, expo_CM) = ReduceThetaFunctionCM(N, S, t, aCM, bCM, np.sum(
             coords_swap[swap_copy*N:(swap_copy+1)*N] + 1j*Ks*flag_proj))
         (reduced_CM_tmp, expo_CM_tmp) = ReduceThetaFunctionCM(N, S, t, aCM, bCM, np.sum(
@@ -330,24 +350,28 @@ def njit_StepAmplitudeTwoCopiesSwap(N, S, t, aCM, bCM, coords, coords_tmp, from_
         step_exponent += 1j*(coords_tmp[moved_particles[swap_copy]]*np.imag(coords_tmp[moved_particles[swap_copy]]) -
                              coords[moved_particles[swap_copy]]*np.imag(coords[moved_particles[swap_copy]]))/2
 
-        if not flag_proj:
-            for n in range(swap_copy*N, (swap_copy+1)*N):
-                step_amplitude *= np.prod(np.exp(step_exponent / (N*(N-1)/2)) *
-                                          np.power(jastrows_tmp[from_swap_tmp[n], from_swap_tmp[n+1: (swap_copy+1)*N], 0, 0] /
-                                                   jastrows[from_swap[n], from_swap[n+1: (swap_copy+1)*N], 0, 0], S/N))
+    # step_exp/(N*N-1) without factor of two as this is done twice for 2 swap copies
+    if flag_proj:
+        if (S//N) % 2 == 0:
+            step_amplitude *= np.exp(step_exponent)
         else:
-            if (S//N) % 2 == 0:
-                step_amplitude *= np.exp(step_exponent)
-            else:
+            for swap_copy in range(2):
                 for n in range(swap_copy*N, (swap_copy+1)*N):
                     if S/N == 3:
-                        step_amplitude *= np.prod(np.exp(step_exponent / (N*(N-1)/2)) *
+                        step_amplitude *= np.prod(np.exp(step_exponent / (N*(N-1))) *
                                                   jastrows_tmp[from_swap_tmp[n], from_swap_tmp[n+1: (swap_copy+1)*N], 0, 0] /
                                                   jastrows[from_swap[n], from_swap[n+1: (swap_copy+1)*N], 0, 0])
                     elif S/N == 1:
-                        step_amplitude *= np.prod(np.exp(step_exponent / (N*(N-1)/2)) *
+                        step_amplitude *= np.prod(np.exp(step_exponent / (N*(N-1))) *
                                                   jastrows[from_swap[n], from_swap[n+1: (swap_copy+1)*N], 0, 0] /
                                                   jastrows_tmp[from_swap_tmp[n], from_swap_tmp[n+1: (swap_copy+1)*N], 0, 0])
+
+    if not flag_proj:
+        for swap_copy in range(2):
+            for n in range(swap_copy*N, (swap_copy+1)*N):
+                step_amplitude *= np.power(np.prod(np.exp(step_exponent / (S*(N-1))) *
+                                                   jastrows_tmp[from_swap_tmp[n], from_swap_tmp[n+1: (swap_copy+1)*N], 0, 0] /
+                                                   jastrows[from_swap[n], from_swap[n+1: (swap_copy+1)*N], 0, 0]), S/N)
 
     return step_amplitude
 
@@ -512,7 +536,9 @@ class MonteCarloTorusCFL (MonteCarloTorus):
     def InitialWavefnSwap(self):
         self.InitialJastrowsSwap()
         njit_GetJKMatrixSwap(self.N, self.coords, self.Ks, self.from_swap,
-                             self.jastrows, self.slater, self.JK_coeffs, self.flag_proj)
+                             self.jastrows, self.slater, 0, self.JK_coeffs, self.flag_proj)
+        njit_GetJKMatrixSwap(self.N, self.coords, self.Ks, self.from_swap,
+                             self.jastrows, self.slater, 1, self.JK_coeffs, self.flag_proj)
         self.slogdet[:, 2] = np.linalg.slogdet(self.slater[:, :, 2])
         self.slogdet[:, 3] = np.linalg.slogdet(self.slater[:, :, 3])
 
@@ -550,8 +576,9 @@ class MonteCarloTorusCFL (MonteCarloTorus):
             njit_UpdateJastrowsSwapProj(self.t, self.Lx, self.coords_tmp, self.Ks, self.jastrows_tmp,
                                         self.JK_coeffs, self.moved_particles, self.to_swap_tmp)
             if (self.to_swap_tmp[self.moved_particles[0]] // self.N) == (self.to_swap_tmp[self.moved_particles[1]] // self.N):
-                njit_GetJKMatrixSwap(self.N, self.coords_tmp, self.Ks, self.from_swap_tmp,
-                                     self.jastrows_tmp, self.slater_tmp, self.JK_coeffs, self.flag_proj)
+                njit_GetJKMatrixSwap(self.N, self.coords_tmp, self.Ks, self.from_swap_tmp, self.jastrows_tmp,
+                                     self.slater_tmp, self.to_swap_tmp[self.moved_particles[0]] // self.N,
+                                     self.JK_coeffs, self.flag_proj)
             else:
                 njit_UpdateSlaterSwapProj(self.coords_tmp, self.Ks, self.jastrows,
                                           self.jastrows_tmp, self.JK_coeffs,
