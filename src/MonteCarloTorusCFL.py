@@ -75,13 +75,14 @@ def njit_UpdateJastrowsProj(t: np.complex128, Lx: np.float64,
     for i in prange(N):
         if i != moved_particle:
             for l in range(JK_coeffs.shape[1]):
-                jastrows_tmp[i, moved_particle, :, l] = ThetaFunctionVectorized(
-                    (coords_tmp[i] - coords_tmp[moved_particle] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2, 100)
-
                 if JK_coeffs[0, l] != 0:
+                    jastrows_tmp[i, moved_particle, :, l] = ThetaFunctionVectorized(
+                        (coords_tmp[i] - coords_tmp[moved_particle] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2, 100)
                     jastrows_tmp[moved_particle, i, :, l] = ThetaFunctionVectorized(
                         (coords_tmp[moved_particle] - coords_tmp[i] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2, 100)
                 else:
+                    jastrows_tmp[i, moved_particle, :,
+                                 l] = jastrows_tmp[i, moved_particle, 0, 0]*np.ones(N)
                     jastrows_tmp[moved_particle, i, :, l] = - \
                         jastrows_tmp[i, moved_particle, :, l]
 
@@ -105,36 +106,38 @@ def njit_UpdatePfJastrows(t: np.complex128, Lx: np.float64,
     pf_matrix_tmp[moved_particle, :] = - pf_matrix_tmp[:, moved_particle]
 
 
-@njit  # (parallel=True)
+@njit(parallel=True)
 def njit_UpdateJastrowsSwapProj(t: np.complex128, Lx: np.float64, coords: np.array, Ks: np.array,
                                 jastrows: np.array, JK_coeffs: np.array, moved_particles: np.array,
                                 to_swap: np.array):
     N = coords.size//2
-    for i in range(N):
+    for i in prange(N):
         for l in range(JK_coeffs.shape[1]):
             # update jastrows for moved_p in copy 1 and other in copy 0 if they
             # are in the same swapped copy
             if (to_swap[moved_particles[1]] // N) == (to_swap[i] // N):
-                jastrows[i, moved_particles[1], :, l] = ThetaFunctionVectorized(
-                    (coords[i] - coords[moved_particles[1]] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2, 100)
-
                 if JK_coeffs[0, l] != 0:
+                    jastrows[i, moved_particles[1], :, l] = ThetaFunctionVectorized(
+                        (coords[i] - coords[moved_particles[1]] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2, 100)
                     jastrows[moved_particles[1], i, :, l] = ThetaFunctionVectorized(
                         (coords[moved_particles[1]] - coords[i] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2, 100)
                 else:
+                    jastrows[i, moved_particles[1], :, l] = jastrows[i,
+                                                                     moved_particles[1], 0, 0]*np.ones(N)
                     jastrows[moved_particles[1], i, :, l] = - \
                         jastrows[i, moved_particles[1], :, l]
 
             # update jastrows for moved_p in copy 0 and other in copy 1 if they
             # are in the same swapped copy
             if (to_swap[moved_particles[0]] // N) == (to_swap[i+N] // N):
-                jastrows[i+N, moved_particles[0], :, l] = ThetaFunctionVectorized(
-                    (coords[i+N] - coords[moved_particles[0]] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2, 100)
-
                 if JK_coeffs[0, l] != 0:
+                    jastrows[i+N, moved_particles[0], :, l] = ThetaFunctionVectorized(
+                        (coords[i+N] - coords[moved_particles[0]] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2, 100)
                     jastrows[moved_particles[0], i+N, :, l] = ThetaFunctionVectorized(
                         (coords[moved_particles[0]] - coords[i+N] + JK_coeffs[0, l]*1j*Ks)/Lx, t, 1/2, 1/2, 100)
                 else:
+                    jastrows[i+N, moved_particles[0], :, l] = jastrows[i+N,
+                                                                       moved_particles[0], 0, 0]*np.ones(N)
                     jastrows[moved_particles[0], i+N, :, l] = - \
                         jastrows[i+N, moved_particles[0], :, l]
 
@@ -739,7 +742,7 @@ class MonteCarloTorusCFL (MonteCarloTorus):
         self.bCM = -phi_t/(2*np.pi) + (S/N)*(N-1)/2
 
         self.JK_coeffs = np.vstack((np.unique(
-            np.array(list(JK_coeffs), dtype=int), return_counts=True)))
+            np.array(list(JK_coeffs), dtype=int), return_counts=True)))[:, ::-1]
 
         if JK_coeffs == "0":
             self.flag_proj = False
