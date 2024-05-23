@@ -2,6 +2,7 @@ import numpy as np
 from numba import njit
 from os.path import exists
 from scipy.special import gamma, hyp2f1, factorial, factorial2
+from .fast_math import JackknifeVariance
 
 
 fermi_sea_ky = {}
@@ -297,16 +298,16 @@ def LoadDisorderOperator(Ne, Ns, M, M0, t, region_geometry, state, boundaries):
     return x, entropy
 
 
-def LoadParticleFluctuations(Ne, Ns, geometry, state, boundaries, region_geometry='circle',
+def LoadParticleFluctuations(N, S, geometry, state, boundaries, region_geometry='circle',
                              linear_size=True, t=1j, cf=False):
     kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20, 97: 30}
-    Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
+    Lx = np.sqrt(2*np.pi*S/np.imag(t))
     if cf:
         cf_str = "_cf"
     else:
         cf_str = ""
 
-    file = f"{state}_{geometry}_fluct{cf_str}_n_{Ne}_s_{Ns}.dat"
+    file = f"{state}_{geometry}_fluct{cf_str}_N_{N}_S_{S}.dat"
 
     if not exists(file):
         data = np.zeros((boundaries.size, 3), dtype=np.float64)
@@ -314,10 +315,10 @@ def LoadParticleFluctuations(Ne, Ns, geometry, state, boundaries, region_geometr
         for i in range(boundaries.size):
             if geometry == "sphere":
                 result = np.loadtxt(
-                    f"../../results/{geometry}/fluctuations{cf_str}/{state}/n_{Ne}/{state}_{geometry}_fluct{cf_str}_N_{Ne}_S_{Ns}_theta_0.000000_{boundaries[i]:.6f}.dat")
+                    f"../../results/{geometry}/fluctuations{cf_str}/{state}/n_{N}/{state}_{geometry}_fluct{cf_str}_N_{N}_S_{S}_theta_0.000000_{boundaries[i]:.6f}.dat")
             elif geometry == "torus":
                 result = np.loadtxt(
-                    f"../../results/{geometry}/fluctuations{cf_str}/{state}/n_{Ne}/{state}_{geometry}_fluct{cf_str}_N_{Ne}_S_{Ns}_circle_{boundaries[i]:.6f}.dat")
+                    f"../../results/{geometry}/fluctuations{cf_str}/{state}/n_{N}/{state}_{geometry}_fluct{cf_str}_N_{N}_S_{S}_circle_{boundaries[i]:.6f}.dat")
             data[i, 1:3] = result
         np.savetxt(file, data)
 
@@ -326,15 +327,64 @@ def LoadParticleFluctuations(Ne, Ns, geometry, state, boundaries, region_geometr
     fluctuations = np.zeros((data.shape[0], 2))
     if geometry == "sphere":
         if linear_size:
-            x = np.sin(data[:, 0]*np.pi/180)*np.sqrt(Ne-1)
+            x = np.sin(data[:, 0]*np.pi/180)*np.sqrt(N-1)
     elif geometry == "torus":
+        kf = np.sqrt(2*S)
         if linear_size:
-            x = data[:, 0] * np.sqrt(2*kf[Ne]*np.pi/(Ns))*Lx
+            # x = data[:, 0] * np.sqrt(2*kf[Ne]*np.pi/(Ns))*Lx
+            x = data[:, 0] * np.sqrt(2*N/S)*Lx
 
     fluctuations[:, 0] = data[:, 1]
     fluctuations[:, 1] = data[:, 2]
 
     return x, fluctuations
+
+
+def CountParticlesInside(N, S, t, geometry, state, region_geometry, region_size):
+    region_details = "_" + region_geometry + f"_{region_size:.6f}"
+    Lx = np.sqrt(2*np.pi*S/np.imag(t))
+    Ly = Lx*np.imag(t)
+
+    init_coords_file = f"{state}_{geometry}_p_coords_start_N_{N}_S_{S}{region_details}.npy"
+    moved_ind_file = f"{state}_{geometry}_p_moved_ind_N_{N}_S_{S}{region_details}.npy"
+    moved_coords_file = f"{state}_{geometry}_p_moved_coords_N_{N}_S_{S}{region_details}.npy"
+
+    init_coords = np.load(init_coords_file)
+    moved_ind = np.load(moved_ind_file)
+    moved_coords = np.load(moved_coords_file)
+
+    coords = np.copy(init_coords)
+    results = np.zeros(moved_coords.shape)
+    for i in range(moved_ind.shape[0]):
+        coords[moved_ind[i, 0]] = moved_coords[i, 0]
+        coords[moved_ind[i, 1]] = moved_coords[i, 1]
+
+        y = np.imag(coords) - Ly/2
+        x = np.real(coords) - Lx/2
+        inside_A = ((y < region_size*Ly) & (y > -region_size*Ly) &
+                    (x < region_size*Lx) & (x > -region_size*Lx))
+
+        results[i] = np.array(
+            [np.count_nonzero(inside_A[:N]), np.count_nonzero(inside_A[N:])])
+
+    return results
+
+
+def ExtractFluctuationsFromFile(N, S, geometry, state, region_geometry):
+    t = 1j
+    boundaries = np.arange(0.042, 0.316, 0.007)
+    fluct = np.zeros((boundaries.size, 2))
+
+    for i in range(boundaries.size):
+        results = CountParticlesInside(N=N, S=S, t=t, geometry=geometry,
+                                       state=state, region_geometry=region_geometry,
+                                       region_size=boundaries[i])
+        res_combined = np.hstack((results[100000:, 0], results[100000:, 1]))
+        fluct[i] = JackknifeVariance(res_combined)
+        print(f"Done for r = {boundaries[i]}", f"{res_combined.size}")
+
+    np.savetxt(f"{state}_{geometry}_fluct_N_{N}_S_{S}.dat",
+               np.vstack((boundaries, fluct.T)).T)
 
 
 def LegendreOffDiagIntegral(x, legendre, l, k, m):
