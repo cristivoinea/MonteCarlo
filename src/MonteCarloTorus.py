@@ -107,7 +107,7 @@ class MonteCarloTorus (MonteCarloBase):
         self.t = t
         self.Lx = np.sqrt(2*np.pi*S/np.imag(self.t))
         self.Ly = self.Lx*np.imag(self.t)
-        print(f"Torus dimensions \nLx = {self.Lx}, \nLy = {self.Ly}")
+        # print(f"Torus dimensions \nLx = {self.Lx}, \nLy = {self.Ly}")
 
         if linear_size == 0 and area_size == 0:
             print("Region undefined, please define a subsystem.")
@@ -128,7 +128,7 @@ class MonteCarloTorus (MonteCarloBase):
                          save_all_config, acceptance_ratio)
 
         self.step_size = step_size*self.Lx
-        print(f"Step size = {step_size:.4f}*Lx = {self.step_size}")
+        # print(f"Step size = {step_size:.4f}*Lx = {self.step_size}")
         self.step_pattern = np.array([1, -1, 1j, -1j, (1+1j)*np.sqrt(2)/2, (1-1j)*np.sqrt(2)/2,
                                       (-1+1j)*np.sqrt(2)/2, (-1-1j)*np.sqrt(2)/2])
         self.acceptance_ratio = acceptance_ratio

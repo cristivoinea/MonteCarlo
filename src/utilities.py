@@ -13,6 +13,16 @@ fermi_sea_kx[32] = np.array([0, 1, 1, 0, 2, 2, 1, 0, -1, -1, 0, 1,
 fermi_sea_ky[32] = np.array([0, 0, 1, 1, 0, 1, 2, 2, 1, 0, -1, -1,
                              2, 2, -1, -1, 0, 1, 3, 3, 1, 0, -2, -2,
                              2, 3, 3, 2, -1, -2, -2, -1])
+fermi_sea_kx[60] = np.array([0, 1, 1, 0, 2, 2, 1, 0, -1, -1, 0, 1,
+                             2, -1, -1, 2, 3, 3, 1, 0, -2, -2, 0, 1,
+                             3, 2, -1, -2, -2, -1, 2, 3, 3, -2, -2, 3,
+                             1, 0, -3, -3, 0, 1, 4, 4, 2, -1, -3, -3,
+                             -1, 2, 4, 4, 4, 3, -2, -3, -3, -2, 3, 4])
+fermi_sea_ky[60] = np.array([0, 0, 1, 1, 0, 1, 2, 2, 1, 0, -1, -1,
+                             2, 2, -1, -1, 0, 1, 3, 3, 1, 0, -2, -2,
+                             2, 3, 3, 2, -1, -2, -2, -1, 3, 3, -2, -2,
+                             4, 4, 1, 0, -3, -3, 0, 1, 4, 4, 2, -1,
+                             -3, -3, -1, 2, 3, 4, 4, 3, -2, -3, -3, -2])
 fermi_sea_kx[12] = np.array([0, 1, 0, -1, 0, 1, -1, 1, 2, 2, 1, 0])
 fermi_sea_ky[12] = np.array([0, 0, 1, 0, -1, 1, 1, -1, 0, 1, 2, 2])
 fermi_sea_kx[69] = np.array([0, 1, 0, -1, 0, 1, -1, -1, 1, 2, 0, -2, 0,
@@ -45,8 +55,10 @@ fermi_sea_kx[37] = fermi_sea_kx[69][:37]
 fermi_sea_ky[37] = fermi_sea_ky[69][:37]
 fermi_sea_kx[21] = fermi_sea_kx[69][:21]
 fermi_sea_ky[21] = fermi_sea_ky[69][:21]
-fermi_sea_kx[24] = fermi_sea_kx[32][:24]
-fermi_sea_ky[24] = fermi_sea_ky[32][:24]
+fermi_sea_kx[32] = fermi_sea_kx[60][:32]
+fermi_sea_ky[32] = fermi_sea_ky[60][:32]
+fermi_sea_kx[24] = fermi_sea_kx[60][:24]
+fermi_sea_ky[24] = fermi_sea_ky[60][:24]
 
 
 def Stats(data: np.array) -> tuple[np.float64, np.float64]:
