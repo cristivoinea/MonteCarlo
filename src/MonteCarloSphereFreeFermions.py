@@ -18,14 +18,17 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
         overlap_matrix = np.zeros((self.N, self.N), dtype=np.complex128)
         x = np.cos(self.region_theta[1])
 
-        norms = (2*self.Ls[:, 0]+1)/(4*np.pi)
+        Ls = self.Ls[:, 0] + self.S_eff/2
+        Ms = self.Ls[:, 1] - Ls
+
+        norms = (2*Ls+1)/(4*np.pi)
         for i in range(self.N):
-            if self.Ls[i, 1] > 0:
-                for m in range(-int(self.Ls[i, 1]), int(self.Ls[i, 1])):
-                    norms[i] /= (self.Ls[i, 0] + m + 1)
-            elif self.Ls[i, 1] < 0:
-                for m in range(int(self.Ls[i, 1]), -int(self.Ls[i, 1])):
-                    norms[i] *= (self.Ls[i, 0] + m + 1)
+            if Ms[i] > 0:
+                for m in range(-int(Ms[i]), int(Ms[i])):
+                    norms[i] /= (Ls[i] + m + 1)
+            elif Ms[i] < 0:
+                for m in range(int(Ms[i]), -int(Ms[i])):
+                    norms[i] *= (Ls[i] + m + 1)
         norms = np.sqrt(2*np.pi*norms)
         legendre = {}
         for l in range(floor(np.sqrt(self.N))+3):
@@ -34,13 +37,13 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
                 legendre[l][l+m] = lpmv(m, l, x)
         diag = LegendreDiagIntegral(x, floor(np.sqrt(self.N)), legendre)
         for i in range(self.N):
-            overlap_matrix[i, i] = (diag[self.Ls[i, 0]][int(np.sum(self.Ls[i]))] *
+            overlap_matrix[i, i] = (diag[Ls[i]][int(np.sum(Ls[i]+Ms[i]))] *
                                     (norms[i]**2))
             for j in range(i+1, self.N):
-                if self.Ls[i, 1] == self.Ls[j, 1]:
+                if Ms[i] == Ms[j]:
                     overlap_matrix[i, j] = (norms[i] * norms[j] *
-                                            LegendreOffDiagIntegral(x, legendre, int(self.Ls[i, 0]),
-                                                                    int(self.Ls[j, 0]), int(self.Ls[i, 1])))
+                                            LegendreOffDiagIntegral(x, legendre, int(Ls[i]),
+                                                                    int(Ls[j]), int(Ms[i])))
                     overlap_matrix[j, i] = overlap_matrix[i, j]
 
         return overlap_matrix
@@ -48,7 +51,9 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
     def InitialSlater(self, coords, slater):  # , slater_inverse):
         for i in range(self.N):
             slater[i, :] = sph_harm(
-                self.Ls[i, 1], self.Ls[i, 0], coords[:, 1], coords[:, 0])
+                self.Ls[i, 1] - self.Ls[i, 0] - self.S_eff / 2,
+                self.Ls[i, 0] + self.S_eff/2,
+                coords[:, 1], coords[:, 0])
         # np.copyto(slater_inverse, np.linalg.inv(slater))
 
     def InitialWavefn(self):
@@ -78,7 +83,8 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
         for copy in range(self.moved_particles.size):
             p = self.moved_particles[copy]
             self.slater_tmp[:, p - copy*self.N, copy] = sph_harm(
-                self.Ls[:, 1], self.Ls[:, 0],
+                self.Ls[:, 1] - self.Ls[:, 0] - self.S_eff/2,
+                self.Ls[:, 0] + self.S_eff/2,
                 self.coords_tmp[p, 1], self.coords_tmp[p, 0])
             # d_det = (1+np.vdot(self.slater_inverse[p - copy*self.N, :, copy],
             #                   (self.slater_tmp[:, p - copy*self.N, copy] -
@@ -117,7 +123,8 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
             swap_copy = self.to_swap_tmp[self.moved_particles[copy]] // self.N
             moved_in_swap = self.to_swap_tmp[self.moved_particles[copy]]
             self.slater_tmp[:, moved_in_swap % self.N, 2+swap_copy] = sph_harm(
-                self.Ls[:, 1], self.Ls[:, 0],
+                self.Ls[:, 1] - self.Ls[:, 0] - self.S_eff / 2,
+                self.Ls[:, 0] + self.S_eff/2,
                 coords_swap_tmp[moved_in_swap, 1], coords_swap_tmp[moved_in_swap, 0])
             # self.InitialSlater(coords_swap_tmp[copy*self.N:(copy+1)*self.N],
             #                   self.slater_tmp[..., 2+copy])
@@ -158,7 +165,7 @@ class MonteCarloSphereFreeFermions (MonteCarloSphere):
 
         return np.abs(step_amplitude*np.exp(step_exponent))"""
 
-        return np.exp(self.slogdet[1, 2]+self.slogdet[1, 3] -
+        return np.exp(self.slogdet[1, 2] + self.slogdet[1, 3] -
                       self.slogdet[1, 0] - self.slogdet[1, 1])
 
     def InitialSign(self):

@@ -61,7 +61,7 @@ class MonteCarloSphereLaughlin (MonteCarloSphere):
 
     def GetOverlapMatrix(self):
         overlap_matrix = np.zeros((self.N, self.N), dtype=np.complex128)
-        x = np.cos(self.boundary/2)
+        x = np.cos(self.region_theta[1]/2)
 
         for i in range(self.N):
             overlap_matrix[i, i] = 1 - betainc(

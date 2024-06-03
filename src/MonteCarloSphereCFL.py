@@ -2,19 +2,85 @@ import numpy as np
 from numba import njit
 from scipy.special import sph_harm
 from .MonteCarloSphere import MonteCarloSphere
-from .fast_math import MonopoleHarmonics
+from .fast_math import MonopoleHarmonics, JastrowDerivativeKeys, combs
 from math import comb
 
 
-# @njit
+def pos(a, b) -> np.int64:
+    return np.int64((a+b)*(a+b+1)/2 + a)
+
+
+def JastrowDerivative(ind: np.int64, a: np.int64, b: np.int64, d_table: np.array):
+    match (a, b):
+        case (0, 0):
+            return 1
+        case (1, 0):
+            return d_table[ind, pos(1, 0)]
+        case (0, 1):
+            return d_table[ind, pos(0, 1)]
+        case (2, 0):
+            return d_table[ind, pos(1, 0)]**2 - d_table[ind, pos(2, 0)]**2
+        case (0, 2):
+            return d_table[ind, pos(0, 1)]**2 - d_table[ind, pos(0, 2)]**2
+        case (3, 0):
+            return (d_table[ind, pos(1, 0)]**3 - 3*d_table[ind, pos(1, 0)]*d_table[ind, pos(2, 0)] +
+                    2*d_table[ind, pos(3, 0)])
+        case (2, 1):
+            return ((d_table[ind, pos(0, 1)])*(d_table[ind, pos(1, 0)])**2 -
+                    2*d_table[ind, pos(1, 0)]*d_table[ind, pos(1, 1)] -
+                    d_table[ind, pos(0, 1)]*d_table[ind, pos(2, 0)]
+                    + 2*d_table[ind, pos(2, 1)])
+        case (1, 2):
+            return ((d_table[ind, pos(1, 0)])*(d_table[ind, pos(0, 1)])**2 -
+                    2*d_table[ind, pos(0, 1)]*d_table[ind, pos(1, 1)] -
+                    d_table[ind, pos(1, 0)]*d_table[ind, pos(0, 2)]
+                    + 2*d_table[ind, pos(1, 2)])
+        case (0, 3):
+            return (d_table[ind, pos(0, 1)]**3 - 3*d_table[ind, pos(0, 1)]*d_table[ind, pos(0, 2)] +
+                    2*d_table[ind, pos(0, 3)])
+
+
+def njit_CalculateDerivativeTable(d_table: np.array,
+                                  spinors, jastrows, p: np.int64):
+    n = 0
+    a = 0
+    b = n
+    for j in range(d_table.shape[1]):
+        for i in range(d_table.shape[0]):
+            # print(np.power(spinors[i, 1]/jastrows[i, :], a))
+            d_table[i, j] = p*(np.dot(np.power(spinors[i, 1]/jastrows[i, :], a),
+                                      np.power(-spinors[i, 0]/jastrows[i, :], b)) -
+                               (spinors[i, 1]**a)*((-spinors[i, 0])**b))
+        if a == n:
+            n += 1
+            a = 0
+            b = n
+        else:
+            a += 1
+            b -= 1
+
+
+def njit_GetSlaterProj(N, S, S_eff, spinors, slater,
+                       Ls, d_table, norms_CF):
+    for k in range(Ls.shape[0]):
+        for i in range(N):
+            slater[k, i] = 0
+            for s in range(max(0, Ls[i, 0]-Ls[i, 1]), min(S_eff+2*Ls[k, 0]-Ls[k, 1], Ls[k, 0])+1):
+                slater[k, i] += (((-1)**s)*combs(Ls[k, 0], s)*combs(S_eff+Ls[k, 0], S_eff+2*Ls[k, 0]-Ls[k, 1]-s) *
+                                 ((spinors[i, 0]/spinors[i, 1])**s)*JastrowDerivative(i, s, Ls[k, 0]-s, d_table))
+            slater[k, i] *= (norms_CF[k] * (spinors[i, 0]**(Ls[i, 1]-Ls[i, 0])) *
+                             (spinors[i, 1]**(S_eff + 2*Ls[i, 0] - Ls[i, 1])) /
+                             np.prod(np.arange(S+1, S+Ls[k, 0]+2)))
+
+
 def njit_UpdateSlaterUnproj(S_eff, coords, moved_particle, slater, Ls):
     if S_eff == 0:
-        slater[:, moved_particle] = sph_harm(
-            Ls[:, 1], Ls[:, 0], coords[moved_particle, 1], coords[moved_particle, 0])
+        slater[:, moved_particle] = sph_harm(Ls[:, 1] - Ls[:, 0] - S_eff/2,
+                                             Ls[:, 0] + S_eff/2,
+                                             coords[moved_particle, 1], coords[moved_particle, 0])
     else:
         slater[:, moved_particle] = MonopoleHarmonics(
-            S_eff, np.array(Ls[:, 0]-np.float64(S_eff)/2, dtype=np.int64), np.array(
-                Ls[:, 1] + Ls[:, 0], dtype=np.int64), coords[moved_particle, 0], coords[moved_particle, 1])
+            S_eff, Ls[:, 0],  Ls[:, 1], coords[moved_particle, 0], coords[moved_particle, 1])
 
 
 def njit_UpdateJastrows(S_eff: np.int64, coords_tmp: np.array, spinors_tmp: np.array,
@@ -27,35 +93,12 @@ def njit_UpdateJastrows(S_eff: np.int64, coords_tmp: np.array, spinors_tmp: np.a
         jastrows_tmp[:, p, 0, 0]
     jastrows_tmp[p, p] = 1
 
-    njit_UpdateSlaterUnproj(S_eff, coords_tmp, p, slater_tmp, Ls)
-
 
 # @njit
 def njit_UpdateJastrowsSwap(coords_tmp: np.array, spinors_tmp: np.array,
                             jastrows_tmp: np.array, moved_particles: np.array,
                             to_swap_tmp: np.array):
     N = coords_tmp.shape[0]//2
-    """
-    mask_1 = ((to_swap_tmp[moved_particles[1]] // N)
-              == (to_swap_tmp[:N] // N))
-    spinors_1 = spinors_tmp[:N][mask_1]
-    jastrows_tmp[mask_1, moved_particles[1], 0, 0] = (
-        spinors_1[:, 0]*spinors_tmp[moved_particles[1], 1] -
-        spinors_tmp[moved_particles[1], 0]*spinors_1[:, 1])
-    jastrows_tmp[moved_particles[1], mask_1, 0, 0] = - \
-        jastrows_tmp[mask_1, moved_particles[1], 0, 0]
-    jastrows_tmp[moved_particles[1], moved_particles[1], 0, 0] = 1
-
-    mask_2 = ((to_swap_tmp[moved_particles[0]] // N)
-              == (to_swap_tmp[N:] // N))
-    spinors_2 = spinors_tmp[N:][mask_2]
-    jastrows_tmp[mask_2+N, moved_particles[0], 0, 0] = (
-        spinors_2[:, 0]*spinors_tmp[moved_particles[0], 1] -
-        spinors_tmp[moved_particles[0], 0]*spinors_2[:, 1])
-    jastrows_tmp[moved_particles[0], mask_2+N, 0, 0] = - \
-        jastrows_tmp[mask_2+N, moved_particles[0], 0, 0]
-    jastrows_tmp[moved_particles[0], moved_particles[0], 0, 0] = 1
-    """
     for i in range(N):
         if (to_swap_tmp[moved_particles[1]] // N) == (to_swap_tmp[i] // N):
             jastrows_tmp[i, moved_particles[1], 0, 0] = (
@@ -74,9 +117,10 @@ def njit_UpdateJastrowsSwap(coords_tmp: np.array, spinors_tmp: np.array,
 
 
 @njit
-def njit_StepAmplitudeTwoCopiesSwap(N: np.int64, vortices: np.int64, jastrows: np.array,
+def njit_StepAmplitudeTwoCopiesSwap(N: np.int64, nbr_vortices: np.int64, jastrows: np.array,
                                     jastrows_tmp: np.array, slogdet: np.array, slogdet_tmp: np.array,
-                                    from_swap: np.array, from_swap_tmp: np.array) -> np.complex128:
+                                    from_swap: np.array, from_swap_tmp: np.array, no_vortex: np.bool_
+                                    ) -> np.complex128:
     """
     Returns the ratio of wavefunctions for coordinates R_i
     to coordinates R_f, given that the particle with index p has moved."""
@@ -86,26 +130,30 @@ def njit_StepAmplitudeTwoCopiesSwap(N: np.int64, vortices: np.int64, jastrows: n
                            slogdet[0, 2+copy])
 
         for n in range(copy*N, (copy+1)*N):
-            step_amplitude *= np.prod(np.exp((slogdet_tmp[1, 2+copy]-slogdet[1, 2+copy]) / (N*(N-1)/2)) *
-                                      np.power(jastrows_tmp[from_swap_tmp[n], from_swap_tmp[n+1: (copy+1)*N], 0, 0] /
+            vortices = np.power(jastrows_tmp[from_swap_tmp[n], from_swap_tmp[n+1: (copy+1)*N], 0, 0] /
                                                jastrows[from_swap[n], from_swap[n+1: (copy+1)*N], 0, 0],  # nopep8
-                                               vortices))
+                                               nbr_vortices)
+            if no_vortex:
+                vortices /= np.abs(vortices)
+            step_amplitude *= np.prod(np.exp((slogdet_tmp[1, 2+copy]-slogdet[1, 2+copy]) / (N*(N-1)/2)) *
+                                      vortices)
 
     return step_amplitude
 
 
 @njit
-def njit_DensityCF(N: np.int64, inside_region: np.array, jastrows: np.array, vortices: np.int64):
+def njit_DensityCF(N: np.int64, inside_region: np.array, jastrows: np.array, nbr_vortices: np.int64):
     cf_density = 0
     for i in range(N):
         if inside_region[i]:
             trunc_cf_operator = 1
             for j in range(N):
                 if inside_region[j]:
-                    trunc_cf_operator *= np.abs(jastrows[i, j])**(2*vortices)
+                    trunc_cf_operator *= np.abs(jastrows[i, j]
+                                                )**(2*nbr_vortices)
             cf_density += trunc_cf_operator
             # cf_density += (np.prod(np.sqrt(self.N)*np.power(np.abs(self.jastrows[i, :, 0, 0]),
-            #                                                2*self.vortices)))
+            #                                                2*self.nbr_vortices)))
 
     return cf_density
 
@@ -119,6 +167,10 @@ class MonteCarloSphereCFL (MonteCarloSphere):
     slater_tmp: np.array
     slogdet: np.array
     slogdet_tmp: np.array
+    flag_proj: np.bool_
+    d_table: np.array
+    nbr_vortices: np.int64
+    no_vortex = np.bool_
 
     def InitialJastrows(self):
         for c in range(self.moved_particles.size):
@@ -138,14 +190,13 @@ class MonteCarloSphereCFL (MonteCarloSphere):
                 self.jastrows[i, self.N:2*self.N, 0, 0]
 
     def InitialSlater(self, coords, slater):
-        if self.S_eff == 0:
-            for i in range(self.N):
-                slater[i, :] = sph_harm(
-                    self.Ls[i, 1], self.Ls[i, 0], coords[:, 1], coords[:, 0])
-        else:
-            for i in range(self.N):
-                slater[i, :] = MonopoleHarmonics(self.S_eff, np.int64(self.Ls[i, 0]-self.S_eff/2), np.int64(
-                    self.Ls[i, 1] + self.Ls[i, 0]), coords[:, 0], coords[:, 1])
+        for i in range(self.N):
+            if self.S_eff == 0:
+                slater[i, :] = sph_harm(self.Ls[i, 1] - self.Ls[i, 0] - self.S_eff/2,
+                                        self.Ls[i, 0] + self.S_eff/2, coords[:, 1], coords[:, 0])
+            else:
+                slater[i, :] = MonopoleHarmonics(
+                    self.S_eff, self.Ls[i, 0], self.Ls[i, 1], coords[:, 0], coords[:, 1])
 
     def InitialWavefn(self):
         nbr_copies = self.coords.shape[0]//self.N
@@ -156,8 +207,17 @@ class MonteCarloSphereCFL (MonteCarloSphere):
                               np.exp(-1j*self.coords[..., 1]/2))
         self.InitialJastrows()
         for copy in range(nbr_copies):
-            self.InitialSlater(self.coords[copy*self.N:(copy+1)*self.N],
-                               self.slater[..., copy])
+            if not self.flag_proj:
+                self.InitialSlater(self.coords[copy*self.N:(copy+1)*self.N],
+                                   self.slater[..., copy])
+            else:
+                njit_CalculateDerivativeTable(
+                    self.d_table[..., copy], self.spinors[copy*self.N:(copy+1)*self.N, :],  # nopep8
+                    self.jastrows[copy*self.N:(copy+1)*self.N, copy*self.N:(copy+1)*self.N, 0, 0], 1)
+                njit_GetSlaterProj(
+                    self.N, self.S, self.S_eff,
+                    self.spinors[copy*self.N:(copy+1)*self.N],
+                    self.slater[..., copy], self.Ls, self.d_table[..., copy], self.norms_CF)
             self.slogdet[:, copy] = np.linalg.slogdet(
                 self.slater[..., copy])
 
@@ -216,6 +276,18 @@ class MonteCarloSphereCFL (MonteCarloSphere):
                                                   copy*self.N:(copy+1)*self.N, ...],
                                 self.slater_tmp[..., copy], self.Ls,
                                 self.moved_particles[copy]-copy*self.N)
+            if not self.flag_proj:
+                njit_UpdateSlaterUnproj(self.S_eff, self.coords_tmp[copy*self.N:(copy+1)*self.N],
+                                        self.moved_particles[copy]-copy*self.N,
+                                        self.slater_tmp[..., copy], self.Ls)
+            else:
+                njit_CalculateDerivativeTable(
+                    self.d_table[..., copy], self.spinors_tmp[copy*self.N:(copy+1)*self.N, :],  # nopep8
+                    self.jastrows_tmp[copy*self.N:(copy+1)*self.N, copy*self.N:(copy+1)*self.N, 0, 0], 1)
+                njit_GetSlaterProj(
+                    self.N, self.S, self.S_eff,
+                    self.spinors_tmp[copy*self.N:(copy+1)*self.N],
+                    self.slater_tmp[..., copy], self.Ls, self.d_table[..., copy], self.norms_CF)
             self.slogdet_tmp[:, copy] = np.linalg.slogdet(
                 self.slater_tmp[..., copy])
 
@@ -238,15 +310,24 @@ class MonteCarloSphereCFL (MonteCarloSphere):
     def StepAmplitude(self) -> np.complex128:
         step_amplitude = 1
         nbr_copies = self.coords.shape[0]//self.N
+        if self.flag_proj:
+            nbr_vortices = 2
+        else:
+            nbr_vortices = self.nbr_vortices
         for copy in range(nbr_copies):
             step_amplitude *= (self.slogdet_tmp[0, copy]/self.slogdet[0, copy])
 
+            vortices = np.power(self.jastrows_tmp[self.moved_particles[copy],
+                                                  copy*self.N:(copy+1)*self.N, 0, 0] /
+                                self.jastrows[self.moved_particles[copy],
+                                              copy*self.N:(copy+1)*self.N, 0, 0],
+                                nbr_vortices)
+
+            if self.no_vortex:
+                vortices /= np.abs(vortices)
+
             step_amplitude *= (np.prod(np.exp((self.slogdet_tmp[1, copy]-self.slogdet[1, copy])/self.N) *
-                                       np.power(self.jastrows_tmp[self.moved_particles[copy],
-                                                                  copy*self.N:(copy+1)*self.N, 0, 0] /
-                                                self.jastrows[self.moved_particles[copy],
-                                                              copy*self.N:(copy+1)*self.N, 0, 0],
-                                                self.vortices)))
+                                       vortices))
         return step_amplitude
 
     def StepAmplitudeTwoCopies(self) -> np.complex128:
@@ -265,11 +346,12 @@ class MonteCarloSphereCFL (MonteCarloSphere):
                 step_amplitude *= np.prod(np.exp((self.slogdet_tmp[1, 2+copy]-self.slogdet[1, 2+copy]) / (self.N*(self.N-1)/2)) *
                                           np.power(self.jastrows_tmp[self.from_swap_tmp[n], self.from_swap_tmp[n+1: (copy+1)*self.N], 0, 0] /
                                                    self.jastrows[self.from_swap[n], self.from_swap[n+1: (copy+1)*self.N], 0, 0],  # nopep8
-                                                   self.vortices))
+                                                   self.nbr_vortices))
 
         return step_amplitude"""
-        return njit_StepAmplitudeTwoCopiesSwap(self.N, self.vortices, self.jastrows, self.jastrows_tmp,
-                                               self.slogdet, self.slogdet_tmp, self.from_swap, self.from_swap_tmp)
+        return njit_StepAmplitudeTwoCopiesSwap(self.N, self.nbr_vortices, self.jastrows, self.jastrows_tmp,
+                                               self.slogdet, self.slogdet_tmp, self.from_swap, self.from_swap_tmp,
+                                               self.no_vortex)
 
     def InitialMod(self):
         step_amplitude = 1
@@ -277,9 +359,12 @@ class MonteCarloSphereCFL (MonteCarloSphere):
             step_amplitude *= (self.slogdet[0, copy+2] / self.slogdet[0, copy])
 
             for n in range(copy*self.N, (copy+1)*self.N):
+                vortices = np.power((self.jastrows[self.from_swap[n], self.from_swap[n+1: (copy+1)*self.N], 0, 0] /
+                                     self.jastrows[n, n+1:(copy+1)*self.N, 0, 0]), self.nbr_vortices)
+                if self.no_vortex:
+                    vortices /= np.abs(vortices)
                 step_amplitude *= np.prod((np.exp((self.slogdet[1, copy+2] - self.slogdet[1, copy]) / (self.N*(self.N-1)/2)) *
-                                           np.power((self.jastrows[self.from_swap[n], self.from_swap[n+1: (copy+1)*self.N], 0, 0] /
-                                                     self.jastrows[n, n+1:(copy+1)*self.N, 0, 0]), self.vortices)))
+                                          vortices))
 
         return np.abs(step_amplitude)
 
@@ -292,17 +377,17 @@ class MonteCarloSphereCFL (MonteCarloSphere):
             for n in range(copy*self.N, (copy+1)*self.N):
                 step_amplitude *= np.prod(np.power((np.conj(
                     self.jastrows[self.from_swap[n], self.from_swap[n+1:(copy+1)*self.N], 0, 0]) *
-                    self.jastrows[n, n+1:(copy+1)*self.N, 0, 0]), self.vortices))
+                    self.jastrows[n, n+1:(copy+1)*self.N, 0, 0]), self.nbr_vortices))
                 step_amplitude /= np.abs(step_amplitude)
 
         return step_amplitude
 
     def DensityCF(self):
-        return njit_DensityCF(self.N, self.InsideRegion(self.coords), self.jastrows[:, :, 0, 0], self.vortices)
+        return njit_DensityCF(self.N, self.InsideRegion(self.coords), self.jastrows[:, :, 0, 0], self.nbr_vortices)
 
     def __init__(self, N, S, nbr_iter, nbr_nonthermal,
                  step_size, region_theta=180, region_phi=360, nbr_copies=1,
-                 save_results=True, save_last_config=True,
+                 JK_coeffs='0', no_vortex=False, save_results=True, save_last_config=True,
                  save_all_config=True, acceptance_ratio=0):
 
         self.state = 'cfl'
@@ -314,14 +399,35 @@ class MonteCarloSphereCFL (MonteCarloSphere):
 
         if self.S/(self.N-1) == np.floor(self.S/(self.N-1)):
             print("Initialising HLR-CFL.")
-            self.vortices = self.S/(self.N-1)
+            self.nbr_vortices = self.S/(self.N-1)
         elif self.S == 2*self.N-1:
             print("Initialising Son-CFL.")
-            self.vortices = 2
+            self.nbr_vortices = 2
 
-        self.S_eff = np.int64(self.S - self.vortices*(self.N-1))
+        self.S_eff = np.int64(self.S - self.nbr_vortices*(self.N-1))
+
+        self.no_vortex = no_vortex
 
         self.FillLambdaLevels()
+
+        self.JK_coeffs = np.int64(int(JK_coeffs))
+        if self.JK_coeffs == 0:
+            self.flag_proj = False
+        else:
+            self.flag_proj = True
+            L_max = self.Ls[-1][0]
+            self.norms_CF = np.zeros(self.Ls.shape[0])
+            for i in range(self.Ls.shape[0]):
+                self.norms_CF[i] = ((-1)**(self.S_eff+2*self.Ls[i, 0]-self.Ls[i, 1]))*np.sqrt(
+                    (self.S_eff+2*self.Ls[i, 0]+1) *
+                    combs(self.S_eff+2*self.Ls[i, 0], self.Ls[i, 0]) /
+                    (combs(self.S_eff+2*self.Ls[i, 0], self.Ls[i, 1])*4*np.pi))
+            # nbr_lambda_levels = L_max - self.S_eff + 1
+            # self.derivative_keys = JastrowDerivativeKeys(L_max)
+            # self.derivative_units = np.zeros(
+            #    (self.N, (nbr_lambda_levels)*(nbr_lambda_levels+1)/2))
+        self.d_table = np.zeros(
+            (N, N, 4**(nbr_copies-1)), dtype=np.complex128)
 
         self.spinors = np.zeros((nbr_copies*N, 2), dtype=np.complex128)
         self.jastrows = np.ones(

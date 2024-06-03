@@ -10,16 +10,20 @@ class MonteCarloSphere (MonteCarloBase):
     region_phi: np.ndarray
 
     def FillLambdaLevels(self):
-        self.Ls = np.zeros((self.N, 2), dtype=np.float64)
+        Ls = np.zeros((self.N, 2), dtype=np.float64)
         l = self.S_eff/2
         m = -l
         for i in range(self.N):
-            self.Ls[i] = np.array([l, m])
+            Ls[i] = np.array([l, m])
             if m == l:
                 l += 1
                 m = -l
             else:
                 m += 1
+
+        self.Ls = np.zeros((self.N, 2), dtype=np.int64)
+        self.Ls[:, 0] = np.int64(Ls[:, 0] - self.S_eff/2)
+        self.Ls[:, 1] = np.int64(Ls[:, 1] + Ls[:, 0])
 
     def RandomPoint(self):
         return np.array([np.arccos(1-2*np.random.random()), 2*np.random.random()*np.pi])
