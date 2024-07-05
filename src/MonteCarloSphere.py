@@ -66,7 +66,7 @@ class MonteCarloSphere (MonteCarloBase):
 
         return z
 
-    def InsideRegion(self, coords):
+    def InsideRegion(self, coords, boundaries: str = "12"):
         """
         Given an array of coordinates, returns a boolean array telling
         which particles are inside the subregion. Coordinates do not have
@@ -75,10 +75,17 @@ class MonteCarloSphere (MonteCarloBase):
         if self.region_geometry == 'circle':
             inside_A = (coords[..., 0] < self.boundary)
         else:
-            inside_A = ((coords[..., 0] > self.region_theta[0]) &
-                        (coords[..., 0] < self.region_theta[1]) &
-                        (coords[..., 1] > self.region_phi[0]) &
-                        (coords[..., 1] < self.region_phi[1]))
+            if boundaries == "12":
+                inside_A = ((coords[..., 0] > self.region_theta[0]) &
+                            (coords[..., 0] < self.region_theta[1]) &
+                            (coords[..., 1] > self.region_phi[0]) &
+                            (coords[..., 1] < self.region_phi[1]))
+            elif boundaries == "01":
+                inside_A = ((coords[..., 0] < self.region_theta[0]) &
+                            (coords[..., 1] < self.region_phi[0]) )
+            elif boundaries == "02":
+                inside_A = ((coords[..., 0] < self.region_theta[1]) &
+                            (coords[..., 1] < self.region_phi[1]) )
 
         return inside_A
 

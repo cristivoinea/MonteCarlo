@@ -17,6 +17,7 @@ class MonteCarloBase:
     step_size: np.float64
     step_pattern: np.array
     boundary: np.float64
+    boundary_delta: np.float64
     state: str
     geometry: str
 
@@ -515,8 +516,12 @@ class MonteCarloBase:
                         self.coords)
                 all_moved_particles = np.zeros(
                     (self.nbr_iter, 2), dtype=np.uint8)
-                all_moved_coords = np.zeros(
-                    (self.nbr_iter, 2), dtype=np.complex128)
+                if self.geometry == "torus":
+                    all_moved_coords = np.zeros(
+                        (self.nbr_iter, 2), dtype=np.complex128)
+                elif self.geometry == "sphere":
+                    all_moved_coords = np.zeros(
+                        (self.nbr_iter, 2, 2), dtype=np.float64)
 
         self.InitialWavefn()
         inside_region = self.InsideRegion(self.coords)
@@ -572,6 +577,47 @@ class MonteCarloBase:
                 step_amplitude_swap = self.StepAmplitudeTwoCopiesSwap()
                 update *= np.abs(step_amplitude_swap / step_amplitude)
                 self.AcceptTmp('mod')
+
+            else:
+                self.RejectTmp('mod')
+
+            self.results[i] = update
+            # if (i+1-self.load_iter) % (self.nbr_iter//100) == 0:
+            # print(step_amplitude, step_amplitude_swap)
+            if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
+                self.Checkpoint(i, 'mod')
+
+        self.SaveResults('mod')
+
+    def RunSwapIncrementalMod(self):
+        """
+        Computes the mod-term in the entanglement entropy swap decomposition .
+        """
+        self.LoadRun('mod')
+        self.InitialWavefn()
+        self.InitialWavefnSwap()
+        update = self.InitialMod()
+
+        for i in range(self.load_iter, self.load_iter+self.nbr_iter):
+            nbr_in_region_changes = self.StepOneSwap()
+            self.TmpWavefn()
+            step_amplitude = self.StepAmplitude()
+            self.UpdateOrderSwap(nbr_in_region_changes)
+            self.TmpWavefnSwap()
+            step_amplitude_swap = self.StepAmplitudeTwoCopiesSwap()
+
+            if self.Jacobian()*np.abs(step_amplitude*step_amplitude_swap) > np.random.random():
+                self.AcceptTmp('mod')
+                inside_region = self.InsideRegion(
+                    self.coords_tmp, boundaries="12")
+                swappable_region_increment = (np.count_nonzero(inside_region[:self.N]) ==
+                                              np.count_nonzero(inside_region[self.N:]))
+                if swappable_region_increment:
+                    self.UpdateOrderSwap(nbr_in_region_changes)
+                    self.TmpWavefnSwapDelta()
+                    step_amplitude_swap_delta = self.StepAmplitudeTwoCopiesSwapDelta()
+                    update *= np.abs(step_amplitude_swap_delta /
+                                     step_amplitude_swap)
 
             else:
                 self.RejectTmp('mod')

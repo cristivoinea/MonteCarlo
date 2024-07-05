@@ -59,17 +59,17 @@ class MonteCarloTorusFreeFermions (MonteCarloTorus):
         Kys = np.imag(self.Ks) * self.Lx/(2*np.pi)
         R = self.boundary/self.Lx
         for i in range(self.N):
-            overlap_matrix[i, i] = np.pi*R*R
-            for j in range(i+1, self.N):
-                k_rel = np.sqrt((Kxs[i]-Kxs[j])**2 + (Kys[i]-Kys[j])**2)
-                if region_geometry == "square":
-                    overlap_matrix[i, j] = np.sinc(
-                        R*(Kxs[i]-Kxs[j]))*np.sinc(R*(Kys[i]-Kys[j]))*(R)**2
-                elif region_geometry == "circle":
-                    overlap_matrix[i, j] = R/k_rel * j1(2*np.pi*k_rel*R)
-                    # overlap_matrix[i, j] = np.pi*R*R*hyp0f1(
-                    #    2, -((Kxs[i]-Kxs[j])**2 + (Kys[i]-Kys[j])**2)*(R*np.pi)**2)/gamma(2)
-                overlap_matrix[j, i] = overlap_matrix[i, j]
+            if region_geometry == "circle":
+                overlap_matrix[i, i] = np.pi*R*R
+                k_rel = np.sqrt((Kxs[i]-Kxs[:])**2 + (Kys[i]-Kys[:])**2)
+                overlap_matrix[i,  i+1:] = (R/k_rel[i+1:] *
+                                            j1(2*np.pi*k_rel[i+1:]*R))
+                overlap_matrix[i+1:, i] = overlap_matrix[i, i+1:]
+            elif region_geometry == "square":
+                overlap_matrix[i, i] = 4*R*R
+                overlap_matrix[i, i+1:] = 4*(np.sinc(2*R*(Kxs[i]-Kxs[i+1:])) *
+                                             np.sinc(2*R*(Kys[i]-Kys[i+1:]))*R*R)
+                overlap_matrix[i+1:, i] = overlap_matrix[i, i+1:]
 
         return overlap_matrix
 
