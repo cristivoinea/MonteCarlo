@@ -243,13 +243,18 @@ def LoadEntropy(Ne, Ns, geometry, region_geometry, state, boundaries, t=1j):
     return x, entropy
 
 
-def LoadEntropyTerm(Ne, Ns, geometry, region_geometry, state, boundaries, term, t=1j):
+def LoadEntropyTerm(Ne, Ns, geometry, region_geometry, state, boundaries, term, t=1j,
+                    no_vortex=False):
+    if no_vortex:
+        vortex_folder = "/no_vortex"
+    else:
+        vortex_folder = ""
     if geometry == "torus":
         kf = {12: 2.5, 21: 5, 32: 8.5, 37: 10, 69: 20, 97: 30}
         Lx = np.sqrt(2*np.pi*Ns/np.imag(t))
-        file = f"../data/{state}_{geometry}_entropy_{term}_N_{Ne}_S_{Ns}_{region_geometry}s.dat"
+        file = f"../data{vortex_folder}/{state}_{geometry}_entropy_{term}_N_{Ne}_S_{Ns}_{region_geometry}s.dat"
     elif geometry == "sphere":
-        file = f"../data/{state}_{geometry}_entropy_{term}_N_{Ne}_S_{Ns}.dat"
+        file = f"../data{vortex_folder}/{state}_{geometry}_entropy_{term}_N_{Ne}_S_{Ns}.dat"
 
     if not exists(file):
         data = np.zeros((boundaries.size, 3), dtype=np.float64)
@@ -257,10 +262,10 @@ def LoadEntropyTerm(Ne, Ns, geometry, region_geometry, state, boundaries, term, 
         for i in range(boundaries.size):
             if geometry == "torus":
                 result = np.loadtxt(
-                    f"../../results/{geometry}/entropy/{state}/n_{Ne}/{term}/{state}_{geometry}_{term}_N_{Ne}_S_{Ns}_circle_{boundaries[i]:.6f}.dat")
+                    f"../../results/{geometry}/entropy/{state}/n_{Ne}{vortex_folder}/{term}/{state}_{geometry}_{term}_N_{Ne}_S_{Ns}_circle_{boundaries[i]:.6f}.dat")
             elif geometry == "sphere":
                 result = np.loadtxt(
-                    f"../../results/{geometry}/entropy/{state}/n_{Ne}/{term}/{state}_{geometry}_{term}_N_{Ne}_S_{Ns}_theta_0.000000_{boundaries[i]:.6f}.dat")
+                    f"../../results/{geometry}/entropy/{state}/n_{Ne}{vortex_folder}/{term}/{state}_{geometry}_{term}_N_{Ne}_S_{Ns}_theta_0.000000_{boundaries[i]:.6f}.dat")
                 # if j == 2:
                 #    data[i, 1+2*j:3+2*j] = result[0, :]
                 # else:
@@ -353,7 +358,7 @@ def LoadParticleFluctuations(N, S, geometry, state, boundaries, region_geometry=
 
 
 def CountParticlesInside(N, S, t, geometry, state, region_geometry, region_size):
-    region_details = "_" + region_geometry + f"_{region_size:.6f}"
+    region_details = "_" + "circle" + f"_{region_size:.6f}"
     Lx = np.sqrt(2*np.pi*S/np.imag(t))
     Ly = Lx*np.imag(t)
 

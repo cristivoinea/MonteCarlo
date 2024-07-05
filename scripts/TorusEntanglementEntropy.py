@@ -37,7 +37,7 @@ parser.add_argument("--run", action="store", required=True,
 parser.add_argument("--state", action="store", required=True,
                     help="type of state")
 parser.add_argument("--JK-coeffs", action="store", default='0',
-                    help="JK translation coefficients for enforcing PBC")
+                    help="JK projection coefficients")
 parser.add_argument("--save-all-config", action="store_true",
                     help="save all sampled system configurations")
 
@@ -85,5 +85,8 @@ elif run_type == 'sign':
     fqh.RunSwapSign()
 
 end_time = datetime.now()
-print(f"Total time = {str(end_time - start_time)[:10]} s")
+if "day" in str(end_time - start_time):
+    print(f"Total time = {str(end_time - start_time)[:18]} s")
+else:
+    print(f"Total time = {str(end_time - start_time)[:10]} s")
 print(f"Time / 5% = {str((end_time - start_time)/20)[:10]} s")

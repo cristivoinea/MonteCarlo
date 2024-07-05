@@ -36,9 +36,9 @@ parser.add_argument("--run", action="store", required=True,
 parser.add_argument("--state", action="store", required=True,
                     help="type of state")
 parser.add_argument("--JK-coeffs", action="store", default='0',
-                    help="JK translation coefficients for enforcing PBC")
+                    help="JK projection coefficients")
 parser.add_argument("--no-vortex", action="store_true",
-                    help="use the CS wavefunction instead")
+                    help="use the mean-field CS wavefunction")
 parser.add_argument("--save-all-config", action="store_true",
                     help="save all sampled system configurations")
 
@@ -86,8 +86,8 @@ if state == "free_fermions":
 elif state == 'cfl':
     fqh = MonteCarloSphereCFL(N=N, S=S, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                               step_size=step, region_theta=theta, region_phi=phi,
-                              nbr_copies=2, no_vortex=no_vortex, acceptance_ratio=acceptance_ratio,
-                              save_all_config=save_all_config)
+                              nbr_copies=2, JK_coeffs=JK_coeffs, no_vortex=no_vortex,
+                              acceptance_ratio=acceptance_ratio, save_all_config=save_all_config)
 elif state == 'laughlin':
     fqh = MonteCarloSphereLaughlin(N=N, S=S, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
                                    step_size=step, region_theta=theta, region_phi=phi,
@@ -102,5 +102,8 @@ elif run_type == 'sign':
     fqh.RunSwapSign()
 
 end_time = datetime.now()
-print(f"Total time = {str(end_time - start_time)[:10]} s")
+if "day" in str(end_time - start_time):
+    print(f"Total time = {str(end_time - start_time)[:18]} s")
+else:
+    print(f"Total time = {str(end_time - start_time)[:10]} s")
 print(f"Time / 5% = {str((end_time - start_time)/20)[:10]} s")
