@@ -223,7 +223,7 @@ class MonteCarloBase:
         print('Iteration', current_iter+1, 'done, current acceptance ratio:',
               np.round(self.acceptance_ratio*100/(current_iter+1), 2), '%')
         if self.save_last_config:
-            self.SaveConfig(run_type)
+            self.SaveConfig(current_iter, run_type)
 
     def InitialWavefn(self):
         pass
@@ -273,7 +273,7 @@ class MonteCarloBase:
     def CF(self):
         pass
 
-    def SaveConfig(self, run_type: str):
+    def SaveConfig(self, current_iter: np.int64, run_type: str):
         # if run_type == 'sign':
         #    np.save(f"{self.state}_{run_type}_results_real_{self.geometry}_N_{self.N}_S_{self.S}_{self.region_geometry}_{self.region_size:.4f}.npy",
         #            np.real(self.results))
@@ -282,7 +282,7 @@ class MonteCarloBase:
 
         # else:
         np.save(f"{self.state}_{self.geometry}_{run_type}_results_N_{self.N}_S_{self.S}{self.region_details}.npy",
-                self.results)
+                self.results[:current_iter])
 
         save_coords = np.copy(self.coords)
 
