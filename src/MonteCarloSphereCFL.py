@@ -650,8 +650,6 @@ class MonteCarloSphereCFL (MonteCarloSphere):
                  JK_coeffs='0', no_vortex=False, save_results=True, save_last_config=True,
                  save_all_config=True, acceptance_ratio=0):
 
-        self.state = 'cfl'
-
         super().__init__(N, S, nbr_iter, nbr_nonthermal,
                          step_size, region_theta, region_phi,
                          save_results, save_last_config,
@@ -669,6 +667,8 @@ class MonteCarloSphereCFL (MonteCarloSphere):
         self.no_vortex = no_vortex
 
         self.FillLambdaLevels()
+
+        self.state = 'cfl'+JK_coeffs
 
         self.JK_coeffs = np.int64(int(JK_coeffs))
         if self.JK_coeffs == 0:

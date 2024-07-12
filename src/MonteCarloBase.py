@@ -663,7 +663,7 @@ class MonteCarloBase:
         self.S = S
         self.nbr_iter = nbr_iter
         self.nbr_nonthermal = nbr_nonthermal
-        self.region_geometry = ""
+        # self.region_geometry = ""
         self.region_details = region_details
         self.save_last_config = save_last_config
         self.save_all_config = save_all_config

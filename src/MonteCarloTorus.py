@@ -57,7 +57,12 @@ class MonteCarloTorus (MonteCarloBase):
         if self.region_geometry == 'strip':
             y = np.imag(coords)
             inside_A = (y < self.boundary)
-        else:
+        elif self.region_geometry == "square":
+            y = np.imag(coords) - self.Ly/2
+            x = np.real(coords) - self.Lx/2
+            inside_A = (np.abs(x) < self.boundary) & (
+                np.abs(y) < self.boundary)
+        elif self.region_geometry == "circle":
             r = coords - (self.Lx + 1j*self.Ly)/2
             inside_A = (np.abs(r) < self.boundary)
 
@@ -108,6 +113,7 @@ class MonteCarloTorus (MonteCarloBase):
         self.Lx = np.sqrt(2*np.pi*S/np.imag(self.t))
         self.Ly = self.Lx*np.imag(self.t)
         # print(f"Torus dimensions \nLx = {self.Lx}, \nLy = {self.Ly}")
+        self.region_geometry = region_geometry
 
         if linear_size == 0 and area_size == 0:
             print("Region undefined, please define a subsystem.")

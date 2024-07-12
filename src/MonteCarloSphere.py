@@ -72,20 +72,21 @@ class MonteCarloSphere (MonteCarloBase):
         which particles are inside the subregion. Coordinates do not have
         to belong to all particles in the system.
         """
-        if self.region_geometry == 'circle':
-            inside_A = (coords[..., 0] < self.boundary)
-        else:
-            if boundaries == "12":
-                inside_A = ((coords[..., 0] > self.region_theta[0]) &
-                            (coords[..., 0] < self.region_theta[1]) &
-                            (coords[..., 1] > self.region_phi[0]) &
-                            (coords[..., 1] < self.region_phi[1]))
-            elif boundaries == "01":
-                inside_A = ((coords[..., 0] < self.region_theta[0]) &
-                            (coords[..., 1] < self.region_phi[0]) )
-            elif boundaries == "02":
-                inside_A = ((coords[..., 0] < self.region_theta[1]) &
-                            (coords[..., 1] < self.region_phi[1]) )
+
+        # if self.region_geometry == 'circle':
+        #    inside_A = (coords[..., 0] < self.boundary)
+        # else:
+        if boundaries == "12":
+            inside_A = ((coords[..., 0] > self.region_theta[0]) &
+                        (coords[..., 0] < self.region_theta[1]) &
+                        (coords[..., 1] > self.region_phi[0]) &
+                        (coords[..., 1] < self.region_phi[1]))
+        elif boundaries == "01":
+            inside_A = ((coords[..., 0] < self.region_theta[0]) &
+                        (coords[..., 1] < self.region_phi[0]))
+        elif boundaries == "02":
+            inside_A = ((coords[..., 0] < self.region_theta[1]) &
+                        (coords[..., 1] < self.region_phi[1]))
 
         return inside_A
 
