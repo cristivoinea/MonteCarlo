@@ -220,8 +220,8 @@ class MonteCarloBase:
         return nbr_A_changes
 
     def Checkpoint(self, current_iter, run_type):
-        print('Iteration', current_iter+1, 'done, current acceptance ratio:',
-              np.round(self.acceptance_ratio*100/(current_iter+1), 2), '%')
+        print('Iteration', current_iter, 'done, current acceptance ratio:',
+              np.round(self.acceptance_ratio*100/current_iter, 2), '%')
         if self.save_last_config:
             self.SaveConfig(current_iter, run_type)
 
@@ -459,7 +459,7 @@ class MonteCarloBase:
         else:
             update = np.count_nonzero(self.InsideRegion(self.coords))
 
-        for i in range(self.load_iter, self.load_iter+self.nbr_iter):
+        for i in range(self.load_iter+1, self.load_iter+self.nbr_iter+1):
             self.StepOneParticle()
             self.TmpWavefn()
             step_amplitude = self.StepAmplitude()
@@ -474,8 +474,8 @@ class MonteCarloBase:
             else:
                 self.RejectTmp('fluct')
 
-            self.results[i] = update
-            if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
+            self.results[i-1] = update
+            if (i-self.load_iter) % (self.nbr_iter//20) == 0:
                 if cf:
                     self.Checkpoint(i, 'fluct_cf')
                 else:
@@ -528,7 +528,7 @@ class MonteCarloBase:
         update = (np.count_nonzero(inside_region[:self.N]) ==
                   np.count_nonzero(inside_region[self.N:]))
 
-        for i in range(self.load_iter, self.load_iter+self.nbr_iter):
+        for i in range(self.load_iter+1, self.load_iter+self.nbr_iter+1):
             self.StepOneParticleTwoCopies()
             self.TmpWavefn()
             step_amplitude = self.StepAmplitude()
@@ -541,13 +541,13 @@ class MonteCarloBase:
             else:
                 self.RejectTmp('p')
 
-            self.results[i] = update
-            if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
+            self.results[i-1] = update
+            if (i-self.load_iter) % (self.nbr_iter//20) == 0:
                 self.Checkpoint(i, 'p')
 
             if self.save_all_config:
-                all_moved_particles[i] = self.moved_particles
-                all_moved_coords[i] = self.coords[self.moved_particles]
+                all_moved_particles[i-1] = self.moved_particles
+                all_moved_coords[i-1] = self.coords[self.moved_particles]
 
         if self.save_all_config:
             np.save(f"{self.state}_{self.geometry}_p_moved_ind_N_{self.N}_S_{self.S}{self.region_details}.npy",
@@ -566,7 +566,7 @@ class MonteCarloBase:
         self.InitialWavefnSwap()
         update = self.InitialMod()
 
-        for i in range(self.load_iter, self.load_iter+self.nbr_iter):
+        for i in range(self.load_iter+1, self.load_iter+self.nbr_iter+1):
             nbr_in_region_changes = self.StepOneSwap()
             self.TmpWavefn()
             step_amplitude = self.StepAmplitude()
@@ -581,10 +581,8 @@ class MonteCarloBase:
             else:
                 self.RejectTmp('mod')
 
-            self.results[i] = update
-            # if (i+1-self.load_iter) % (self.nbr_iter//100) == 0:
-            # print(step_amplitude, step_amplitude_swap)
-            if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
+            self.results[i-1] = update
+            if (i-self.load_iter) % (self.nbr_iter//20) == 0:
                 self.Checkpoint(i, 'mod')
 
         self.SaveResults('mod')
@@ -598,7 +596,7 @@ class MonteCarloBase:
         self.InitialWavefnSwap()
         update = self.InitialMod()
 
-        for i in range(self.load_iter, self.load_iter+self.nbr_iter):
+        for i in range(self.load_iter+1, self.load_iter+self.nbr_iter+1):
             nbr_in_region_changes = self.StepOneSwap()
             self.TmpWavefn()
             step_amplitude = self.StepAmplitude()
@@ -622,10 +620,8 @@ class MonteCarloBase:
             else:
                 self.RejectTmp('mod')
 
-            self.results[i] = update
-            # if (i+1-self.load_iter) % (self.nbr_iter//100) == 0:
-            # print(step_amplitude, step_amplitude_swap)
-            if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
+            self.results[i-1] = update
+            if (i-self.load_iter) % (self.nbr_iter//20) == 0:
                 self.Checkpoint(i, 'mod')
 
         self.SaveResults('mod')
@@ -639,7 +635,7 @@ class MonteCarloBase:
         self.InitialWavefnSwap()
         update = self.InitialSign()
 
-        for i in range(self.load_iter, self.load_iter+self.nbr_iter):
+        for i in range(self.load_iter+1, self.load_iter+self.nbr_iter+1):
             nbr_in_region_changes = self.StepOneSwap()
             self.TmpWavefn()
             step_amplitude = self.StepAmplitude()
@@ -654,8 +650,8 @@ class MonteCarloBase:
             else:
                 self.RejectTmp('sign')
 
-            self.results[i] = update
-            if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
+            self.results[i-1] = update
+            if (i-self.load_iter) % (self.nbr_iter//20) == 0:
                 self.Checkpoint(i, 'sign')
 
         self.SaveResults('sign')
