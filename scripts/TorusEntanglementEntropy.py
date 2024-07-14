@@ -7,6 +7,7 @@ if module_path not in sys.path:
 
 from src.MonteCarloTorusCFL import MonteCarloTorusCFL  # nopep8
 from src.MonteCarloTorusFreeFermions import MonteCarloTorusFreeFermions  # nopep8
+from src.utilities import ExtractSpFromFile
 import numpy as np
 import argparse
 from datetime import datetime
@@ -40,12 +41,22 @@ parser.add_argument("--JK-coeffs", action="store", default='0',
                     help="JK projection coefficients")
 parser.add_argument("--save-all-config", action="store_true",
                     help="save all sampled system configurations")
+parser.add_argument("--extract", action="store_true",
+                    help="extract the SWAP probability from the existing data without running MC again")
 
 args = vars(parser.parse_args())
 
 N = np.int64(args["N"])
 S = np.int64(args["S"])
 t = np.float64(args["t"])
+region_geometry = str(args["region_geometry"])
+state = str(args["state"])
+if state == 'cfl':
+    JK_coeffs = str(args["JK_coeffs"])
+
+extract = np.bool_(args["extract"])
+if extract:
+    ExtractSpFromFile(N, S, "torus", state, region_geometry)
 nbr_iter = np.int64(args["nbr_iter"])
 nbr_nonthermal = np.int64(args["nbr_nonthermal"])
 if nbr_nonthermal == -1:
@@ -55,13 +66,9 @@ if nbr_nonthermal == -1:
         nbr_nonthermal = nbr_iter//10
 
 step = np.float64(args["step"])
-region_geometry = str(args["region_geometry"])
 region_size = np.float64(args["region_size"])
 acceptance_ratio = np.float64(args["acc_ratio"])
 run_type = str(args["run"])
-state = str(args["state"])
-if state == 'cfl':
-    JK_coeffs = str(args["JK_coeffs"])
 
 save_all_config = np.bool_(args["save_all_config"])
 

@@ -2,7 +2,7 @@ import numpy as np
 from numba import njit
 from os.path import exists
 from scipy.special import gamma, hyp2f1, factorial, factorial2
-from .fast_math import JackknifeVariance
+from .fast_math import JackknifeMean, JackknifeVariance
 
 
 fermi_sea_ky = {}
@@ -402,6 +402,23 @@ def ExtractFluctuationsFromFile(N, S, geometry, state, region_geometry):
 
     np.savetxt(f"{state}_{geometry}_fluct_N_{N}_S_{S}.dat",
                np.vstack((boundaries, fluct.T)).T)
+
+
+def ExtractSpFromFile(N, S, geometry, state, region_geometry):
+    t = 1j
+    boundaries = np.arange(0.042, 0.316, 0.007)
+    results = np.zeros((boundaries.size, 2))
+
+    for i in range(boundaries.size):
+        data = CountParticlesInside(N=N, S=S, t=t, geometry=geometry,
+                                    state=state, region_geometry=region_geometry,
+                                    region_size=boundaries[i])
+        swappable = (results[100000:, 0] == results[100000:, 1])
+        results[i] = JackknifeMean(swappable)
+        print(f"Done for r = {boundaries[i]}", f"{swappable.size}")
+
+    np.savetxt(f"{state}_{geometry}_p_N_{N}_S_{S}_{region_geometry}s.dat",
+               np.vstack((boundaries, results.T)).T)
 
 
 def LegendreOffDiagIntegral(x, legendre, l, k, m):
