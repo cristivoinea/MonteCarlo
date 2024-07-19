@@ -47,11 +47,17 @@ args = vars(parser.parse_args())
 N = np.int64(args["N"])
 S = np.int64(args["S"])
 state = str(args["state"])
+if state == 'cfl':
+    JK_coeffs = str(args["JK_coeffs"])
 region_geometry = str(args["region_geometry"])
 
 extract = np.bool_(args["extract"])
 if extract:
-    ExtractFluctuationsFromFile(N, S, "torus", state, region_geometry)
+    if state == "free_fermions":
+        ExtractFluctuationsFromFile(N, S, "torus", state, region_geometry)
+    elif state == "cfl":
+        ExtractFluctuationsFromFile(
+            N, S, "torus", state+JK_coeffs, region_geometry)
 else:
     nbr_iter = np.int64(args["nbr_iter"])
     nbr_nonthermal = np.int64(args["nbr_nonthermal"])
@@ -69,8 +75,6 @@ else:
     nbr_A = np.int64(args["nbr_A"])
     A_sizes = np.linspace(A_start, A_end, nbr_A, endpoint=True)
     acceptance_ratio = np.float64(args["acc_ratio"])
-    if state == 'cfl':
-        JK_coeffs = str(args["JK_coeffs"])
 
     for region_size in A_sizes:
         start_time = datetime.now()

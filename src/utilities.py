@@ -262,7 +262,7 @@ def LoadEntropyTerm(Ne, Ns, geometry, region_geometry, state, boundaries, term, 
         for i in range(boundaries.size):
             if geometry == "torus":
                 result = np.loadtxt(
-                    f"../../results/{geometry}/entropy/{state}/n_{Ne}{vortex_folder}/{term}/{state}_{geometry}_{term}_N_{Ne}_S_{Ns}_circle_{boundaries[i]:.6f}.dat")
+                    f"../../results/{geometry}/entropy/{state}/n_{Ne}{vortex_folder}/{term}/{state}_{geometry}_{term}_N_{Ne}_S_{Ns}_{region_geometry}_{boundaries[i]:.6f}.dat")
             elif geometry == "sphere":
                 result = np.loadtxt(
                     f"../../results/{geometry}/entropy/{state}/n_{Ne}{vortex_folder}/{term}/{state}_{geometry}_{term}_N_{Ne}_S_{Ns}_theta_0.000000_{boundaries[i]:.6f}.dat")
@@ -400,7 +400,7 @@ def ExtractFluctuationsFromFile(N, S, geometry, state, region_geometry):
         fluct[i] = JackknifeVariance(res_combined)
         print(f"Done for r = {boundaries[i]}", f"{res_combined.size}")
 
-    np.savetxt(f"{state}_{geometry}_fluct_N_{N}_S_{S}.dat",
+    np.savetxt(f"{state}_{geometry}_fluct_N_{N}_S_{S}_{region_geometry}s.dat",
                np.vstack((boundaries, fluct.T)).T)
 
 
@@ -413,7 +413,7 @@ def ExtractSpFromFile(N, S, geometry, state, region_geometry):
         data = CountParticlesInside(N=N, S=S, t=t, geometry=geometry,
                                     state=state, region_geometry=region_geometry,
                                     region_size=boundaries[i])
-        swappable = (results[100000:, 0] == results[100000:, 1])
+        swappable = (data[100000:, 0] == data[100000:, 1])
         results[i] = JackknifeMean(swappable)
         print(f"Done for r = {boundaries[i]}", f"{swappable.size}")
 
