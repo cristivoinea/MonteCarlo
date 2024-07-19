@@ -39,6 +39,8 @@ parser.add_argument("--JK-coeffs", action="store", default='0',
                     help="JK projection coefficients")
 parser.add_argument("--no-vortex", action="store_true",
                     help="use the mean-field CS wavefunction")
+parser.add_argument("--hardcore", default=0,
+                    help="enforce hardcore radius of particles")
 parser.add_argument("--save-all-config", action="store_true",
                     help="save all sampled system configurations")
 
@@ -76,6 +78,7 @@ if state == 'cfl':
 
 save_all_config = np.bool_(args["save_all_config"])
 no_vortex = np.bool_(args["no_vortex"])
+hardcore_radius = np.float64(args["hardcore"])
 
 start_time = datetime.now()
 if state == "free_fermions":
@@ -85,8 +88,8 @@ if state == "free_fermions":
                                        save_all_config=save_all_config)
 elif state == 'cfl':
     fqh = MonteCarloSphereCFL(N=N, S=S, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,
-                              step_size=step, region_theta=theta, region_phi=phi,
-                              nbr_copies=2, JK_coeffs=JK_coeffs, no_vortex=no_vortex,
+                              step_size=step, region_theta=theta, region_phi=phi, nbr_copies=2,
+                              JK_coeffs=JK_coeffs, no_vortex=no_vortex, hardcore_radius=hardcore_radius,
                               acceptance_ratio=acceptance_ratio, save_all_config=save_all_config)
 elif state == 'laughlin':
     fqh = MonteCarloSphereLaughlin(N=N, S=S, nbr_iter=nbr_iter, nbr_nonthermal=nbr_nonthermal,

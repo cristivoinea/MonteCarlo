@@ -647,11 +647,13 @@ class MonteCarloSphereCFL (MonteCarloSphere):
 
     def __init__(self, N, S, nbr_iter, nbr_nonthermal,
                  step_size, region_theta=180, region_phi=360, nbr_copies=1,
-                 JK_coeffs='0', no_vortex=False, save_results=True, save_last_config=True,
+                 JK_coeffs='0', no_vortex=False, hardcore_radius=0,
+                 save_results=True, save_last_config=True,
                  save_all_config=True, acceptance_ratio=0):
 
         super().__init__(N, S, nbr_iter, nbr_nonthermal,
                          step_size, region_theta, region_phi,
+                         hardcore_radius,
                          save_results, save_last_config,
                          save_all_config, acceptance_ratio)
 

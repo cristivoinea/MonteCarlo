@@ -20,6 +20,7 @@ class MonteCarloBase:
     boundary_delta: np.float64
     state: str
     geometry: str
+    hardcore_radius: np.float64
 
     nbr_iter: np.int64
     load_iter: np.int64 = 0
@@ -657,10 +658,11 @@ class MonteCarloBase:
         self.SaveResults('sign')
 
     def __init__(self, N, S, nbr_iter, nbr_nonthermal,
-                 region_details, save_results=True, save_last_config=True,
+                 region_details, hardcore_radius: np.float64 = 0, save_results=True, save_last_config=True,
                  save_all_config=True, acceptance_ratio=0):
         self.N = N
         self.S = S
+        self.hardcore_radius = hardcore_radius
         self.nbr_iter = nbr_iter
         self.nbr_nonthermal = nbr_nonthermal
         # self.region_geometry = ""

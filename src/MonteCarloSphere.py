@@ -110,20 +110,22 @@ class MonteCarloSphere (MonteCarloBase):
             self.BoundaryConditions(self.coords_tmp[self.moved_particles] + meas_array *
                                     self.step_size*np.random.default_rng().choice(self.step_pattern, 2))
 
+    def ParticleSeparation(self, coords):
+        """Returns the inter-particle separations (arc distance)."""
+        rel_phi = np.abs(
+            coords[:, 1] - np.reshape(coords[:, 1], (coords.shape[0], 1)))
+        particle_angles = np.arccos(
+            np.sin(coords[:, 0])*np.sin(np.reshape(coords[:, 0], (coords.shape[0], 1))) +
+            np.cos(coords[:, 0])*np.cos(np.reshape(coords[:, 0], (coords.shape[0], 1))) *
+            np.cos(rel_phi) - 0.00001)
+        particle_separations = np.sqrt(self.S/2)*np.abs(particle_angles)
+
+        return particle_separations + np.eye(coords.shape[0])*10*self.hardcore_radius
+
     def StepOneSwap(self) -> np.array:
         """Provides a new Monte Carlo configuration by updating
         the coordinates of one particle in each copy, ensuring that
         the copies are swappable with respect to region A.
-
-        Parameters:
-
-        coords_tmp : initial position of all particles
-
-        Output:
-
-        coords_final : final position of all particles
-        p : indices of particles that move in each copy
-        delta : contains information about which step is taken
         """
 
         valid = False
@@ -137,11 +139,43 @@ class MonteCarloSphere (MonteCarloBase):
             meas_array = np.array([[1, measure[0]], [1, measure[1]]])
             coords_step = self.BoundaryConditions(self.coords_tmp[self.moved_particles] + meas_array *
                                                   self.step_size*np.random.default_rng().choice(self.step_pattern, 2))
+
             inside_region_tmp = self.InsideRegion(coords_step)
             if ((int(inside_region[0]) - int(inside_region_tmp[0])) ==
                     (int(inside_region[1]) - int(inside_region_tmp[1]))):
                 valid = True
                 nbr_A_changes = (inside_region[0] ^ inside_region_tmp[0])
+
+                if self.hardcore_radius > 0:
+                    coords_copy = np.copy(self.coords_tmp)
+                    coords_copy[self.moved_particles] = coords_step
+                    inside_region_copy = self.InsideRegion(coords_copy)
+
+                    # check intra-copy
+                    particle_separations = self.ParticleSeparation(
+                        coords_copy[:self.N])
+                    if np.any(particle_separations < self.hardcore_radius):
+                        valid = False
+
+                    particle_separations = self.ParticleSeparation(
+                        coords_copy[self.N:])
+                    if np.any(particle_separations < self.hardcore_radius):
+                        valid = False
+
+                    # check inter-copy
+                    particle_separations = self.ParticleSeparation(
+                        coords_copy[(np.arange(2*self.N) == self.moved_particles[0]) |
+                                    ((np.arange(2*self.N) >= self.N) &
+                                     (inside_region_copy != inside_region_tmp[0]))])
+                    if np.any(particle_separations < self.hardcore_radius):
+                        valid = False
+
+                    particle_separations = self.ParticleSeparation(
+                        coords_copy[(np.arange(2*self.N) == self.moved_particles[1]) |
+                                    ((np.arange(2*self.N) < self.N) &
+                                     (inside_region_copy != inside_region_tmp[1]))])
+                    if np.any(particle_separations < self.hardcore_radius):
+                        valid = False
 
         self.coords_tmp[self.moved_particles] = coords_step
 
@@ -149,6 +183,7 @@ class MonteCarloSphere (MonteCarloBase):
 
     def __init__(self, N, S, nbr_iter, nbr_nonthermal,
                  step_size, region_theta=180, region_phi=360,
+                 hardcore_radius: np.float64 = 0,
                  save_results=True, save_last_config=True,
                  save_all_config=True, acceptance_ratio=0):
 
@@ -169,7 +204,7 @@ class MonteCarloSphere (MonteCarloBase):
         if self.region_phi[1] != 360 or self.region_phi[0] != 0:
             region_details += f"_phi_{self.region_phi[0]:.6f}_{self.region_phi[1]:.6f}"
 
-        super().__init__(N, S, nbr_iter, nbr_nonthermal, region_details,
+        super().__init__(N, S, nbr_iter, nbr_nonthermal, region_details, hardcore_radius,
                          save_results, save_last_config, save_all_config, acceptance_ratio)
 
         self.geometry = "sphere"
