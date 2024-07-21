@@ -129,8 +129,9 @@ class MonteCarloTorus (MonteCarloBase):
 
         region_details = "_" + region_geometry + f"_{region_size:.6f}"
 
+        hardcore_radius = 0
         super().__init__(N, S, nbr_iter, nbr_nonthermal, region_details,
-                         save_results, save_last_config,
+                         hardcore_radius, save_results, save_last_config,
                          save_all_config, acceptance_ratio)
 
         self.step_size = step_size*self.Lx
