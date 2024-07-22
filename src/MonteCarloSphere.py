@@ -110,8 +110,9 @@ class MonteCarloSphere (MonteCarloBase):
             self.BoundaryConditions(self.coords_tmp[self.moved_particles] + meas_array *
                                     self.step_size*np.random.default_rng().choice(self.step_pattern, 2))
 
-    def ParticleSeparation(self, coords):
-        """Returns the inter-particle separations (arc distance)."""
+    def ParticleSeparationAll(self, coords):
+        """Returns the inter-particle separations (arc distance)
+        for all specified particles."""
         rel_phi = np.abs(
             coords[:, 1] - np.reshape(coords[:, 1], (coords.shape[0], 1)))
         particle_angles = np.arccos(
@@ -121,6 +122,18 @@ class MonteCarloSphere (MonteCarloBase):
         particle_separations = np.sqrt(self.S/2)*np.abs(particle_angles)
 
         return particle_separations + np.eye(coords.shape[0])*10*self.hardcore_radius
+
+    def ParticleSeparationTarget(self, coords, target_coords):
+        """Returns the inter-particle separations (arc distance)
+        between target particles and the rest."""
+        rel_phi = np.abs(target_coords[1] - coords[:, 1])
+        particle_angles = np.arccos(
+            np.sin(target_coords[0])*np.sin(coords[:, 0]) +
+            np.cos(target_coords[0])*np.cos(coords[:, 0]) *
+            np.cos(rel_phi) - 0.00001)
+        particle_separations = np.sqrt(self.S/2)*np.abs(particle_angles)
+
+        return particle_separations
 
     def StepOneSwap(self) -> np.array:
         """Provides a new Monte Carlo configuration by updating
@@ -152,28 +165,32 @@ class MonteCarloSphere (MonteCarloBase):
                     inside_region_copy = self.InsideRegion(coords_copy)
 
                     # check intra-copy
-                    particle_separations = self.ParticleSeparation(
-                        coords_copy[:self.N])
+                    particle_separations = self.ParticleSeparationTarget(
+                        np.delete(coords_copy[:self.N],
+                                  self.moved_particles[0], axis=0),
+                        coords_copy[self.moved_particles[0]])
                     if np.any(particle_separations < self.hardcore_radius):
                         valid = False
 
-                    particle_separations = self.ParticleSeparation(
-                        coords_copy[self.N:])
+                    self.ParticleSeparationTarget(
+                        np.delete(coords_copy[self.N:],
+                                  self.moved_particles[1]-self.N, axis=0),
+                        coords_copy[self.moved_particles[1]])
                     if np.any(particle_separations < self.hardcore_radius):
                         valid = False
 
                     # check inter-copy
-                    particle_separations = self.ParticleSeparation(
-                        coords_copy[(np.arange(2*self.N) == self.moved_particles[0]) |
-                                    ((np.arange(2*self.N) >= self.N) &
-                                     (inside_region_copy != inside_region_tmp[0]))])
+                    particle_separations = self.ParticleSeparationTarget(
+                        coords_copy[(np.arange(2*self.N) >= self.N) &
+                                    (inside_region_copy != inside_region_tmp[0])],
+                        coords_copy[self.moved_particles[0]])
                     if np.any(particle_separations < self.hardcore_radius):
                         valid = False
 
-                    particle_separations = self.ParticleSeparation(
-                        coords_copy[(np.arange(2*self.N) == self.moved_particles[1]) |
-                                    ((np.arange(2*self.N) < self.N) &
-                                     (inside_region_copy != inside_region_tmp[1]))])
+                    particle_separations = self.ParticleSeparationTarget(
+                        coords_copy[(np.arange(2*self.N) < self.N) &
+                                    (inside_region_copy != inside_region_tmp[1])],
+                        coords_copy[self.moved_particles[1]])
                     if np.any(particle_separations < self.hardcore_radius):
                         valid = False
 

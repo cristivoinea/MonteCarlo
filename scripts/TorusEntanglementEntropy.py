@@ -25,7 +25,7 @@ parser.add_argument("--nbr-iter", action="store", default=10000,
                     help="number of Monte Carlo iterations")
 parser.add_argument("--nbr-nonthermal", action="store", default=-1,
                     help="number of non-thermal iterations")
-parser.add_argument("--step", action="store", defualt=0.1,
+parser.add_argument("--step", action="store", default=0.1,
                     help="step size value at square aspect ratio")
 parser.add_argument("--region-geometry", action="store", default='circle',
                     help="geometry of one of the bipartition regions")

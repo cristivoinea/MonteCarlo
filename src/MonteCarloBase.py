@@ -396,7 +396,44 @@ class MonteCarloBase:
             if run_type == 'disorder' or run_type == 'fluct':
                 self.coords = self.RandomConfig()
             else:
-                self.RandomConfigSwap()
+                if self.hardcore_radius == 0:
+                    self.RandomConfigSwap()
+                else:
+                    valid = False
+
+                    while not valid:
+                        valid = True
+                        self.RandomConfigSwap()
+                        inside_region = self.InsideRegion(self.coords)
+
+                        # check intra-copy
+                        particle_separations = self.ParticleSeparationAll(
+                            self.coords[:self.N])
+                        if np.any(particle_separations < self.hardcore_radius):
+                            valid = False
+
+                        particle_separations = self.ParticleSeparationAll(
+                            self.coords[self.N:])
+                        if np.any(particle_separations < self.hardcore_radius):
+                            valid = False
+
+                        # check inter-copy
+                        particle_separations = self.ParticleSeparationAll(
+                            self.coords[((np.arange(2*self.N) < self.N) &
+                                         (inside_region == True)) |
+                                        ((np.arange(2*self.N) >= self.N) &
+                                         (inside_region == False))])
+                        if np.any(particle_separations < self.hardcore_radius):
+                            valid = False
+
+                        particle_separations = self.ParticleSeparationAll(
+                            self.coords[((np.arange(2*self.N) < self.N) &
+                                         (inside_region == False)) |
+                                        ((np.arange(2*self.N) >= self.N) &
+                                         (inside_region == True))])
+                        if np.any(particle_separations < self.hardcore_radius):
+                            valid = False
+
             if run_type == 'sign' or run_type == 'disorder':
                 self.results = np.zeros((self.nbr_iter), dtype=np.complex128)
             else:
@@ -410,6 +447,9 @@ class MonteCarloBase:
             self.from_swap = self.OrderFromSwap(self.to_swap)
             self.to_swap_tmp = np.copy(self.to_swap)
             self.from_swap_tmp = np.copy(self.from_swap)
+
+    def ParticleSeparationAll(self):
+        pass
 
     def RunDisorderOperator(self, composite=False):
         """
