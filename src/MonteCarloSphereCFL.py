@@ -172,9 +172,248 @@ def JastrowDerivative(ind: np.int64, a: np.int64, b: np.int64, f_table: np.array
                             20*f_table[ind, pos(0, 2)]*f_table[ind, pos(0, 3)] -
                             30*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 4)] +
                             24*f_table[ind, pos(0, 5)])
+        case 6:
+            match a:
+                case 6:
+                    return (f_table[ind, pos(1, 0)]**6 - 15*(f_table[ind, pos(1, 0)]**4)*f_table[ind, pos(2, 0)] +
+                            45*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(2, 0)]**2 - 15*(f_table[ind, pos(2, 0)]**3) +
+                            40*(f_table[ind, pos(1, 0)]**3)*f_table[ind, pos(3, 0)] -
+                            120*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 0)]*f_table[ind, pos(3, 0)] +
+                            40*(f_table[ind, pos(3, 0)]**2) - 90*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(4, 0)] +
+                            90*f_table[ind, pos(2, 0)]*f_table[ind, pos(4, 0)] +
+                            144*f_table[ind, pos(1, 0)]*f_table[ind, pos(5, 0)] - 120*f_table[ind, pos(6, 0)])
+                case 5:
+                    return (f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**5) - 5*(f_table[ind, pos(1, 0)]**4)*f_table[ind, pos(1, 1)] -
+                            10*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**3)*f_table[ind, pos(2, 0)] + 30*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 0)] +
+                            15*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 0)]*(f_table[ind, pos(2, 0)]**2) - 15*f_table[ind, pos(1, 1)]*(f_table[ind, pos(2, 0)]**2) +
+                            20*(f_table[ind, pos(1, 0)]**3)*f_table[ind, pos(2, 1)] - 60*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 0)]*f_table[ind, pos(2, 1)] +
+                            20*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(3, 0)] - 40*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(3, 0)] -
+                            20*f_table[ind, pos(0, 1)]*f_table[ind, pos(2, 0)]*f_table[ind, pos(3, 0)] + 40*f_table[ind, pos(2, 1)]*f_table[ind, pos(3, 0)] -
+                            60*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(3, 1)] + 60*f_table[ind, pos(2, 0)]*f_table[ind, pos(3, 1)] -
+                            30*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(4, 0)] + 30*f_table[ind, pos(1, 1)]*f_table[ind, pos(4, 0)] +
+                            120*f_table[ind, pos(1, 0)]*f_table[ind, pos(4, 1)] + 24*f_table[ind, pos(0, 1)]*f_table[ind, pos(5, 0)] - 120*f_table[ind, pos(5, 1)])
+                case 4:
+                    return ((f_table[ind, pos(0, 1)]**2)*(f_table[ind, pos(1, 0)]**4) - f_table[ind, pos(0, 2)]*(f_table[ind, pos(1, 0)]**4) -
+                            8*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**3)*f_table[ind, pos(1, 1)] + 12*(f_table[ind, pos(1, 0)]**2)*(f_table[ind, pos(1, 1)]**2) +
+                            8*(f_table[ind, pos(1, 0)]**3)*f_table[ind, pos(1, 2)] - 6*(f_table[ind, pos(0, 1)]**2)*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(2, 0)] +
+                            6*f_table[ind, pos(0, 2)]*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(2, 0)] + 24*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 0)] -
+                            12*(f_table[ind, pos(1, 1)]**2)*f_table[ind, pos(2, 0)] - 24*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 2)]*f_table[ind, pos(2, 0)] +
+                            3*(f_table[ind, pos(0, 1)]**2)*(f_table[ind, pos(2, 0)]**2) - 3*f_table[ind, pos(0, 2)]*(f_table[ind, pos(2, 0)]**2) +
+                            24*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(2, 1)] - 48*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 1)] -
+                            24*f_table[ind, pos(0, 1)]*f_table[ind, pos(2, 0)]*f_table[ind, pos(2, 1)] + 24*(f_table[ind, pos(2, 1)]**2) - 36*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(2, 2)] +
+                            36*f_table[ind, pos(2, 0)]*f_table[ind, pos(2, 2)] + 8*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(1, 0)]*f_table[ind, pos(3, 0)] -
+                            8*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(3, 0)] - 16*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(3, 0)] +
+                            16*f_table[ind, pos(1, 2)]*f_table[ind, pos(3, 0)] - 48*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(3, 1)] +
+                            48*f_table[ind, pos(1, 1)]*f_table[ind, pos(3, 1)] + 96*f_table[ind, pos(1, 0)]*f_table[ind, pos(3, 2)] - 6*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(4, 0)] +
+                            6*f_table[ind, pos(0, 2)]*f_table[ind, pos(4, 0)] + 48*f_table[ind, pos(0, 1)]*f_table[ind, pos(4, 1)] - 120*f_table[ind, pos(4, 2)])
+                case 3:
+                    return ((f_table[ind, pos(0, 1)]**3)*(f_table[ind, pos(1, 0)]**3) - 3*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*(f_table[ind, pos(1, 0)]**3) +
+                            2*f_table[ind, pos(0, 3)]*(f_table[ind, pos(1, 0)]**3) - 9*(f_table[ind, pos(0, 1)]**2)*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(1, 1)] +
+                            9*f_table[ind, pos(0, 2)]*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(1, 1)] + 18*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 0)]*(f_table[ind, pos(1, 1)]**2) -
+                            6*(f_table[ind, pos(1, 1)]**3) + 18*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(1, 2)] -
+                            36*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(1, 2)] - 18*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(1, 3)] -
+                            3*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 0)] + 9*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 0)] -
+                            6*f_table[ind, pos(0, 3)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 0)] + 9*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 0)] -
+                            9*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 0)] - 18*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 2)]*f_table[ind, pos(2, 0)] +
+                            18*f_table[ind, pos(1, 3)]*f_table[ind, pos(2, 0)] + 18*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 1)] -
+                            18*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 1)] - 36*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 1)] +
+                            36*f_table[ind, pos(1, 2)]*f_table[ind, pos(2, 1)] - 54*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 2)] +
+                            54*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 2)] + 72*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 3)] + 2*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(3, 0)] -
+                            6*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*f_table[ind, pos(3, 0)] + 4*f_table[ind, pos(0, 3)]*f_table[ind, pos(3, 0)] -
+                            18*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(3, 1)] + 18*f_table[ind, pos(0, 2)]*f_table[ind, pos(3, 1)] + 72*f_table[ind, pos(0, 1)]*f_table[ind, pos(3, 2)] -
+                            120*f_table[ind, pos(3, 3)])
+                case 2:
+                    return ((f_table[ind, pos(0, 1)]**4)*(f_table[ind, pos(1, 0)]**2) - 6*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(0, 2)]*(f_table[ind, pos(1, 0)]**2) +
+                            3*(f_table[ind, pos(0, 2)]**2)*(f_table[ind, pos(1, 0)]**2) + 8*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 3)]*(f_table[ind, pos(1, 0)]**2) -
+                            6*f_table[ind, pos(0, 4)]*(f_table[ind, pos(1, 0)]**2) - 8*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)] +
+                            24*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)] - 16*f_table[ind, pos(0, 3)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)] +
+                            12*(f_table[ind, pos(0, 1)]**2)*(f_table[ind, pos(1, 1)]**2) - 12*f_table[ind, pos(0, 2)]*(f_table[ind, pos(1, 1)]**2) +
+                            24*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 2)] - 24*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 2)] -
+                            48*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(1, 2)] + 24*(f_table[ind, pos(1, 2)]**2) -
+                            48*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 3)] + 48*f_table[ind, pos(1, 1)]*f_table[ind, pos(1, 3)] +
+                            48*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 4)] - (f_table[ind, pos(0, 1)]**4)*f_table[ind, pos(2, 0)] +
+                            6*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(0, 2)]*f_table[ind, pos(2, 0)] - 3*(f_table[ind, pos(0, 2)]**2)*f_table[ind, pos(2, 0)] -
+                            8*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 3)]*f_table[ind, pos(2, 0)] + 6*f_table[ind, pos(0, 4)]*f_table[ind, pos(2, 0)] +
+                            8*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(2, 1)] - 24*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*f_table[ind, pos(2, 1)] +
+                            16*f_table[ind, pos(0, 3)]*f_table[ind, pos(2, 1)] - 36*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(2, 2)] + 36*f_table[ind, pos(0, 2)]*f_table[ind, pos(2, 2)] +
+                            96*f_table[ind, pos(0, 1)]*f_table[ind, pos(2, 3)] - 120*f_table[ind, pos(2, 4)])
+                case 1:
+                    return ((f_table[ind, pos(0, 1)]**5)*f_table[ind, pos(1, 0)] - 10*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)] +
+                            15*f_table[ind, pos(0, 1)]*(f_table[ind, pos(0, 2)]**2)*f_table[ind, pos(1, 0)] + 20*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(0, 3)]*f_table[ind, pos(1, 0)] -
+                            20*f_table[ind, pos(0, 2)]*f_table[ind, pos(0, 3)]*f_table[ind, pos(1, 0)] - 30*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 4)]*f_table[ind, pos(1, 0)] +
+                            24*f_table[ind, pos(0, 5)]*f_table[ind, pos(1, 0)] - 5*(f_table[ind, pos(0, 1)]**4)*f_table[ind, pos(1, 1)] +
+                            30*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 1)] - 15*(f_table[ind, pos(0, 2)]**2)*f_table[ind, pos(1, 1)] -
+                            40*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 3)]*f_table[ind, pos(1, 1)] + 30*f_table[ind, pos(0, 4)]*f_table[ind, pos(1, 1)] +
+                            20*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(1, 2)] - 60*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 2)] +
+                            40*f_table[ind, pos(0, 3)]*f_table[ind, pos(1, 2)] - 60*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(1, 3)] + 60*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 3)] +
+                            120*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 4)] - 120*f_table[ind, pos(1, 5)])
+                case 0:
+                    return ((f_table[ind, pos(0, 1)]**6) - 15*(f_table[ind, pos(0, 1)]**4)*f_table[ind, pos(0, 2)] + 45*(f_table[ind, pos(0, 1)]**2)*(f_table[ind, pos(0, 2)]**2) -
+                            15*(f_table[ind, pos(0, 2)]**3) + 40*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(0, 3)] - 120*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*f_table[ind, pos(0, 3)] +
+                            40*(f_table[ind, pos(0, 3)]**2) - 90*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(0, 4)] + 90*f_table[ind, pos(0, 2)]*f_table[ind, pos(0, 4)] +
+                            144*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 5)] - 120*f_table[ind, pos(0, 6)])
+        case 7:
+            match a:
+                case 7:
+                    return ((f_table[ind, pos(1, 0)]**7) - 21*(f_table[ind, pos(1, 0)]**5)*f_table[ind, pos(2, 0)] + 105*(f_table[ind, pos(1, 0)]**3)*(f_table[ind, pos(2, 0)]**2) -
+                            105*f_table[ind, pos(1, 0)]*(f_table[ind, pos(2, 0)]**3) + 70*(f_table[ind, pos(1, 0)]**4)*f_table[ind, pos(3, 0)] -
+                            420*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(2, 0)]*f_table[ind, pos(3, 0)] + 210*(f_table[ind, pos(2, 0)]**2)*f_table[ind, pos(3, 0)] +
+                            280*f_table[ind, pos(1, 0)]*(f_table[ind, pos(3, 0)]**2) - 210*(f_table[ind, pos(1, 0)]**3)*f_table[ind, pos(4, 0)] +
+                            630*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 0)]*f_table[ind, pos(4, 0)] - 420*f_table[ind, pos(3, 0)]*f_table[ind, pos(4, 0)] +
+                            504*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(5, 0)] - 504*f_table[ind, pos(2, 0)]*f_table[ind, pos(5, 0)] - 840*f_table[ind, pos(1, 0)]*f_table[ind, pos(6, 0)] +
+                            720*f_table[ind, pos(7, 0)])
+                case 6:
+                    return (f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**6) - 6*(f_table[ind, pos(1, 0)]**5)*f_table[ind, pos(1, 1)] -
+                            15*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**4)*f_table[ind, pos(2, 0)] + 60*(f_table[ind, pos(1, 0)]**3)*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 0)] +
+                            45*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**2)*(f_table[ind, pos(2, 0)]**2) - 90*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)]*(f_table[ind, pos(2, 0)]**2) -
+                            15*f_table[ind, pos(0, 1)]*(f_table[ind, pos(2, 0)]**3) + 30*(f_table[ind, pos(1, 0)]**4)*f_table[ind, pos(2, 1)] -
+                            180*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(2, 0)]*f_table[ind, pos(2, 1)] + 90*(f_table[ind, pos(2, 0)]**2)*f_table[ind, pos(2, 1)] +
+                            40*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**3)*f_table[ind, pos(3, 0)] - 120*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(1, 1)]*f_table[ind, pos(3, 0)] -
+                            120*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 0)]*f_table[ind, pos(3, 0)] + 120*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 0)]*f_table[ind, pos(3, 0)] +
+                            240*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 1)]*f_table[ind, pos(3, 0)] + 40*f_table[ind, pos(0, 1)]*(f_table[ind, pos(3, 0)]**2) -
+                            120*(f_table[ind, pos(1, 0)]**3)*f_table[ind, pos(3, 1)] + 360*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 0)]*f_table[ind, pos(3, 1)] -
+                            240*f_table[ind, pos(3, 0)]*f_table[ind, pos(3, 1)] - 90*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(4, 0)] +
+                            180*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(4, 0)] + 90*f_table[ind, pos(0, 1)]*f_table[ind, pos(2, 0)]*f_table[ind, pos(4, 0)] -
+                            180*f_table[ind, pos(2, 1)]*f_table[ind, pos(4, 0)] + 360*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(4, 1)] - 360*f_table[ind, pos(2, 0)]*f_table[ind, pos(4, 1)] +
+                            144*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(5, 0)] - 144*f_table[ind, pos(1, 1)]*f_table[ind, pos(5, 0)] -
+                            720*f_table[ind, pos(1, 0)]*f_table[ind, pos(5, 1)] - 120*f_table[ind, pos(0, 1)]*f_table[ind, pos(6, 0)] + 720*f_table[ind, pos(6, 1)])
+                case 5:
+                    return ((f_table[ind, pos(0, 1)]**2)*(f_table[ind, pos(1, 0)]**5) - f_table[ind, pos(0, 2)]*(f_table[ind, pos(1, 0)]**5) -
+                            10*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**4)*f_table[ind, pos(1, 1)] + 20*(f_table[ind, pos(1, 0)]**3)*(f_table[ind, pos(1, 1)]**2) +
+                            10*(f_table[ind, pos(1, 0)]**4)*f_table[ind, pos(1, 2)] - 10*(f_table[ind, pos(0, 1)]**2)*(f_table[ind, pos(1, 0)]**3)*f_table[ind, pos(2, 0)] +
+                            10*f_table[ind, pos(0, 2)]*(f_table[ind, pos(1, 0)]**3)*f_table[ind, pos(2, 0)] +
+                            60*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 0)] -
+                            60*f_table[ind, pos(1, 0)]*(f_table[ind, pos(1, 1)]**2)*f_table[ind, pos(2, 0)] - 60*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(1, 2)]*f_table[ind, pos(2, 0)] +
+                            15*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(1, 0)]*(f_table[ind, pos(2, 0)]**2) - 15*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)]*(f_table[ind, pos(2, 0)]**2) -
+                            30*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 1)]*(f_table[ind, pos(2, 0)]**2) + 30*f_table[ind, pos(1, 2)]*(f_table[ind, pos(2, 0)]**2) +
+                            40*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**3)*f_table[ind, pos(2, 1)] - 120*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 1)] -
+                            120*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 0)]*f_table[ind, pos(2, 1)] + 120*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 0)]*f_table[ind, pos(2, 1)] +
+                            120*f_table[ind, pos(1, 0)]*(f_table[ind, pos(2, 1)]**2) - 60*(f_table[ind, pos(1, 0)]**3)*f_table[ind, pos(2, 2)] +
+                            180*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 0)]*f_table[ind, pos(2, 2)] + 20*(f_table[ind, pos(0, 1)]**2)*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(3, 0)] -
+                            20*f_table[ind, pos(0, 2)]*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(3, 0)] - 80*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(3, 0)] +
+                            40*(f_table[ind, pos(1, 1)]**2)*f_table[ind, pos(3, 0)] + 80*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 2)]*f_table[ind, pos(3, 0)] -
+                            20*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(2, 0)]*f_table[ind, pos(3, 0)] + 20*f_table[ind, pos(0, 2)]*f_table[ind, pos(2, 0)]*f_table[ind, pos(3, 0)] +
+                            80*f_table[ind, pos(0, 1)]*f_table[ind, pos(2, 1)]*f_table[ind, pos(3, 0)] - 120*f_table[ind, pos(2, 2)]*f_table[ind, pos(3, 0)] -
+                            120*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(3, 1)] + 240*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(3, 1)] +
+                            120*f_table[ind, pos(0, 1)]*f_table[ind, pos(2, 0)]*f_table[ind, pos(3, 1)] - 240*f_table[ind, pos(2, 1)]*f_table[ind, pos(3, 1)] +
+                            240*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(3, 2)] - 240*f_table[ind, pos(2, 0)]*f_table[ind, pos(3, 2)] -
+                            30*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(1, 0)]*f_table[ind, pos(4, 0)] + 30*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(4, 0)] +
+                            60*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(4, 0)] - 60*f_table[ind, pos(1, 2)]*f_table[ind, pos(4, 0)] +
+                            240*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(4, 1)] - 240*f_table[ind, pos(1, 1)]*f_table[ind, pos(4, 1)] -
+                            600*f_table[ind, pos(1, 0)]*f_table[ind, pos(4, 2)] + 24*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(5, 0)] - 24*f_table[ind, pos(0, 2)]*f_table[ind, pos(5, 0)] -
+                            240*f_table[ind, pos(0, 1)]*f_table[ind, pos(5, 1)] + 720*f_table[ind, pos(5, 2)])
+                case 4:
+                    return ((f_table[ind, pos(0, 1)]**3)*(f_table[ind, pos(1, 0)]**4) - 3*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*(f_table[ind, pos(1, 0)]**4) +
+                            2*f_table[ind, pos(0, 3)]*(f_table[ind, pos(1, 0)]**4) - 12*(f_table[ind, pos(0, 1)]**2)*(f_table[ind, pos(1, 0)]**3)*f_table[ind, pos(1, 1)] +
+                            12*f_table[ind, pos(0, 2)]*(f_table[ind, pos(1, 0)]**3)*f_table[ind, pos(1, 1)] + 36*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**2)*(f_table[ind, pos(1, 1)]**2) -
+                            24*f_table[ind, pos(1, 0)]*(f_table[ind, pos(1, 1)]**3) + 24*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**3)*f_table[ind, pos(1, 2)] -
+                            72*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(1, 1)]*f_table[ind, pos(1, 2)] - 24*(f_table[ind, pos(1, 0)]**3)*f_table[ind, pos(1, 3)] -
+                            6*(f_table[ind, pos(0, 1)]**3)*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(2, 0)] +
+                            18*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(2, 0)] -
+                            12*f_table[ind, pos(0, 3)]*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(2, 0)] +
+                            36*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 0)] -
+                            36*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 0)] - 36*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 1)]**2)*f_table[ind, pos(2, 0)] -
+                            72*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 2)]*f_table[ind, pos(2, 0)] + 72*f_table[ind, pos(1, 1)]*f_table[ind, pos(1, 2)]*f_table[ind, pos(2, 0)] +
+                            72*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 3)]*f_table[ind, pos(2, 0)] + 3*(f_table[ind, pos(0, 1)]**3)*(f_table[ind, pos(2, 0)]**2) -
+                            9*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*(f_table[ind, pos(2, 0)]**2) + 6*f_table[ind, pos(0, 3)]*(f_table[ind, pos(2, 0)]**2) +
+                            36*(f_table[ind, pos(0, 1)]**2)*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(2, 1)] - 36*f_table[ind, pos(0, 2)]*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(2, 1)] -
+                            144*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 1)] + 72*(f_table[ind, pos(1, 1)]**2)*f_table[ind, pos(2, 1)] +
+                            144*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 2)]*f_table[ind, pos(2, 1)] - 36*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(2, 0)]*f_table[ind, pos(2, 1)] +
+                            36*f_table[ind, pos(0, 2)]*f_table[ind, pos(2, 0)]*f_table[ind, pos(2, 1)] + 72*f_table[ind, pos(0, 1)]*(f_table[ind, pos(2, 1)]**2) -
+                            108*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(2, 2)] + 216*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 2)] +
+                            108*f_table[ind, pos(0, 1)]*f_table[ind, pos(2, 0)]*f_table[ind, pos(2, 2)] - 216*f_table[ind, pos(2, 1)]*f_table[ind, pos(2, 2)] +
+                            144*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(2, 3)] - 144*f_table[ind, pos(2, 0)]*f_table[ind, pos(2, 3)] +
+                            8*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(1, 0)]*f_table[ind, pos(3, 0)] - 24*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(3, 0)] +
+                            16*f_table[ind, pos(0, 3)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(3, 0)] - 24*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(1, 1)]*f_table[ind, pos(3, 0)] +
+                            24*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(3, 0)] + 48*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 2)]*f_table[ind, pos(3, 0)] -
+                            48*f_table[ind, pos(1, 3)]*f_table[ind, pos(3, 0)] - 72*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(1, 0)]*f_table[ind, pos(3, 1)] +
+                            72*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(3, 1)] + 144*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(3, 1)] -
+                            144*f_table[ind, pos(1, 2)]*f_table[ind, pos(3, 1)] + 288*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(3, 2)] -
+                            288*f_table[ind, pos(1, 1)]*f_table[ind, pos(3, 2)] - 480*f_table[ind, pos(1, 0)]*f_table[ind, pos(3, 3)] - 6*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(4, 0)] +
+                            18*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*f_table[ind, pos(4, 0)] - 12*f_table[ind, pos(0, 3)]*f_table[ind, pos(4, 0)] +
+                            72*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(4, 1)] - 72*f_table[ind, pos(0, 2)]*f_table[ind, pos(4, 1)] - 360*f_table[ind, pos(0, 1)]*f_table[ind, pos(4, 2)] +
+                            720*f_table[ind, pos(4, 3)])
+                case 3:
+                    return ((f_table[ind, pos(0, 1)]**4)*(f_table[ind, pos(1, 0)]**3) - 6*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(0, 2)]*(f_table[ind, pos(1, 0)]**3) +
+                            3*(f_table[ind, pos(0, 2)]**2)*(f_table[ind, pos(1, 0)]**3) + 8*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 3)]*(f_table[ind, pos(1, 0)]**3) -
+                            6*f_table[ind, pos(0, 4)]*(f_table[ind, pos(1, 0)]**3) - 12*(f_table[ind, pos(0, 1)]**3)*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(1, 1)] +
+                            36*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(1, 1)] -
+                            24*f_table[ind, pos(0, 3)]*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(1, 1)] + 36*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(1, 0)]*(f_table[ind, pos(1, 1)]**2) -
+                            36*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)]*(f_table[ind, pos(1, 1)]**2) - 24*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 1)]**3) +
+                            36*(f_table[ind, pos(0, 1)]**2)*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(1, 2)] - 36*f_table[ind, pos(0, 2)]*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(1, 2)] -
+                            144*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(1, 2)] + 72*(f_table[ind, pos(1, 1)]**2)*f_table[ind, pos(1, 2)] +
+                            72*f_table[ind, pos(1, 0)]*(f_table[ind, pos(1, 2)]**2) - 72*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(1, 3)] +
+                            144*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(1, 3)] + 72*(f_table[ind, pos(1, 0)]**2)*f_table[ind, pos(1, 4)] -
+                            3*(f_table[ind, pos(0, 1)]**4)*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 0)] + 18*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 0)] -
+                            9*(f_table[ind, pos(0, 2)]**2)*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 0)] - 24*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 3)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 0)] +
+                            18*f_table[ind, pos(0, 4)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 0)] + 12*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 0)] -
+                            36*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 0)] + 24*f_table[ind, pos(0, 3)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 0)] -
+                            36*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(1, 2)]*f_table[ind, pos(2, 0)] + 36*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 2)]*f_table[ind, pos(2, 0)] +
+                            72*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 3)]*f_table[ind, pos(2, 0)] - 72*f_table[ind, pos(1, 4)]*f_table[ind, pos(2, 0)] +
+                            24*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 1)] - 72*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 1)] +
+                            48*f_table[ind, pos(0, 3)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 1)] - 72*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 1)] +
+                            72*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 1)] + 144*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 2)]*f_table[ind, pos(2, 1)] -
+                            144*f_table[ind, pos(1, 3)]*f_table[ind, pos(2, 1)] - 108*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 2)] +
+                            108*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 2)] + 216*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 2)] -
+                            216*f_table[ind, pos(1, 2)]*f_table[ind, pos(2, 2)] + 288*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 3)] -
+                            288*f_table[ind, pos(1, 1)]*f_table[ind, pos(2, 3)] - 360*f_table[ind, pos(1, 0)]*f_table[ind, pos(2, 4)] + 2*(f_table[ind, pos(0, 1)]**4)*f_table[ind, pos(3, 0)] -
+                            12*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(0, 2)]*f_table[ind, pos(3, 0)] + 6*(f_table[ind, pos(0, 2)]**2)*f_table[ind, pos(3, 0)] +
+                            16*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 3)]*f_table[ind, pos(3, 0)] - 12*f_table[ind, pos(0, 4)]*f_table[ind, pos(3, 0)] -
+                            24*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(3, 1)] + 72*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*f_table[ind, pos(3, 1)] -
+                            48*f_table[ind, pos(0, 3)]*f_table[ind, pos(3, 1)] + 144*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(3, 2)] - 144*f_table[ind, pos(0, 2)]*f_table[ind, pos(3, 2)] -
+                            480*f_table[ind, pos(0, 1)]*f_table[ind, pos(3, 3)] + 720*f_table[ind, pos(3, 4)])
+                case 2:
+                    return ((f_table[ind, pos(0, 1)]**5)*(f_table[ind, pos(1, 0)]**2) - 10*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(0, 2)]*(f_table[ind, pos(1, 0)]**2) +
+                            15*f_table[ind, pos(0, 1)]*(f_table[ind, pos(0, 2)]**2)*(f_table[ind, pos(1, 0)]**2) + 20*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(0, 3)]*(f_table[ind, pos(1, 0)]**2) -
+                            20*f_table[ind, pos(0, 2)]*f_table[ind, pos(0, 3)]*(f_table[ind, pos(1, 0)]**2) - 30*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 4)]*(f_table[ind, pos(1, 0)]**2) +
+                            24*f_table[ind, pos(0, 5)]*(f_table[ind, pos(1, 0)]**2) - 10*(f_table[ind, pos(0, 1)]**4)*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)] +
+                            60*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)] -
+                            30*(f_table[ind, pos(0, 2)]**2)*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)] - 80*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 3)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)] +
+                            60*f_table[ind, pos(0, 4)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 1)] + 20*(f_table[ind, pos(0, 1)]**3)*(f_table[ind, pos(1, 1)]**2) -
+                            60*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*(f_table[ind, pos(1, 1)]**2) + 40*f_table[ind, pos(0, 3)]*(f_table[ind, pos(1, 1)]**2) +
+                            40*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 2)] - 120*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 2)] +
+                            80*f_table[ind, pos(0, 3)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 2)] - 120*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(1, 1)]*f_table[ind, pos(1, 2)] +
+                            120*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(1, 2)] + 120*f_table[ind, pos(0, 1)]*(f_table[ind, pos(1, 2)]**2) -
+                            120*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 3)] + 120*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 3)] +
+                            240*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 1)]*f_table[ind, pos(1, 3)] - 240*f_table[ind, pos(1, 2)]*f_table[ind, pos(1, 3)] +
+                            240*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 4)] - 240*f_table[ind, pos(1, 1)]*f_table[ind, pos(1, 4)] -
+                            240*f_table[ind, pos(1, 0)]*f_table[ind, pos(1, 5)] - (f_table[ind, pos(0, 1)]**5)*f_table[ind, pos(2, 0)] +
+                            10*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(0, 2)]*f_table[ind, pos(2, 0)] - 15*f_table[ind, pos(0, 1)]*(f_table[ind, pos(0, 2)]**2)*f_table[ind, pos(2, 0)] -
+                            20*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(0, 3)]*f_table[ind, pos(2, 0)] + 20*f_table[ind, pos(0, 2)]*f_table[ind, pos(0, 3)]*f_table[ind, pos(2, 0)] +
+                            30*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 4)]*f_table[ind, pos(2, 0)] - 24*f_table[ind, pos(0, 5)]*f_table[ind, pos(2, 0)] +
+                            10*(f_table[ind, pos(0, 1)]**4)*f_table[ind, pos(2, 1)] - 60*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(0, 2)]*f_table[ind, pos(2, 1)] +
+                            30*(f_table[ind, pos(0, 2)]**2)*f_table[ind, pos(2, 1)] + 80*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 3)]*f_table[ind, pos(2, 1)] -
+                            60*f_table[ind, pos(0, 4)]*f_table[ind, pos(2, 1)] - 60*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(2, 2)] +
+                            180*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*f_table[ind, pos(2, 2)] - 120*f_table[ind, pos(0, 3)]*f_table[ind, pos(2, 2)] +
+                            240*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(2, 3)] - 240*f_table[ind, pos(0, 2)]*f_table[ind, pos(2, 3)] - 600*f_table[ind, pos(0, 1)]*f_table[ind, pos(2, 4)] +
+                            720*f_table[ind, pos(2, 5)])
+                case 1:
+                    return ((f_table[ind, pos(0, 1)]**6)*f_table[ind, pos(1, 0)] - 15*(f_table[ind, pos(0, 1)]**4)*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 0)] +
+                            45*(f_table[ind, pos(0, 1)]**2)*(f_table[ind, pos(0, 2)]**2)*f_table[ind, pos(1, 0)] - 15*(f_table[ind, pos(0, 2)]**3)*f_table[ind, pos(1, 0)] +
+                            40*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(0, 3)]*f_table[ind, pos(1, 0)] - 120*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*f_table[ind, pos(0, 3)]*f_table[ind, pos(1, 0)] +
+                            40*(f_table[ind, pos(0, 3)]**2)*f_table[ind, pos(1, 0)] - 90*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(0, 4)]*f_table[ind, pos(1, 0)] +
+                            90*f_table[ind, pos(0, 2)]*f_table[ind, pos(0, 4)]*f_table[ind, pos(1, 0)] + 144*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 5)]*f_table[ind, pos(1, 0)] -
+                            120*f_table[ind, pos(0, 6)]*f_table[ind, pos(1, 0)] - 6*(f_table[ind, pos(0, 1)]**5)*f_table[ind, pos(1, 1)] +
+                            60*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 1)] - 90*f_table[ind, pos(0, 1)]*(f_table[ind, pos(0, 2)]**2)*f_table[ind, pos(1, 1)] -
+                            120*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(0, 3)]*f_table[ind, pos(1, 1)] + 120*f_table[ind, pos(0, 2)]*f_table[ind, pos(0, 3)]*f_table[ind, pos(1, 1)] +
+                            180*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 4)]*f_table[ind, pos(1, 1)] - 144*f_table[ind, pos(0, 5)]*f_table[ind, pos(1, 1)] +
+                            30*(f_table[ind, pos(0, 1)]**4)*f_table[ind, pos(1, 2)] - 180*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 2)] +
+                            90*(f_table[ind, pos(0, 2)]**2)*f_table[ind, pos(1, 2)] + 240*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 3)]*f_table[ind, pos(1, 2)] -
+                            180*f_table[ind, pos(0, 4)]*f_table[ind, pos(1, 2)] - 120*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(1, 3)] +
+                            360*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 3)] - 240*f_table[ind, pos(0, 3)]*f_table[ind, pos(1, 3)] +
+                            360*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(1, 4)] - 360*f_table[ind, pos(0, 2)]*f_table[ind, pos(1, 4)] - 720*f_table[ind, pos(0, 1)]*f_table[ind, pos(1, 5)] +
+                            720*f_table[ind, pos(1, 6)])
+                case 0:
+                    return ((f_table[ind, pos(0, 1)]**7) - 21*(f_table[ind, pos(0, 1)]**5)*f_table[ind, pos(0, 2)] + 105*(f_table[ind, pos(0, 1)]**3)*(f_table[ind, pos(0, 2)]**2) -
+                            105*f_table[ind, pos(0, 1)]*(f_table[ind, pos(0, 2)]**3) + 70*(f_table[ind, pos(0, 1)]**4)*f_table[ind, pos(0, 3)] -
+                            420*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(0, 2)]*f_table[ind, pos(0, 3)] + 210*(f_table[ind, pos(0, 2)]**2)*f_table[ind, pos(0, 3)] +
+                            280*f_table[ind, pos(0, 1)]*(f_table[ind, pos(0, 3)]**2) - 210*(f_table[ind, pos(0, 1)]**3)*f_table[ind, pos(0, 4)] +
+                            630*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 2)]*f_table[ind, pos(0, 4)] - 420*f_table[ind, pos(0, 3)]*f_table[ind, pos(0, 4)] +
+                            504*(f_table[ind, pos(0, 1)]**2)*f_table[ind, pos(0, 5)] - 504*f_table[ind, pos(0, 2)]*f_table[ind, pos(0, 5)] - 840*f_table[ind, pos(0, 1)]*f_table[ind, pos(0, 6)] +
+                            720*f_table[ind, pos(0, 7)])
 
 
-@njit  # (parallel=True)
+@ njit  # (parallel=True)
 def njit_CalculateDerivativeTable(f_table: np.array,
                                   spinors: np.array, jastrows: np.array, p: np.int64):
     f_table[:, 0] = np.ones(f_table.shape[0])*(f_table.shape[0]-1)
@@ -198,7 +437,7 @@ def njit_CalculateDerivativeTable(f_table: np.array,
     f_table *= p
 
 
-@njit  # (parallel=True)
+@ njit  # (parallel=True)
 def njit_UpdateDerivativeTable(f_table_tmp: np.array, moved_particle: np.int64,
                                spinors_tmp: np.array, spinors: np.array,
                                jastrows_tmp: np.array, jastrows: np.array, p: np.int64):
@@ -222,7 +461,7 @@ def njit_UpdateDerivativeTable(f_table_tmp: np.array, moved_particle: np.int64,
             b -= 1
 
 
-@njit  # (parallel=True)
+@ njit  # (parallel=True)
 def njit_UpdateDerivativeTableLevel(f_table_tmp: np.array, level: np.int64,
                                     moved_particle: np.int64,
                                     spinors_tmp: np.array, spinors: np.array,
@@ -243,7 +482,7 @@ def njit_UpdateDerivativeTableLevel(f_table_tmp: np.array, level: np.int64,
         b -= 1
 
 
-@njit  # (parallel=True)
+@ njit  # (parallel=True)
 def njit_UpdateSlaterProj(N: np.int64, S: np.int64, S_eff: np.int64,
                           spinors_tmp: np.array, spinors: np.array,
                           jastrows_tmp: np.array, jastrows: np.array, slater: np.array,
@@ -267,7 +506,7 @@ def njit_UpdateSlaterProj(N: np.int64, S: np.int64, S_eff: np.int64,
                              (spinors_tmp[i, 1]**(S_eff + 2*Ls[k, 0] - Ls[k, 1])))
 
 
-@njit(parallel=True)
+@ njit(parallel=True)
 def njit_GetSlaterProj(N: np.int64, S: np.int64, S_eff: np.int64,
                        spinors: np.array, slater: np.array,
                        Ls: np.array, f_table: np.array,
@@ -335,7 +574,7 @@ def njit_UpdateJastrowsSwap(coords_tmp: np.array, spinors_tmp: np.array,
                 jastrows_tmp[i+N, moved_particles[0], 0, 0]
 
 
-@njit
+@ njit
 def njit_StepAmplitudeTwoCopiesSwap(N: np.int64, nbr_vortices: np.int64, jastrows: np.array,
                                     jastrows_tmp: np.array, slogdet: np.array, slogdet_tmp: np.array,
                                     from_swap: np.array, from_swap_tmp: np.array, no_vortex: np.bool_
@@ -360,7 +599,7 @@ def njit_StepAmplitudeTwoCopiesSwap(N: np.int64, nbr_vortices: np.int64, jastrow
     return step_amplitude
 
 
-@njit
+@ njit
 def njit_DensityCF(N: np.int64, inside_region: np.array, jastrows: np.array, nbr_vortices: np.int64):
     cf_density = 0
     for i in range(N):
@@ -620,7 +859,7 @@ class MonteCarloSphereCFL (MonteCarloSphere):
 
             for n in range(copy*self.N, (copy+1)*self.N):
                 vortices = np.power((self.jastrows[self.from_swap[n], self.from_swap[n+1: (copy+1)*self.N], 0, 0] /
-                                     self.jastrows[n, n+1:(copy+1)*self.N, 0, 0]), self.nbr_vortices)
+                                    self.jastrows[n, n+1:(copy+1)*self.N, 0, 0]), self.nbr_vortices)
                 if self.no_vortex:
                     vortices /= np.abs(vortices)
                 step_amplitude *= np.prod((np.exp((self.slogdet[1, copy+2] - self.slogdet[1, copy]) / (self.N*(self.N-1)/2)) *
