@@ -324,7 +324,7 @@ def LoadParticleFluctuations(N, S, geometry, state, boundaries, region_geometry=
     else:
         cf_str = ""
 
-    file = f"{state}_{geometry}_fluct{cf_str}_N_{N}_S_{S}.dat"
+    file = f"{state}_{geometry}_fluct{cf_str}_N_{N}_S_{S}_{region_geometry}s.dat"
 
     if not exists(file):
         data = np.zeros((boundaries.size, 3), dtype=np.float64)

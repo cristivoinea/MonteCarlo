@@ -39,20 +39,20 @@ class MonteCarloBase:
         overlap_matrix = self.GetOverlapMatrix()
         eigs = np.linalg.eigvalsh(overlap_matrix)
 
-        if entropy == 's2':
-            return -np.sum(np.log(eigs**2 + (1-eigs)**2))
-        elif entropy == 's1':
-            return -np.sum(eigs*np.log(eigs) + (1-eigs)*np.log(1-eigs))
+        if entropy == "s2":
+            return -np.sum(np.log(eigs**2 + (1 - eigs) ** 2))
+        elif entropy == "s1":
+            return -np.sum(eigs * np.log(eigs) + (1 - eigs) * np.log(1 - eigs))
 
     def ComputeParticleFluctuationsED(self):
         overlap_matrix = self.GetOverlapMatrix()
-        return np.trace(np.matmul(overlap_matrix, (np.eye(self.N)-overlap_matrix)))
+        return np.trace(np.matmul(overlap_matrix, (np.eye(self.N) - overlap_matrix)))
 
     def ComputeSwapProbability(self):
         overlap_matrix = self.GetOverlapMatrix()
         eigs = np.linalg.eigvalsh(overlap_matrix)
         p = 0
-        for i in range(self.N+1):
+        for i in range(self.N + 1):
             p_i = 0
             for c in combinations(range(self.N), i):
                 t_c = 1
@@ -60,7 +60,7 @@ class MonteCarloBase:
                     if j in c:
                         t_c *= eigs[j]
                     else:
-                        t_c *= (1-eigs[j])
+                        t_c *= 1 - eigs[j]
                 p_i += t_c
             p += p_i**2
 
@@ -83,7 +83,7 @@ class MonteCarloBase:
     def BoundaryConditions(self, z) -> np.complex128:
         """Check if the particle position wrapped around the torus
         after one step. When a step wraps around both directions,
-        the algorithm applies """
+        the algorithm applies"""
         pass
 
     def UpdateOrderSwap(self, nbr_A_changes: bool):
@@ -100,32 +100,35 @@ class MonteCarloBase:
         """
 
         if nbr_A_changes:
-            self.from_swap_tmp[self.to_swap_tmp[self.moved_particles[0]]
-                               ] = self.moved_particles[1]
-            self.from_swap_tmp[self.to_swap_tmp[self.moved_particles[1]]
-                               ] = self.moved_particles[0]
+            self.from_swap_tmp[self.to_swap_tmp[self.moved_particles[0]]] = (
+                self.moved_particles[1]
+            )
+            self.from_swap_tmp[self.to_swap_tmp[self.moved_particles[1]]] = (
+                self.moved_particles[0]
+            )
 
             tmp = self.to_swap_tmp[self.moved_particles[0]]
-            self.to_swap_tmp[self.moved_particles[0]
-                             ] = self.to_swap_tmp[self.moved_particles[1]]
+            self.to_swap_tmp[self.moved_particles[0]] = self.to_swap_tmp[
+                self.moved_particles[1]
+            ]
             self.to_swap_tmp[self.moved_particles[1]] = tmp
 
     def AssignOrderToSwap(self):
         """
-        Given an array specifying whether each particle is inside the subregion A, 
-        this method returns two arrays: 
+        Given an array specifying whether each particle is inside the subregion A,
+        this method returns two arrays:
         one containing the conversion from original -> swap indices and its
         inverse.
         Output:
         to_swap : order of original particles in the swapped copies. [0,N) go into coords_swap[:,0]
                             and [N, 2*N) go into coords_swap[:,1]
         """
-        self.to_swap = np.zeros((2*self.N), dtype=np.int64)
+        self.to_swap = np.zeros((2 * self.N), dtype=np.int64)
         inside_region = self.InsideRegion(self.coords)
         i_swap = 0
         j = 0
 
-        for i in range(self.N, 2*self.N):
+        for i in range(self.N, 2 * self.N):
             if not inside_region[i]:
                 self.to_swap[i] = i_swap
             else:
@@ -149,8 +152,7 @@ class MonteCarloBase:
 
         return self.to_swap
 
-    def OrderFromSwap(self, to_swap: np.array
-                      ) -> np.array:
+    def OrderFromSwap(self, to_swap: np.array) -> np.array:
         """
         Given ordering of particles from the original copies to the swapped copies,
         returns the inverse mapping.
@@ -163,9 +165,9 @@ class MonteCarloBase:
         from_swap : order of swapped particles in the original copies. [0,N) go into coords[:,0]
                             and [N, 2*N) go into coords[:,1]
         """
-        from_swap = np.zeros((2*self.N), dtype=np.int64)
+        from_swap = np.zeros((2 * self.N), dtype=np.int64)
 
-        for i in range(2*self.N):
+        for i in range(2 * self.N):
             from_swap[to_swap[i]] = i
 
         return from_swap
@@ -181,8 +183,9 @@ class MonteCarloBase:
     def StepOneParticle(self):
         self.moved_particles = np.random.randint(0, self.N, 1)
         self.coords_tmp[self.moved_particles] = self.BoundaryConditions(
-            self.coords_tmp[self.moved_particles] +
-            self.step_size*np.random.default_rng().choice(self.step_pattern, 1))
+            self.coords_tmp[self.moved_particles]
+            + self.step_size * np.random.default_rng().choice(self.step_pattern, 1)
+        )
 
     def StepOneParticleTwoCopies(self):
         """Provides a new Monte Carlo configuration by updating
@@ -190,10 +193,11 @@ class MonteCarloBase:
         the copies are swappable with respect to region A.
         """
         self.moved_particles[0] = np.random.randint(0, self.N)
-        self.moved_particles[1] = np.random.randint(self.N, 2*self.N)
-        self.coords_tmp[self.moved_particles] = \
-            self.BoundaryConditions(self.coords_tmp[self.moved_particles] +
-                                    self.step_size*np.random.default_rng().choice(self.step_pattern, 2))
+        self.moved_particles[1] = np.random.randint(self.N, 2 * self.N)
+        self.coords_tmp[self.moved_particles] = self.BoundaryConditions(
+            self.coords_tmp[self.moved_particles]
+            + self.step_size * np.random.default_rng().choice(self.step_pattern, 2)
+        )
 
     def StepOneSwap(self) -> np.array:
         """Provides a new Monte Carlo configuration by updating
@@ -205,24 +209,27 @@ class MonteCarloBase:
         valid = False
         while not valid:
             self.moved_particles[0] = np.random.randint(0, self.N)
-            self.moved_particles[1] = np.random.randint(self.N, 2*self.N)
-            inside_region = self.InsideRegion(
-                self.coords_tmp[self.moved_particles])
-            coords_step = self.BoundaryConditions(self.coords_tmp[self.moved_particles] +
-                                                  self.step_size*np.random.default_rng().choice(self.step_pattern, 2))
+            self.moved_particles[1] = np.random.randint(self.N, 2 * self.N)
+            inside_region = self.InsideRegion(self.coords_tmp[self.moved_particles])
+            coords_step = self.BoundaryConditions(
+                self.coords_tmp[self.moved_particles]
+                + self.step_size * np.random.default_rng().choice(self.step_pattern, 2)
+            )
             inside_region_tmp = self.InsideRegion(coords_step)
-            if ((int(inside_region[0]) - int(inside_region_tmp[0])) ==
-                    (int(inside_region[1]) - int(inside_region_tmp[1]))):
+            if (int(inside_region[0]) - int(inside_region_tmp[0])) == (
+                int(inside_region[1]) - int(inside_region_tmp[1])
+            ):
                 valid = True
-                nbr_A_changes = (inside_region[0] ^ inside_region_tmp[0])
+                nbr_A_changes = inside_region[0] ^ inside_region_tmp[0]
 
         self.coords_tmp[self.moved_particles] = coords_step
 
         return nbr_A_changes
 
     def Checkpoint(self, current_iter, run_type):
-        print('Iteration', current_iter, 'done, current acceptance ratio:',
-              np.round(self.acceptance_ratio*100/current_iter, 2), '%')
+        print(
+            f"Iteration {current_iter} done, current acceptance ratio: {np.round(self.acceptance_ratio * 100 / current_iter, 2)} %",
+        )
         if self.save_last_config:
             self.SaveConfig(current_iter, run_type)
 
@@ -251,14 +258,14 @@ class MonteCarloBase:
         self.acceptance_ratio += 1
         self.coords[self.moved_particles] = self.coords_tmp[self.moved_particles]
 
-        if run_type == 'mod' or run_type == 'sign':
+        if run_type == "mod" or run_type == "sign":
             np.copyto(self.to_swap, self.to_swap_tmp)
             np.copyto(self.from_swap, self.from_swap_tmp)
 
     def RejectTmp(self, run_type):
         self.coords_tmp[self.moved_particles] = self.coords[self.moved_particles]
 
-        if run_type == 'mod' or run_type == 'sign':
+        if run_type == "mod" or run_type == "sign":
             np.copyto(self.to_swap_tmp, self.to_swap)
             np.copyto(self.from_swap_tmp, self.from_swap)
 
@@ -274,6 +281,9 @@ class MonteCarloBase:
     def CF(self):
         pass
 
+    def CoulombEnergy(self):
+        pass
+
     def SaveConfig(self, current_iter: np.int64, run_type: str):
         # if run_type == 'sign':
         #    np.save(f"{self.state}_{run_type}_results_real_{self.geometry}_N_{self.N}_S_{self.S}_{self.region_geometry}_{self.region_size:.4f}.npy",
@@ -282,12 +292,14 @@ class MonteCarloBase:
         #            np.imag(self.results))
 
         # else:
-        np.save(f"{self.state}_{self.geometry}_{run_type}_results_N_{self.N}_S_{self.S}{self.region_details}.npy",
-                self.results[:current_iter])
+        np.save(
+            f"{self.state}_{self.geometry}_{run_type}_results_N_{self.N}_S_{self.S}{self.region_details}.npy",
+            self.results[:current_iter],
+        )
 
         save_coords = np.copy(self.coords)
 
-        if run_type == 'sign' or run_type == 'mod':
+        if run_type == "sign" or run_type == "mod":
             if len(self.coords.shape) == 1:
                 save_coords = np.vstack((save_coords, self.to_swap)).T
             else:
@@ -295,19 +307,24 @@ class MonteCarloBase:
             # np.save(f"{self.state}_{run_type}_order_{self.geometry}_N_{self.N}_S_{self.S}_{self.region_geometry}_{self.region_size:.4f}.npy",
             #        self.to_swap)
 
-        np.save(f"{self.state}_{self.geometry}_{run_type}_coords_end_N_{self.N}_S_{self.S}{self.region_details}.npy",
-                save_coords)
+        np.save(
+            f"{self.state}_{self.geometry}_{run_type}_coords_end_N_{self.N}_S_{self.S}{self.region_details}.npy",
+            save_coords,
+        )
 
     def SaveResults(self, run_type: str, extra_param=0):
-        if run_type == 'fluct':
+        if run_type == "fluct":
             final_value = JackknifeVariance(
-                np.real(self.results[np.int64(self.nbr_nonthermal):]))
+                np.real(self.results[np.int64(self.nbr_nonthermal) :])
+            )
         else:
             final_value = JackknifeMean(
-                np.real(self.results[np.int64(self.nbr_nonthermal):]))
-            if run_type == 'sign':
+                np.real(self.results[np.int64(self.nbr_nonthermal) :])
+            )
+            if run_type == "sign":
                 imag_value = JackknifeMean(
-                    np.imag(self.results[np.int64(self.nbr_nonthermal):]))
+                    np.imag(self.results[np.int64(self.nbr_nonthermal) :])
+                )
 
         if self.save_result:
             file_name = f"{self.state}_{self.geometry}_{run_type}_N_{self.N}_S_{self.S}{self.region_details}.dat"
@@ -315,15 +332,19 @@ class MonteCarloBase:
 
         else:
             print(f"\nMean = {final_value[0]} \n Var = {final_value[1]}")
-            if run_type == 'sign':
+            if run_type == "sign":
                 print(f"\nMean = {imag_value[0]} \n Var = {imag_value[1]}")
-            elif run_type == 'disorder':
+            elif run_type == "disorder":
                 mean_re, var_re = JackknifeMean(
-                    np.real(self.results[int(self.nbr_nonthermal):]))
+                    np.real(self.results[int(self.nbr_nonthermal) :])
+                )
                 mean_im, var_im = JackknifeMean(
-                    np.imag(self.results[int(self.nbr_nonthermal):]))
+                    np.imag(self.results[int(self.nbr_nonthermal) :])
+                )
                 mean = np.sqrt(mean_re**2 + mean_im**2)
-                var = var_re*((mean_re/mean)**2) + var_im*((mean_im/mean)**2)
+                var = var_re * ((mean_re / mean) ** 2) + var_im * (
+                    (mean_im / mean) ** 2
+                )
                 print("Check implementation", np.vstack((mean, var)))
 
     def GetFinalCoords(self):
@@ -351,7 +372,9 @@ class MonteCarloBase:
             coords[moved_ind[i, 1]] = moved_coords[i, 1]
 
         np.save(
-            f"{self.state}_{self.geometry}_p_coords_end_N_{self.N}_S_{self.S}{self.region_details}.npy", coords)
+            f"{self.state}_{self.geometry}_p_coords_end_N_{self.N}_S_{self.S}{self.region_details}.npy",
+            coords,
+        )
 
     def LoadRun(self, run_type: str):
 
@@ -380,21 +403,33 @@ class MonteCarloBase:
                 start_results = np.load(file_results)
                 self.load_iter = start_results.size
 
-                if run_type == 'sign' or run_type == 'disorder':
+                if run_type == "sign" or run_type == "disorder":
                     self.results = np.zeros(
-                        (self.load_iter+self.nbr_iter), dtype=np.complex128)
+                        (self.load_iter + self.nbr_iter), dtype=np.complex128
+                    )
                 else:
                     self.results = np.zeros(
-                        (self.load_iter+self.nbr_iter), dtype=np.float64)
-                self.results[:self.load_iter] = start_results
+                        (self.load_iter + self.nbr_iter), dtype=np.float64
+                    )
+                self.results[: self.load_iter] = start_results
             else:
                 print("Results file not found!\n")
             print(f"Successfully loaded run of {self.load_iter} iterations.")
             self.acceptance_ratio *= self.load_iter
 
         else:
-            if run_type == 'disorder' or run_type == 'fluct':
-                self.coords = self.RandomConfig()
+            if run_type == "disorder" or run_type == "fluct" or run_type == "coulomb":
+                if self.hardcore_radius == 0:
+                    self.coords = self.RandomConfig()
+                else:
+                    valid = False
+                    while not valid:
+                        valid = True
+                        self.coords = self.RandomConfig()
+                        # check intra-copy
+                        particle_separations = self.ParticleSeparationAll(self.coords)
+                        if np.any(particle_separations < self.hardcore_radius):
+                            valid = False
             else:
                 if self.hardcore_radius == 0:
                     self.RandomConfigSwap()
@@ -408,42 +443,58 @@ class MonteCarloBase:
 
                         # check intra-copy
                         particle_separations = self.ParticleSeparationAll(
-                            self.coords[:self.N])
+                            self.coords[: self.N]
+                        )
                         if np.any(particle_separations < self.hardcore_radius):
                             valid = False
 
                         particle_separations = self.ParticleSeparationAll(
-                            self.coords[self.N:])
+                            self.coords[self.N :]
+                        )
                         if np.any(particle_separations < self.hardcore_radius):
                             valid = False
 
                         # check inter-copy
                         particle_separations = self.ParticleSeparationAll(
-                            self.coords[((np.arange(2*self.N) < self.N) &
-                                         (inside_region == True)) |
-                                        ((np.arange(2*self.N) >= self.N) &
-                                         (inside_region == False))])
+                            self.coords[
+                                (
+                                    (np.arange(2 * self.N) < self.N)
+                                    & (inside_region == True)
+                                )
+                                | (
+                                    (np.arange(2 * self.N) >= self.N)
+                                    & (inside_region == False)
+                                )
+                            ]
+                        )
                         if np.any(particle_separations < self.hardcore_radius):
                             valid = False
 
                         particle_separations = self.ParticleSeparationAll(
-                            self.coords[((np.arange(2*self.N) < self.N) &
-                                         (inside_region == False)) |
-                                        ((np.arange(2*self.N) >= self.N) &
-                                         (inside_region == True))])
+                            self.coords[
+                                (
+                                    (np.arange(2 * self.N) < self.N)
+                                    & (inside_region == False)
+                                )
+                                | (
+                                    (np.arange(2 * self.N) >= self.N)
+                                    & (inside_region == True)
+                                )
+                            ]
+                        )
                         if np.any(particle_separations < self.hardcore_radius):
                             valid = False
 
-            if run_type == 'sign' or run_type == 'disorder':
+            if run_type == "sign" or run_type == "disorder":
                 self.results = np.zeros((self.nbr_iter), dtype=np.complex128)
             else:
                 self.results = np.zeros((self.nbr_iter), dtype=np.float64)
 
-            if run_type == 'mod' or run_type == 'sign':
+            if run_type == "mod" or run_type == "sign":
                 self.AssignOrderToSwap()
 
         self.coords_tmp = np.copy(self.coords)
-        if run_type == 'mod' or run_type == 'sign':
+        if run_type == "mod" or run_type == "sign":
             self.from_swap = self.OrderFromSwap(self.to_swap)
             self.to_swap_tmp = np.copy(self.to_swap)
             self.from_swap_tmp = np.copy(self.from_swap)
@@ -455,189 +506,227 @@ class MonteCarloBase:
         """
         Computes the disorder operator.
         """
-        self.LoadRun('disorder')
+        self.LoadRun("disorder")
         self.InitialWavefn()
         inside_region = self.InsideRegion(self.coords)
         if composite:
             update = self.CF(inside_region)
         else:
-            update = np.exp(1j*(np.count_nonzero(inside_region))*np.pi/2)
+            update = np.exp(1j * (np.count_nonzero(inside_region)) * np.pi / 2)
 
-        for i in range(self.load_iter, self.load_iter+self.nbr_iter):
+        for i in range(self.load_iter, self.load_iter + self.nbr_iter):
             self.StepOneParticle()
             self.TmpWavefn()
             step_amplitude = self.StepAmplitude()
 
-            if self.Jacobian()*np.abs(step_amplitude)**2 > np.random.random():
-                self.AcceptTmp('disorder')
+            if self.Jacobian() * np.abs(step_amplitude) ** 2 > np.random.random():
+                self.AcceptTmp("disorder")
                 inside_region = self.InsideRegion(self.coords)
                 if composite == True:
                     update = self.CF()
                 else:
-                    update = np.exp(
-                        1j*(np.count_nonzero(inside_region))*np.pi/2)
+                    update = np.exp(1j * (np.count_nonzero(inside_region)) * np.pi / 2)
 
             else:
-                self.RejectTmp('disorder')
+                self.RejectTmp("disorder")
 
             self.results[i] = update
-            if (i+1-self.load_iter) % (self.nbr_iter//20) == 0:
-                self.Checkpoint(i, 'disorder')
+            if (i + 1 - self.load_iter) % (self.nbr_iter // 20) == 0:
+                self.Checkpoint(i, "disorder")
 
-        self.SaveResults('disorder')
+        self.SaveResults("disorder")
 
     def DensityCF(self):
         return 1
+
+    def RunCoulombEnergy(self):
+        """
+        Computes the Coulomb energy of the state.
+        """
+        self.LoadRun("coulomb")
+        self.InitialWavefn()
+        update = self.CoulombEnergy()
+
+        for i in range(self.load_iter + 1, self.load_iter + self.nbr_iter + 1):
+            self.StepOneParticle()
+            self.TmpWavefn()
+            step_amplitude = self.StepAmplitude()
+
+            if self.Jacobian() * np.abs(step_amplitude) ** 2 > np.random.random():
+                self.AcceptTmp("coulomb")
+                update = self.CoulombEnergy()
+            else:
+                self.RejectTmp("coulomb")
+
+            self.results[i - 1] = update
+            if (i - self.load_iter) % (self.nbr_iter // 20) == 0:
+                self.Checkpoint(i, "coulomb")
+
+        self.SaveResults("coulomb")
 
     def RunParticleFluctuations(self, theta: np.float64 = 0, cf=False):
         """
         Computes the particle number fluctuations.
         """
-        self.LoadRun('fluct')
+        self.LoadRun("fluct")
         self.InitialWavefn()
         if cf:
             update = self.DensityCF()
         else:
             update = np.count_nonzero(self.InsideRegion(self.coords))
 
-        for i in range(self.load_iter+1, self.load_iter+self.nbr_iter+1):
+        for i in range(self.load_iter + 1, self.load_iter + self.nbr_iter + 1):
             self.StepOneParticle()
             self.TmpWavefn()
             step_amplitude = self.StepAmplitude()
 
-            if self.Jacobian()*np.abs(step_amplitude)**2 > np.random.random():
-                self.AcceptTmp('fluct')
+            if self.Jacobian() * np.abs(step_amplitude) ** 2 > np.random.random():
+                self.AcceptTmp("fluct")
                 if cf:
                     update = self.DensityCF()
                 else:
                     update = np.count_nonzero(self.InsideRegion(self.coords))
 
             else:
-                self.RejectTmp('fluct')
+                self.RejectTmp("fluct")
 
-            self.results[i-1] = update
-            if (i-self.load_iter) % (self.nbr_iter//20) == 0:
+            self.results[i - 1] = update
+            if (i - self.load_iter) % (self.nbr_iter // 20) == 0:
                 if cf:
-                    self.Checkpoint(i, 'fluct_cf')
+                    self.Checkpoint(i, "fluct_cf")
                 else:
-                    self.Checkpoint(i, 'fluct')
+                    self.Checkpoint(i, "fluct")
 
         if theta != 0:
-            self.result = np.exp(1j*self.result*theta)
+            self.result = np.exp(1j * self.result * theta)
 
         if cf:
-            self.SaveResults('fluct_cf', theta)
+            self.SaveResults("fluct_cf", theta)
         else:
-            self.SaveResults('fluct', theta)
+            self.SaveResults("fluct", theta)
 
     def RunSwapP(self):
         """
-        Computes the p-term in the entanglement entropy swap decomposition 
+        Computes the p-term in the entanglement entropy swap decomposition
         (the probability of two copies being swappable).
         """
-        self.LoadRun('p')
+        self.LoadRun("p")
 
         if self.save_all_config:
             if self.acceptance_ratio > 0:
-                prev_moved_particles = np.load(f"{self.state}_{self.geometry}_p_moved_ind_N_{self.N}_S_{self.S}{self.region_details}.npy",
-                                               all_moved_particles)
-                prev_moved_coords = np.save(f"{self.state}_{self.geometry}_p_moved_coords_N_{self.N}_S_{self.S}{self.region_details}.npy",
-                                            all_moved_coords)
+                prev_moved_particles = np.load(
+                    f"{self.state}_{self.geometry}_p_moved_ind_N_{self.N}_S_{self.S}{self.region_details}.npy",
+                    all_moved_particles,
+                )
+                prev_moved_coords = np.save(
+                    f"{self.state}_{self.geometry}_p_moved_coords_N_{self.N}_S_{self.S}{self.region_details}.npy",
+                    all_moved_coords,
+                )
                 load_iter = prev_moved_particles.shape[0]
 
                 all_moved_particles = np.zeros(
-                    (load_iter+self.nbr_iter, 2), dtype=np.uint8)
+                    (load_iter + self.nbr_iter, 2), dtype=np.uint8
+                )
                 all_moved_particles[:load_iter, 2] = prev_moved_particles
                 all_moved_coords = np.zeros(
-                    (load_iter+self.nbr_iter, 2), dtype=np.complex128)
+                    (load_iter + self.nbr_iter, 2), dtype=np.complex128
+                )
                 all_moved_coords[:load_iter, 2] = prev_moved_coords
 
             else:
-                np.save(f"{self.state}_{self.geometry}_p_coords_start_N_{self.N}_S_{self.S}{self.region_details}.npy",
-                        self.coords)
-                all_moved_particles = np.zeros(
-                    (self.nbr_iter, 2), dtype=np.uint8)
+                np.save(
+                    f"{self.state}_{self.geometry}_p_coords_start_N_{self.N}_S_{self.S}{self.region_details}.npy",
+                    self.coords,
+                )
+                all_moved_particles = np.zeros((self.nbr_iter, 2), dtype=np.uint8)
                 if self.geometry == "torus":
-                    all_moved_coords = np.zeros(
-                        (self.nbr_iter, 2), dtype=np.complex128)
+                    all_moved_coords = np.zeros((self.nbr_iter, 2), dtype=np.complex128)
                 elif self.geometry == "sphere":
-                    all_moved_coords = np.zeros(
-                        (self.nbr_iter, 2, 2), dtype=np.float64)
+                    all_moved_coords = np.zeros((self.nbr_iter, 2, 2), dtype=np.float64)
 
         self.InitialWavefn()
         inside_region = self.InsideRegion(self.coords)
-        update = (np.count_nonzero(inside_region[:self.N]) ==
-                  np.count_nonzero(inside_region[self.N:]))
+        update = np.count_nonzero(inside_region[: self.N]) == np.count_nonzero(
+            inside_region[self.N :]
+        )
 
-        for i in range(self.load_iter+1, self.load_iter+self.nbr_iter+1):
+        for i in range(self.load_iter + 1, self.load_iter + self.nbr_iter + 1):
             self.StepOneParticleTwoCopies()
             self.TmpWavefn()
             step_amplitude = self.StepAmplitude()
 
-            if self.Jacobian()*np.abs(step_amplitude)**2 > np.random.random():
-                self.AcceptTmp('p')
+            if self.Jacobian() * np.abs(step_amplitude) ** 2 > np.random.random():
+                self.AcceptTmp("p")
                 inside_region = self.InsideRegion(self.coords)
-                update = (np.count_nonzero(inside_region[:self.N]) ==
-                          np.count_nonzero(inside_region[self.N:]))
+                update = np.count_nonzero(inside_region[: self.N]) == np.count_nonzero(
+                    inside_region[self.N :]
+                )
             else:
-                self.RejectTmp('p')
+                self.RejectTmp("p")
 
-            self.results[i-1] = update
-            if (i-self.load_iter) % (self.nbr_iter//20) == 0:
-                self.Checkpoint(i, 'p')
+            self.results[i - 1] = update
+            if (i - self.load_iter) % (self.nbr_iter // 20) == 0:
+                self.Checkpoint(i, "p")
 
             if self.save_all_config:
-                all_moved_particles[i-1] = self.moved_particles
-                all_moved_coords[i-1] = self.coords[self.moved_particles]
+                all_moved_particles[i - 1] = self.moved_particles
+                all_moved_coords[i - 1] = self.coords[self.moved_particles]
 
         if self.save_all_config:
-            np.save(f"{self.state}_{self.geometry}_p_moved_ind_N_{self.N}_S_{self.S}{self.region_details}.npy",
-                    all_moved_particles)
-            np.save(f"{self.state}_{self.geometry}_p_moved_coords_N_{self.N}_S_{self.S}{self.region_details}.npy",
-                    all_moved_coords)
+            np.save(
+                f"{self.state}_{self.geometry}_p_moved_ind_N_{self.N}_S_{self.S}{self.region_details}.npy",
+                all_moved_particles,
+            )
+            np.save(
+                f"{self.state}_{self.geometry}_p_moved_coords_N_{self.N}_S_{self.S}{self.region_details}.npy",
+                all_moved_coords,
+            )
 
-        self.SaveResults('p')
+        self.SaveResults("p")
 
     def RunSwapMod(self):
         """
         Computes the mod-term in the entanglement entropy swap decomposition .
         """
-        self.LoadRun('mod')
+        self.LoadRun("mod")
         self.InitialWavefn()
         self.InitialWavefnSwap()
         update = self.InitialMod()
 
-        for i in range(self.load_iter+1, self.load_iter+self.nbr_iter+1):
+        for i in range(self.load_iter + 1, self.load_iter + self.nbr_iter + 1):
             nbr_in_region_changes = self.StepOneSwap()
             self.TmpWavefn()
             step_amplitude = self.StepAmplitude()
 
-            if self.Jacobian()*step_amplitude*np.conj(step_amplitude) > np.random.random():
+            if (
+                self.Jacobian() * step_amplitude * np.conj(step_amplitude)
+                > np.random.random()
+            ):
                 self.UpdateOrderSwap(nbr_in_region_changes)
                 self.TmpWavefnSwap()
                 step_amplitude_swap = self.StepAmplitudeTwoCopiesSwap()
                 update *= np.abs(step_amplitude_swap / step_amplitude)
-                self.AcceptTmp('mod')
+                self.AcceptTmp("mod")
 
             else:
-                self.RejectTmp('mod')
+                self.RejectTmp("mod")
 
-            self.results[i-1] = update
-            if (i-self.load_iter) % (self.nbr_iter//20) == 0:
-                self.Checkpoint(i, 'mod')
+            self.results[i - 1] = update
+            if (i - self.load_iter) % (self.nbr_iter // 20) == 0:
+                self.Checkpoint(i, "mod")
 
-        self.SaveResults('mod')
+        self.SaveResults("mod")
 
     def RunSwapIncrementalMod(self):
         """
         Computes the mod-term in the entanglement entropy swap decomposition .
         """
-        self.LoadRun('mod')
+        self.LoadRun("mod")
         self.InitialWavefn()
         self.InitialWavefnSwap()
         update = self.InitialMod()
 
-        for i in range(self.load_iter+1, self.load_iter+self.nbr_iter+1):
+        for i in range(self.load_iter + 1, self.load_iter + self.nbr_iter + 1):
             nbr_in_region_changes = self.StepOneSwap()
             self.TmpWavefn()
             step_amplitude = self.StepAmplitude()
@@ -645,38 +734,40 @@ class MonteCarloBase:
             self.TmpWavefnSwap()
             step_amplitude_swap = self.StepAmplitudeTwoCopiesSwap()
 
-            if self.Jacobian()*np.abs(step_amplitude*step_amplitude_swap) > np.random.random():
-                self.AcceptTmp('mod')
-                inside_region = self.InsideRegion(
-                    self.coords_tmp, boundaries="12")
-                swappable_region_increment = (np.count_nonzero(inside_region[:self.N]) ==
-                                              np.count_nonzero(inside_region[self.N:]))
+            if (
+                self.Jacobian() * np.abs(step_amplitude * step_amplitude_swap)
+                > np.random.random()
+            ):
+                self.AcceptTmp("mod")
+                inside_region = self.InsideRegion(self.coords_tmp, boundaries="12")
+                swappable_region_increment = np.count_nonzero(
+                    inside_region[: self.N]
+                ) == np.count_nonzero(inside_region[self.N :])
                 if swappable_region_increment:
                     self.UpdateOrderSwap(nbr_in_region_changes)
                     self.TmpWavefnSwapDelta()
                     step_amplitude_swap_delta = self.StepAmplitudeTwoCopiesSwapDelta()
-                    update *= np.abs(step_amplitude_swap_delta /
-                                     step_amplitude_swap)
+                    update *= np.abs(step_amplitude_swap_delta / step_amplitude_swap)
 
             else:
-                self.RejectTmp('mod')
+                self.RejectTmp("mod")
 
-            self.results[i-1] = update
-            if (i-self.load_iter) % (self.nbr_iter//20) == 0:
-                self.Checkpoint(i, 'mod')
+            self.results[i - 1] = update
+            if (i - self.load_iter) % (self.nbr_iter // 20) == 0:
+                self.Checkpoint(i, "mod")
 
-        self.SaveResults('mod')
+        self.SaveResults("mod")
 
     def RunSwapSign(self):
         """
         Computes the sign-term in the entanglement entropy swap decomposition .
         """
-        self.LoadRun('sign')
+        self.LoadRun("sign")
         self.InitialWavefn()
         self.InitialWavefnSwap()
         update = self.InitialSign()
 
-        for i in range(self.load_iter+1, self.load_iter+self.nbr_iter+1):
+        for i in range(self.load_iter + 1, self.load_iter + self.nbr_iter + 1):
             nbr_in_region_changes = self.StepOneSwap()
             self.TmpWavefn()
             step_amplitude = self.StepAmplitude()
@@ -684,22 +775,32 @@ class MonteCarloBase:
             self.TmpWavefnSwap()
             step_amplitude *= np.conj(self.StepAmplitudeTwoCopiesSwap())
 
-            if self.Jacobian()*np.abs(step_amplitude) > np.random.random():
+            if self.Jacobian() * np.abs(step_amplitude) > np.random.random():
                 update *= step_amplitude / np.abs(step_amplitude)
-                self.AcceptTmp('sign')
+                self.AcceptTmp("sign")
 
             else:
-                self.RejectTmp('sign')
+                self.RejectTmp("sign")
 
-            self.results[i-1] = update
-            if (i-self.load_iter) % (self.nbr_iter//20) == 0:
-                self.Checkpoint(i, 'sign')
+            self.results[i - 1] = update
+            if (i - self.load_iter) % (self.nbr_iter // 20) == 0:
+                self.Checkpoint(i, "sign")
 
-        self.SaveResults('sign')
+        self.SaveResults("sign")
 
-    def __init__(self, N, S, nbr_iter, nbr_nonthermal,
-                 region_details, hardcore_radius: np.float64 = 0, save_results=True, save_last_config=True,
-                 save_all_config=True, acceptance_ratio=0):
+    def __init__(
+        self,
+        N,
+        S,
+        nbr_iter,
+        nbr_nonthermal,
+        region_details,
+        hardcore_radius: np.float64 = 0,
+        save_results=True,
+        save_last_config=True,
+        save_all_config=True,
+        acceptance_ratio=0,
+    ):
         self.N = N
         self.S = S
         self.hardcore_radius = hardcore_radius
