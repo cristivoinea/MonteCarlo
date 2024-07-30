@@ -23,7 +23,7 @@ class MonteCarloTorus(MonteCarloBase):
 
         return R
 
-    def RandomConfigSwap(self):
+    def RandomConfigSwap(self, hardcore: np.bool_ = False):
         """Returns two random configurations of particles, swappable
         with respect to region A.
         """

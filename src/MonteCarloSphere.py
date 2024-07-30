@@ -1,6 +1,7 @@
 import numpy as np
 from os.path import exists
 from numba import njit
+from numpy.core.multiarray import array as array
 
 from .MonteCarloBase import MonteCarloBase
 
@@ -47,24 +48,48 @@ class MonteCarloSphere(MonteCarloBase):
         R = np.vstack((self.RandomPoint(), self.RandomPoint()))
         for _ in range(2, self.N):
             R = np.vstack((R, self.RandomPoint()))
-        # i = np.arange(self.N)+0.5
+        # i = np.arange(self.N) + 0.2
         # R = np.zeros((self.N, 2), dtype=np.float64)
-        # R[:, 0] = np.arccos(1 - 2*i/self.N)
+        # R[:, 0] = np.arccos(1 - 2 * i / self.N)
         # R[:, 1] = np.pi * (1 + 5**0.5) * i
 
         return R
 
-    def RandomConfigSwap(self):
+    def RandomConfigHardcore(self) -> np.array:
+        coords = np.zeros((self.N, 2))
+        coords[0] = self.RandomPoint()
+        for i in range(1, self.N):
+            valid = False
+            while not valid:
+                valid = True
+                new_coord = self.RandomPoint()
+                particle_separations = self.ParticleSeparationTarget(
+                    coords[:i], new_coord
+                )
+                if np.any(particle_separations < self.hardcore_radius):
+                    valid = False
+            coords[i] = new_coord
+        return coords
+
+    def RandomConfigSwap(self, hardcore: np.bool_ = False):
         """Returns two random configurations of particles, swappable
         with respect to region A.
         """
-        self.coords = np.vstack((self.RandomConfig(), self.RandomConfig()))
+        if hardcore:
+            self.coords = np.vstack(
+                (self.RandomConfigHardcore(), self.RandomConfigHardcore())
+            )
+        else:
+            self.coords = np.vstack((self.RandomConfig(), self.RandomConfig()))
         inside_region = self.InsideRegion(self.coords)
 
         while np.count_nonzero(inside_region[: self.N]) != np.count_nonzero(
             inside_region[self.N :]
         ):
-            self.coords[self.N :] = self.RandomConfig()
+            if hardcore:
+                self.coords[self.N :] = self.RandomConfigHardcore()
+            else:
+                self.coords[self.N :] = self.RandomConfig()
             inside_region = self.InsideRegion(self.coords)
 
     def Jacobian(self):

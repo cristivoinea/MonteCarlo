@@ -66,6 +66,12 @@ class MonteCarloBase:
 
         return p
 
+    def ParticleSeparationAll(self):
+        pass
+
+    def ParticleSeparationTarget(self, coords, target_coords):
+        pass
+
     def RandomPoint(self):
         """Returns random coordinates for one particle."""
         pass
@@ -74,7 +80,10 @@ class MonteCarloBase:
         """Returns a random configuration of particles."""
         pass
 
-    def RandomConfigSwap(self):
+    def RandomConfigHardcore(self) -> np.array:
+        pass
+
+    def RandomConfigSwap(self, hardcore_: np.bool_ = False):
         """Returns two random configurations of particles, swappable
         with respect to region A.
         """
@@ -422,18 +431,13 @@ class MonteCarloBase:
                 if self.hardcore_radius == 0:
                     self.coords = self.RandomConfig()
                 else:
-                    valid = False
-                    while not valid:
-                        valid = True
-                        self.coords = self.RandomConfig()
-                        # check intra-copy
-                        particle_separations = self.ParticleSeparationAll(self.coords)
-                        if np.any(particle_separations < self.hardcore_radius):
-                            valid = False
+                    self.coords = self.RandomConfigHardcore()
             else:
                 if self.hardcore_radius == 0:
                     self.RandomConfigSwap()
                 else:
+                    self.RandomConfigSwap(hardcore=True)
+                    """
                     valid = False
 
                     while not valid:
@@ -484,6 +488,7 @@ class MonteCarloBase:
                         )
                         if np.any(particle_separations < self.hardcore_radius):
                             valid = False
+                    """
 
             if run_type == "sign" or run_type == "disorder":
                 self.results = np.zeros((self.nbr_iter), dtype=np.complex128)
@@ -498,9 +503,6 @@ class MonteCarloBase:
             self.from_swap = self.OrderFromSwap(self.to_swap)
             self.to_swap_tmp = np.copy(self.to_swap)
             self.from_swap_tmp = np.copy(self.from_swap)
-
-    def ParticleSeparationAll(self):
-        pass
 
     def RunDisorderOperator(self, composite=False):
         """
